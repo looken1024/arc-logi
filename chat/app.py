@@ -9,6 +9,9 @@ import openai
 from typing import Generator
 import secrets
 
+# 导入 skills 模块
+from skills import register_all_skills
+
 # 加载 .env 文件中的环境变量
 load_dotenv()
 
@@ -25,6 +28,9 @@ OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
 users = {}  # {username: {password: hash, email: str, theme: str, created_at: str}}
 conversations = {}  # {conversation_id: [messages]}
 user_conversations = {}  # {username: [conversation_ids]}
+
+# 初始化技能注册表
+skill_registry = register_all_skills()
 
 @app.route('/')
 def index():
@@ -197,20 +203,80 @@ def chat():
                     if msg['role'] in ['user', 'assistant']
                 ]
                 
-                stream = client.chat.completions.create(
+                # 获取所有技能的函数定义
+                tools = [
+                    {
+                        "type": "function",
+                        "function": func_def
+                    }
+                    for func_def in skill_registry.get_all_function_definitions()
+                ]
+                
+                # 第一次 API 调用（可能触发 function calling）
+                response = client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    stream=True,
+                    tools=tools if tools else None,
+                    tool_choice="auto" if tools else None,
                     temperature=0.7,
                     max_tokens=2000
                 )
                 
-                full_response = ''
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        full_response += content
-                        yield f"data: {json.dumps({'content': content})}\n\n"
+                # 检查是否需要调用函数
+                response_message = response.choices[0].message
+                tool_calls = response_message.tool_calls
+                
+                if tool_calls:
+                    # AI 决定调用技能
+                    messages.append(response_message)
+                    
+                    # 执行所有被调用的技能
+                    for tool_call in tool_calls:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
+                        
+                        # 执行技能
+                        result = skill_registry.execute_skill(function_name, **function_args)
+                        
+                        # 将技能执行结果添加到消息中
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": function_name,
+                            "content": json.dumps(result, ensure_ascii=False)
+                        })
+                    
+                    # 再次调用 API 获取最终回复（流式）
+                    stream = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        stream=True,
+                        temperature=0.7,
+                        max_tokens=2000
+                    )
+                    
+                    full_response = ''
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            content = chunk.choices[0].delta.content
+                            full_response += content
+                            yield f"data: {json.dumps({'content': content})}\n\n"
+                else:
+                    # 没有调用技能，直接流式返回（需要重新调用以获取流式响应）
+                    stream = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        stream=True,
+                        temperature=0.7,
+                        max_tokens=2000
+                    )
+                    
+                    full_response = ''
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            content = chunk.choices[0].delta.content
+                            full_response += content
+                            yield f"data: {json.dumps({'content': content})}\n\n"
                 
                 # 保存完整的助手回复
                 conversations[conversation_id].append({
@@ -307,6 +373,36 @@ def get_models():
     ]
     return jsonify({'models': models})
 
+@app.route('/api/skills', methods=['GET'])
+def get_skills():
+    """获取可用技能列表"""
+    skills = []
+    for skill_name in skill_registry.list_skills():
+        skill = skill_registry.get_skill(skill_name)
+        if skill:
+            skills.append({
+                'name': skill.name,
+                'description': skill.description,
+                'parameters': skill.parameters
+            })
+    return jsonify({
+        'skills': skills,
+        'count': len(skills)
+    })
+
+@app.route('/api/skills/<skill_name>', methods=['POST'])
+def execute_skill_api(skill_name):
+    """手动执行指定技能（用于测试）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json or {}
+        result = skill_registry.execute_skill(skill_name, **data)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """健康检查"""
@@ -328,6 +424,12 @@ if __name__ == '__main__':
         print(f"🔗 API URL: {OPENAI_BASE_URL}")
     else:
         print("⚠️  API Key: 未配置 (请在 .env 文件中设置 OPENAI_API_KEY)")
+    
+    # 显示已加载的技能
+    print(f"🎯 已加载技能: {len(skill_registry)} 个")
+    for skill_name in skill_registry.list_skills():
+        skill = skill_registry.get_skill(skill_name)
+        print(f"   - {skill_name}: {skill.description[:50]}...")
     
     print(f"📝 访问地址: http://localhost:5000")
     print("="*50 + "\n")

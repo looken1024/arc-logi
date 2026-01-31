@@ -203,6 +203,24 @@ python app.py
 | `Enter` | 发送消息 |
 | `Shift + Enter` | 换行 |
 
+### 技能系统
+
+AI 现在可以调用预定义的技能来获取实时信息：
+
+**内置技能：**
+- 📅 **get_current_date** - 获取当前日期和时间
+
+**使用示例：**
+```
+用户: 今天几号？
+AI: 今天是2024年1月15日，星期一。
+
+用户: 现在几点了？
+AI: 现在是下午3点25分。
+```
+
+查看 [skills/README.md](./skills/README.md) 了解如何开发自定义技能。
+
 ---
 
 ## 🏗️ 项目结构
@@ -211,6 +229,7 @@ python app.py
 chat/
 ├── app.py                      # Flask 后端主程序
 ├── requirements.txt            # Python 依赖列表
+├── test_skills.py             # 技能系统测试脚本
 ├── .env                        # 环境变量配置 (需自行创建)
 ├── .env.example               # 环境变量示例
 ├── .gitignore                 # Git 忽略文件
@@ -219,6 +238,27 @@ chat/
 ├── fix_dependencies.bat       # 依赖修复脚本
 ├── README.md                  # 项目说明文档
 ├── FEATURES.md                # 功能详细说明
+├── QUICKSTART.md              # 快速启动指南
+├── TEST_CHECKLIST.md          # 测试检查清单
+├── templates/                 # HTML 模板
+│   ├── index.html            # 主聊天界面
+│   ├── login.html            # 登录页面
+│   └── register.html         # 注册页面
+├── static/                    # 静态资源
+│   ├── css/
+│   │   ├── style.css         # 主样式文件
+│   │   └── auth.css          # 认证页面样式
+│   └── js/
+│       ├── main.js           # 主交互逻辑
+│       ├── login.js          # 登录逻辑
+│       └── register.js       # 注册逻辑
+├── skills/                    # 技能系统模块 (新增)
+│   ├── __init__.py           # 模块初始化
+│   ├── base.py               # 基础技能类和注册表
+│   ├── date_skill.py         # 日期时间技能
+│   └── README.md             # 技能开发文档
+└── venv/                      # Python 虚拟环境 (需自行创建)
+```
 ├── QUICKSTART.md              # 快速启动指南
 ├── TEST_CHECKLIST.md          # 测试检查清单
 ├── templates/                 # HTML 模板
