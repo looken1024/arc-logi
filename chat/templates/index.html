@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <button class="new-chat-btn" id="newChatBtn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </button>
+            </div>
+            
+            <div class="conversations-list" id="conversationsList">
+                <!-- 对话列表将动态加载 -->
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                    <button class="logout-btn" id="logoutBtn" title="退出登录">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部栏 -->
+            <header class="chat-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="model-selector">
+                    <select id="modelSelect">
+                        <option value="deepseek-chat" selected>DeepSeek Chat</option>
+                        <option value="deepseek-coder">DeepSeek Coder</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                    </select>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="clearBtn" title="清空对话">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="icon-btn" id="settingsBtn" title="设置">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- 聊天区域 -->
+            <div class="chat-container" id="chatContainer">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-content">
+                        <i class="fas fa-robot"></i>
+                        <h1>欢迎使用 AI Chat Platform</h1>
+                        <p>开始一段智能对话吧</p>
+                        <div class="example-prompts">
+                            <div class="example-prompt" data-prompt="帮我写一个 Python 快速排序算法">
+                                <i class="fas fa-code"></i>
+                                <span>写一个快速排序算法</span>
+                            </div>
+                            <div class="example-prompt" data-prompt="解释一下什么是机器学习">
+                                <i class="fas fa-brain"></i>
+                                <span>解释机器学习</span>
+                            </div>
+                            <div class="example-prompt" data-prompt="用简单的语言解释量子计算">
+                                <i class="fas fa-atom"></i>
+                                <span>解释量子计算</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="messages-container" id="messagesContainer">
+                    <!-- 消息将动态加载 -->
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="输入消息... (Shift+Enter 换行，Enter 发送)"
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="input-footer">
+                    <span class="input-hint">AI 可能会产生错误,请谨慎参考回答</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-cog"></i> 设置</h2>
+                <button class="modal-close" id="closeSettings">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <h3>主题颜色</h3>
+                    <p class="setting-description">选择您喜欢的界面主题</p>
+                    <div class="theme-options">
+                        <div class="theme-option" data-theme="dark">
+                            <div class="theme-preview dark-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-body"></div>
+                            </div>
+                            <span>深色(默认)</span>
+                            <i class="fas fa-check theme-check"></i>
+                        </div>
+                        <div class="theme-option" data-theme="light">
+                            <div class="theme-preview light-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-body"></div>
+                            </div>
+                            <span>浅色</span>
+                            <i class="fas fa-check theme-check"></i>
+                        </div>
+                        <div class="theme-option" data-theme="blue">
+                            <div class="theme-preview blue-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-body"></div>
+                            </div>
+                            <span>蓝色</span>
+                            <i class="fas fa-check theme-check"></i>
+                        </div>
+                        <div class="theme-option" data-theme="green">
+                            <div class="theme-preview green-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-body"></div>
+                            </div>
+                            <span>绿色</span>
+                            <i class="fas fa-check theme-check"></i>
+                        </div>
+                        <div class="theme-option" data-theme="purple">
+                            <div class="theme-preview purple-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-body"></div>
+                            </div>
+                            <span>紫色</span>
+                            <i class="fas fa-check theme-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

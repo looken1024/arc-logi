@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>表情包小程序</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部搜索栏 -->
+        <header class="header">
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="搜索表情包..." class="search-input">
+                <button id="searchBtn" class="search-btn">🔍</button>
+            </div>
+        </header>
+
+        <!-- 分类导航 -->
+        <nav class="category-nav">
+            <div class="category-tabs" id="categoryTabs">
+                <div class="tab active" data-category="all">全部</div>
+                <div class="tab" data-category="popular">热门</div>
+                <div class="tab" data-category="funny">搞笑</div>
+                <div class="tab" data-category="cute">萌系</div>
+                <div class="tab" data-category="emotion">表情</div>
+                <div class="tab" data-category="meme">梗图</div>
+            </div>
+        </nav>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="emoji-grid" id="emojiGrid">
+                <!-- 表情包卡片将通过JavaScript动态生成 -->
+            </div>
+            
+            <!-- 加载更多按钮 -->
+            <div class="load-more-container">
+                <button id="loadMoreBtn" class="load-more-btn">加载更多</button>
+            </div>
+        </main>
+
+        <!-- 底部操作栏 -->
+        <footer class="footer">
+            <div class="action-buttons">
+                <button id="randomBtn" class="action-btn">随机表情</button>
+                <button id="favoriteBtn" class="action-btn">我的收藏</button>
+                <button id="uploadBtn" class="action-btn">上传表情</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 预览弹窗 -->
+    <div class="modal" id="previewModal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModal">&times;</span>
+            <img id="previewImage" src="" alt="表情包预览" class="preview-image">
+            <div class="preview-actions">
+                <button class="preview-btn download-btn" id="downloadBtn">下载</button>
+                <button class="preview-btn share-btn" id="shareBtn">分享</button>
+                <button class="preview-btn favorite-btn" id="favoriteToggleBtn">收藏</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

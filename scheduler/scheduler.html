@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>任务调度系统</title>
+    <link rel="stylesheet" href="scheduler.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="app-title">
+                    <i class="fas fa-clock"></i>
+                    任务调度系统
+                </h1>
+                <div class="header-actions">
+                    <button id="addTaskBtn" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        新建任务
+                    </button>
+                    <button id="addGroupBtn" class="btn-secondary">
+                        <i class="fas fa-folder-plus"></i>
+                        新建任务组
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-list"></i>
+                        任务列表
+                    </h3>
+                    <div class="filter-controls">
+                        <select id="groupFilter" class="filter-select">
+                            <option value="all">所有任务组</option>
+                        </select>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="all">所有状态</option>
+                            <option value="active">活跃</option>
+                            <option value="paused">暂停</option>
+                            <option value="failed">失败</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="task-list" id="taskList">
+                    <!-- 任务列表将通过JavaScript动态生成 -->
+                </div>
+            </aside>
+
+            <!-- 内容区域 -->
+            <section class="content-area">
+                <!-- 标签页导航 -->
+                <div class="tab-navigation">
+                    <div class="tab-item active" data-tab="graph">
+                        <i class="fas fa-project-diagram"></i>
+                        依赖图
+                    </div>
+                    <div class="tab-item" data-tab="schedule">
+                        <i class="fas fa-calendar-alt"></i>
+                        调度配置
+                    </div>
+                    <div class="tab-item" data-tab="logs">
+                        <i class="fas fa-file-alt"></i>
+                        执行日志
+                    </div>
+                    <div class="tab-item" data-tab="monitor">
+                        <i class="fas fa-chart-line"></i>
+                        监控面板
+                    </div>
+                </div>
+
+                <!-- 标签页内容 -->
+                <div class="tab-content">
+                    <!-- 依赖图标签页 -->
+                    <div class="tab-pane active" id="graph-tab">
+                        <div class="graph-controls">
+                            <button id="refreshGraph" class="btn-secondary">
+                                <i class="fas fa-sync-alt"></i>
+                                刷新图表
+                            </button>
+                            <div class="view-controls">
+                                <label>
+                                    <input type="radio" name="viewMode" value="graph" checked>
+                                    依赖图
+                                </label>
+                                <label>
+                                    <input type="radio" name="viewMode" value="timeline">
+                                    时间线
+                                </label>
+                            </div>
+                        </div>
+                        <div class="graph-container">
+                            <div id="mermaidGraph" class="mermaid-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- 调度配置标签页 -->
+                    <div class="tab-pane" id="schedule-tab">
+                        <div class="schedule-config">
+                            <div class="config-panel">
+                                <h3>调度配置</h3>
+                                <form id="scheduleForm">
+                                    <div class="form-group">
+                                        <label>任务名称</label>
+                                        <input type="text" id="taskName" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>任务组</label>
+                                        <select id="taskGroup" class="form-control">
+                                            <option value="">选择任务组</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Crontab表达式</label>
+                                        <div class="crontab-input-group">
+                                            <input type="text" id="crontabExpression" class="form-control" placeholder="0 0 12 * * ?">
+                                            <button type="button" id="crontabHelper" class="btn-secondary">
+                                                <i class="fas fa-question-circle"></i>
+                                                帮助
+                                            </button>
+                                        </div>
+                                        <div class="crontab-examples">
+                                            <small>示例: 0 0 12 * * ? (每天中午12点), 0 */5 * * * ? (每5分钟)</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>任务描述</label>
+                                        <textarea id="taskDescription" class="form-control" rows="3"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>依赖任务</label>
+                                        <select id="taskDependencies" class="form-control" multiple>
+                                            <!-- 依赖任务选项将通过JavaScript动态生成 -->
+                                        </select>
+                                        <small>按住Ctrl键可选择多个依赖任务</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>超时时间(秒)</label>
+                                        <input type="number" id="taskTimeout" class="form-control" value="300">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" id="taskEnabled" checked>
+                                            启用任务
+                                        </label>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn-primary">保存配置</button>
+                                        <button type="button" id="cancelSchedule" class="btn-secondary">取消</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Crontab可视化配置 -->
+                            <div class="crontab-visual">
+                                <h3>可视化配置</h3>
+                                <div class="crontab-builder">
+                                    <div class="crontab-row">
+                                        <label>分钟</label>
+                                        <input type="text" id="cronMinutes" placeholder="*" class="cron-field">
+                                    </div>
+                                    <div class="crontab-row">
+                                        <label>小时</label>
+                                        <input type="text" id="cronHours" placeholder="*" class="cron-field">
+                                    </div>
+                                    <div class="crontab-row">
+                                        <label>日期</label>
+                                        <input type="text" id="cronDay" placeholder="*" class="cron-field">
+                                    </div>
+                                    <div class="crontab-row">
+                                        <label>月份</label>
+                                        <input type="text" id="cronMonth" placeholder="*" class="cron-field">
+                                    </div>
+                                    <div class="crontab-row">
+                                        <label>星期</label>
+                                        <input type="text" id="cronWeek" placeholder="*" class="cron-field">
+                                    </div>
+                                    <button id="generateCron" class="btn-primary">生成表达式</button>
+                                    <div id="cronPreview" class="cron-preview"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 执行日志标签页 -->
+                    <div class="tab-pane" id="logs-tab">
+                        <div class="log-controls">
+                            <div class="log-filters">
+                                <select id="logLevel" class="filter-select">
+                                    <option value="all">所有级别</option>
+                                    <option value="info">信息</option>
+                                    <option value="warning">警告</option>
+                                    <option value="error">错误</option>
+                                </select>
+                                <input type="date" id="logDate" class="date-input">
+                                <button id="refreshLogs" class="btn-secondary">
+                                    <i class="fas fa-sync-alt"></i>
+                                    刷新
+                                </button>
+                            </div>
+                        </div>
+                        <div class="log-container">
+                            <div class="log-list" id="logList">
+                                <!-- 日志列表将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 监控面板标签页 -->
+                    <div class="tab-pane" id="monitor-tab">
+                        <div class="monitor-dashboard">
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-icon success">
+                                        <i class="fas fa-check-circle"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="successCount">0</div>
+                                        <div class="stat-label">成功执行</div>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon error">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="failedCount">0</div>
+                                        <div class="stat-label">执行失败</div>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon warning">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="pendingCount">0</div>
+                                        <div class="stat-label">等待执行</div>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon info">
+                                        <i class="fas fa-chart-bar"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-number" id="totalTasks">0</div>
+                                        <div class="stat-label">任务总数</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="charts-container">
+                                <div class="chart-card">
+                                    <h4>执行趋势</h4>
+                                    <canvas id="trendChart" width="400" height="200"></canvas>
+                                </div>
+                                <div class="chart-card">
+                                    <h4>任务状态分布</h4>
+                                    <canvas id="statusChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 任务详情弹窗 -->
+        <div class="modal" id="taskModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">新建任务</h3>
+                    <button class="modal-close" id="closeModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="taskForm">
+                        <div class="form-group">
+                            <label>任务名称</label>
+                            <input type="text" id="modalTaskName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>任务组</label>
+                            <select id="modalTaskGroup" class="form-control">
+                                <option value="">选择任务组</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>任务类型</label>
+                            <select id="modalTaskType" class="form-control">
+                                <option value="shell">Shell脚本</option>
+                                <option value="http">HTTP请求</option>
+                                <option value="sql">SQL执行</option>
+                                <option value="python">Python脚本</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>执行命令</label>
+                            <textarea id="modalTaskCommand" class="form-control" rows="4" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>任务描述</label>
+                            <textarea id="modalTaskDescription" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">保存</button>
+                            <button type="button" id="cancelTask" class="btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务组弹窗 -->
+        <div class="modal" id="groupModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>新建任务组</h3>
+                    <button class="modal-close" id="closeGroupModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="groupForm">
+                        <div class="form-group">
+                            <label>任务组名称</label>
+                            <input type="text" id="groupName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>任务组描述</label>
+                            <textarea id="groupDescription" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>颜色标识</label>
+                            <input type="color" id="groupColor" class="form-control" value="#3498db">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">保存</button>
+                            <button type="button" id="cancelGroup" class="btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scheduler.js"></script>
+</body>
+</html>

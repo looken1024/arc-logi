@@ -1,0 +1,18 @@
+{
+  "defaultModel": {
+    "type": "deepseek",
+    "config": {
+      "apiKey": "sk-e466fbeeab3c445bbf06740fbdfb3eb8",
+      "modelName": "deepseek-coder",
+      "temperature": 0.7,
+      "maxTokens": 2000
+    }
+  },
+  "workspace": "./",
+  "preferences": {
+    "codeStyle": "commented",
+    "includeTests": false,
+    "includeDocs": true,
+    "autoSave": true
+  }
+}
