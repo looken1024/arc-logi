@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD5 工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/md5.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-calculator"></i>
+                    <span>MD5 工具</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>MD5 加密/解密</h1>
+            </header>
+
+            <div class="md5-tool-container">
+                <div class="md5-tool-section">
+                    <h3>字符串 MD5 加密</h3>
+                    <div class="input-group">
+                        <textarea id="encryptInput" placeholder="输入要加密的字符串..."></textarea>
+                        <button class="btn btn-primary" id="encryptBtn">
+                            <i class="fas fa-lock"></i>
+                            加密
+                        </button>
+                    </div>
+                    <div class="result-group">
+                        <label>MD5 结果</label>
+                        <div class="result-box">
+                            <code id="encryptResult"></code>
+                            <button class="btn-icon copy-btn" id="copyEncryptResult" title="复制">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md5-tool-section">
+                    <h3>MD5 哈希解密</h3>
+                    <div class="input-group">
+                        <textarea id="decryptInput" placeholder="输入要解密的 MD5 哈希值 (32位十六进制)..."></textarea>
+                        <button class="btn btn-primary" id="decryptBtn">
+                            <i class="fas fa-unlock"></i>
+                            在线解密
+                        </button>
+                    </div>
+                    <div class="result-group">
+                        <label>解密结果</label>
+                        <div class="result-box">
+                            <code id="decryptResult">输入 MD5 哈希值后点击解密按钮</code>
+                        </div>
+                    </div>
+                    <div class="decrypt-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="searchOnline" checked>
+                            <span>在线搜索匹配明文</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="md5-tool-section">
+                    <h3>批量 MD5 加密</h3>
+                    <div class="input-group">
+                        <textarea id="batchInput" placeholder="每行输入一个字符串，支持批量加密"></textarea>
+                        <button class="btn btn-primary" id="batchEncryptBtn">
+                            <i class="fas fa-layer-group"></i>
+                            批量加密
+                        </button>
+                    </div>
+                    <div class="result-group">
+                        <label>批量结果</label>
+                        <div class="result-box">
+                            <code id="batchResult"></code>
+                            <button class="btn-icon copy-btn" id="copyBatchResult" title="复制">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/md5.js') }}"></script>
+</body>
+</html>

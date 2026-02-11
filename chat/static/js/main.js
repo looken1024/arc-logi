@@ -22,7 +22,10 @@ const elements = {
     username: document.getElementById('username'),
     logoutBtn: document.getElementById('logoutBtn'),
     settingsModal: document.getElementById('settingsModal'),
-    closeSettings: document.getElementById('closeSettings')
+    closeSettings: document.getElementById('closeSettings'),
+    moreActionsBtn: document.getElementById('moreActionsBtn'),
+    moreActionsMenu: document.getElementById('moreActionsMenu'),
+    dropdown: document.getElementById('moreActionsDropdown')
 };
 
 // 初始化
@@ -124,6 +127,22 @@ function initializeEventListeners() {
         }
     });
 
+    // 更多操作下拉菜单
+    elements.moreActionsBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        elements.moreActionsMenu.classList.toggle('active');
+    });
+
+    // 点击下拉菜单项
+    document.getElementById('openMd5Tool')?.addEventListener('click', () => {
+        window.location.href = '/md5';
+    });
+
+    // 点击其他地方关闭下拉菜单
+    document.addEventListener('click', () => {
+        elements.moreActionsMenu?.classList.remove('active');
+    });
+
     // 主题选择
     document.querySelectorAll('.theme-option').forEach(option => {
         option.addEventListener('click', async () => {
@@ -141,6 +160,9 @@ function initializeEventListeners() {
             elements.messageInput.focus();
         });
     });
+
+    // 设置导航高亮
+    highlightCurrentNav();
 }
 
 // 退出登录
@@ -350,34 +372,27 @@ function removeMessage(messageId) {
     }
 }
 
-// 格式化消息内容(支持 Markdown 基础格式)
+// 格式化消息内容(支持 Markdown)
 function formatMessage(content) {
     if (!content) return '';
-    
-    // 转义 HTML
-    let formatted = content
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
 
-    // 代码块
-    formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-        return `<pre><code class="language-${lang || 'plaintext'}">${code.trim()}</code></pre>`;
+    const renderer = new marked.Renderer();
+    
+    renderer.code = function(code, language) {
+        const validLang = language || 'plaintext';
+        const highlighted = window.Prism && window.Prism.languages[validLang] 
+            ? window.Prism.highlight(code, window.Prism.languages[validLang], validLang)
+            : escapeHtml(code);
+        return `<pre><code class="language-${validLang}">${highlighted}</code></pre>`;
+    };
+
+    marked.setOptions({
+        renderer: renderer,
+        breaks: true,
+        gfm: true
     });
 
-    // 行内代码
-    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // 粗体
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    // 斜体
-    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-    // 换行
-    formatted = formatted.replace(/\n/g, '<br>');
-
-    return formatted;
+    return marked.parse(content);
 }
 
 // 加载对话列表
@@ -510,20 +525,32 @@ function formatTime(timestamp) {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now - date;
-    
+
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    
+
     if (minutes < 1) return '刚刚';
     if (minutes < 60) return `${minutes}分钟前`;
     if (hours < 24) return `${hours}小时前`;
     if (days < 7) return `${days}天前`;
-    
-    return date.toLocaleDateString('zh-CN', { 
-        month: 'numeric', 
+
+    return date.toLocaleDateString('zh-CN', {
+        month: 'numeric',
         day: 'numeric',
         hour: 'numeric',
         minute: 'numeric'
+    });
+}
+
+// 设置导航高亮
+function highlightCurrentNav() {
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.nav-item').forEach(item => {
+        if (item.getAttribute('href') === currentPath) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
     });
 }

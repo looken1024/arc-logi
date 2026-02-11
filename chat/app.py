@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 import openai
 from typing import Generator
 import secrets
+import pymysql
+from contextlib import contextmanager
 
 # 导入 skills 模块
 from skills import register_all_skills
@@ -24,10 +26,62 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
 
-# 数据存储(实际项目中应使用数据库)
-users = {}  # {username: {password: hash, email: str, theme: str, created_at: str}}
-conversations = {}  # {conversation_id: [messages]}
-user_conversations = {}  # {username: [conversation_ids]}
+# 数据库配置
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': int(os.getenv('DB_PORT', 3306)),
+    'user': os.getenv('DB_USER', 'root'),
+    'password': os.getenv('DB_PASSWORD', ''),
+    'database': os.getenv('DB_NAME', 'arc_logi_chat'),
+    'charset': os.getenv('DB_CHARSET', 'utf8mb4'),
+    'cursorclass': pymysql.cursors.DictCursor
+}
+
+@contextmanager
+def get_db_connection():
+    """获取数据库连接的上下文管理器"""
+    connection = pymysql.connect(**DB_CONFIG)
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+def init_database():
+    """初始化数据库表"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            # 创建用户表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL UNIQUE,
+                    password VARCHAR(255) NOT NULL,
+                    email VARCHAR(100),
+                    theme VARCHAR(20) DEFAULT 'dark',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_email (email)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # 创建对话表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    conversation_id VARCHAR(64) NOT NULL,
+                    username VARCHAR(50) NOT NULL,
+                    messages JSON,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_conversation_id (conversation_id),
+                    INDEX idx_username (username),
+                    UNIQUE KEY uk_user_conv (username, conversation_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            conn.commit()
+            print("✅ 数据库表初始化完成")
 
 # 初始化技能注册表
 skill_registry = register_all_skills()
@@ -53,6 +107,20 @@ def register():
         return redirect(url_for('index'))
     return render_template('register.html')
 
+@app.route('/md5')
+def md5_tool():
+    """MD5 工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('md5.html')
+
+@app.route('/tools')
+def tools():
+    """工具列表页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('tools.html')
+
 @app.route('/api/register', methods=['POST'])
 def api_register():
     """用户注册"""
@@ -67,17 +135,23 @@ def api_register():
             return jsonify({'error': '用户名至少3个字符'}), 400
         if not password or len(password) < 6:
             return jsonify({'error': '密码至少6个字符'}), 400
-        if username in users:
-            return jsonify({'error': '用户名已存在'}), 400
+        
+        # 检查用户名是否已存在
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+                if cursor.fetchone():
+                    return jsonify({'error': '用户名已存在'}), 400
         
         # 创建用户
-        users[username] = {
-            'password': generate_password_hash(password),
-            'email': email,
-            'theme': 'dark',  # 默认深色主题
-            'created_at': datetime.now().isoformat()
-        }
-        user_conversations[username] = []
+        password_hash = generate_password_hash(password)
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO users (username, password, email, theme) VALUES (%s, %s, %s, %s)",
+                    (username, password_hash, email, 'dark')
+                )
+                conn.commit()
         
         return jsonify({'success': True, 'message': '注册成功'})
     except Exception as e:
@@ -94,10 +168,16 @@ def api_login():
         if not username or not password:
             return jsonify({'error': '请输入用户名和密码'}), 400
         
-        if username not in users:
+        # 验证用户
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+                user = cursor.fetchone()
+        
+        if not user:
             return jsonify({'error': '用户名或密码错误'}), 401
         
-        if not check_password_hash(users[username]['password'], password):
+        if not check_password_hash(user['password'], password):
             return jsonify({'error': '用户名或密码错误'}), 401
         
         # 设置会话
@@ -107,7 +187,7 @@ def api_login():
         return jsonify({
             'success': True,
             'username': username,
-            'theme': users[username].get('theme', 'dark')
+            'theme': user.get('theme', 'dark')
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -125,14 +205,19 @@ def get_user():
         return jsonify({'error': '未登录'}), 401
     
     username = session['username']
-    user = users.get(username, {})
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT username, email, theme, created_at FROM users WHERE username = %s", (username,))
+            user = cursor.fetchone()
     
-    return jsonify({
-        'username': username,
-        'email': user.get('email', ''),
-        'theme': user.get('theme', 'dark'),
-        'created_at': user.get('created_at', '')
-    })
+    if user:
+        return jsonify({
+            'username': user['username'],
+            'email': user.get('email', ''),
+            'theme': user.get('theme', 'dark'),
+            'created_at': user.get('created_at', '').isoformat() if user.get('created_at') else ''
+        })
+    return jsonify({'error': '用户不存在'}), 404
 
 @app.route('/api/user/theme', methods=['PUT'])
 def update_theme():
@@ -148,11 +233,44 @@ def update_theme():
             return jsonify({'error': '无效的主题'}), 400
         
         username = session['username']
-        users[username]['theme'] = theme
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE users SET theme = %s WHERE username = %s", (theme, username))
+                conn.commit()
         
         return jsonify({'success': True, 'theme': theme})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def get_user_conversations(username):
+    """获取用户的所有对话ID列表"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT DISTINCT conversation_id FROM conversations WHERE username = %s", (username,))
+            results = cursor.fetchall()
+            return [row['conversation_id'] for row in results]
+
+def get_conversation_from_db(conversation_id, username):
+    """从数据库获取对话"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT messages FROM conversations WHERE conversation_id = %s AND username = %s", 
+                          (conversation_id, username))
+            result = cursor.fetchone()
+            if result and result['messages']:
+                return json.loads(result['messages'])
+            return []
+
+def save_conversation_to_db(conversation_id, username, messages):
+    """保存对话到数据库"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO conversations (conversation_id, username, messages) VALUES (%s, %s, %s) "
+                "ON DUPLICATE KEY UPDATE messages = %s, updated_at = CURRENT_TIMESTAMP",
+                (conversation_id, username, json.dumps(messages, ensure_ascii=False), json.dumps(messages, ensure_ascii=False))
+            )
+            conn.commit()
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -170,17 +288,11 @@ def chat():
         if not message:
             return jsonify({'error': '消息不能为空'}), 400
         
-        # 获取或创建对话历史
-        if conversation_id not in conversations:
-            conversations[conversation_id] = []
-            # 将对话关联到用户
-            if username not in user_conversations:
-                user_conversations[username] = []
-            if conversation_id not in user_conversations[username]:
-                user_conversations[username].append(conversation_id)
+        # 获取对话历史
+        messages = get_conversation_from_db(conversation_id, username)
         
         # 添加用户消息
-        conversations[conversation_id].append({
+        messages.append({
             'role': 'user',
             'content': message,
             'timestamp': datetime.now().isoformat()
@@ -189,17 +301,24 @@ def chat():
         # 调用 AI API (流式)
         def generate():
             try:
+                # 根据模型选择 API 地址
+                if model.startswith('deepseek'):
+                    base_url = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com/v1')
+                else:
+                    base_url = OPENAI_BASE_URL
+                
                 # 创建 OpenAI 客户端
                 client = openai.OpenAI(
                     api_key=OPENAI_API_KEY,
-                    base_url=OPENAI_BASE_URL,
+                    base_url=base_url,
                     timeout=60.0,
                     max_retries=2
                 )
                 
-                messages = [
+                # 准备消息格式
+                api_messages = [
                     {'role': msg['role'], 'content': msg['content']}
-                    for msg in conversations[conversation_id]
+                    for msg in messages
                     if msg['role'] in ['user', 'assistant']
                 ]
                 
@@ -215,7 +334,7 @@ def chat():
                 # 第一次 API 调用（可能触发 function calling）
                 response = client.chat.completions.create(
                     model=model,
-                    messages=messages,
+                    messages=api_messages,
                     tools=tools if tools else None,
                     tool_choice="auto" if tools else None,
                     temperature=0.7,
@@ -225,10 +344,11 @@ def chat():
                 # 检查是否需要调用函数
                 response_message = response.choices[0].message
                 tool_calls = response_message.tool_calls
+                full_response = ''
                 
                 if tool_calls:
                     # AI 决定调用技能
-                    messages.append(response_message)
+                    api_messages.append(response_message)
                     
                     # 执行所有被调用的技能
                     for tool_call in tool_calls:
@@ -239,7 +359,7 @@ def chat():
                         result = skill_registry.execute_skill(function_name, **function_args)
                         
                         # 将技能执行结果添加到消息中
-                        messages.append({
+                        api_messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "name": function_name,
@@ -249,29 +369,27 @@ def chat():
                     # 再次调用 API 获取最终回复（流式）
                     stream = client.chat.completions.create(
                         model=model,
-                        messages=messages,
+                        messages=api_messages,
                         stream=True,
                         temperature=0.7,
                         max_tokens=2000
                     )
                     
-                    full_response = ''
                     for chunk in stream:
                         if chunk.choices[0].delta.content:
                             content = chunk.choices[0].delta.content
                             full_response += content
                             yield f"data: {json.dumps({'content': content})}\n\n"
                 else:
-                    # 没有调用技能，直接流式返回（需要重新调用以获取流式响应）
+                    # 没有调用技能，直接流式返回
                     stream = client.chat.completions.create(
                         model=model,
-                        messages=messages,
+                        messages=api_messages,
                         stream=True,
                         temperature=0.7,
                         max_tokens=2000
                     )
                     
-                    full_response = ''
                     for chunk in stream:
                         if chunk.choices[0].delta.content:
                             content = chunk.choices[0].delta.content
@@ -279,11 +397,14 @@ def chat():
                             yield f"data: {json.dumps({'content': content})}\n\n"
                 
                 # 保存完整的助手回复
-                conversations[conversation_id].append({
+                messages.append({
                     'role': 'assistant',
                     'content': full_response,
                     'timestamp': datetime.now().isoformat()
                 })
+                
+                # 持久化到数据库
+                save_conversation_to_db(conversation_id, username, messages)
                 
                 yield f"data: {json.dumps({'done': True})}\n\n"
                 
@@ -310,15 +431,15 @@ def get_conversation(conversation_id):
     
     username = session['username']
     # 验证对话所有权
-    if conversation_id not in user_conversations.get(username, []):
+    user_conv_ids = get_user_conversations(username)
+    if conversation_id not in user_conv_ids:
         return jsonify({'error': '无权访问'}), 403
     
-    if conversation_id in conversations:
-        return jsonify({
-            'conversation_id': conversation_id,
-            'messages': conversations[conversation_id]
-        })
-    return jsonify({'messages': []})
+    messages = get_conversation_from_db(conversation_id, username)
+    return jsonify({
+        'conversation_id': conversation_id,
+        'messages': messages
+    })
 
 @app.route('/api/conversations/<conversation_id>', methods=['DELETE'])
 def delete_conversation(conversation_id):
@@ -328,13 +449,17 @@ def delete_conversation(conversation_id):
     
     username = session['username']
     # 验证对话所有权
-    if conversation_id not in user_conversations.get(username, []):
+    user_conv_ids = get_user_conversations(username)
+    if conversation_id not in user_conv_ids:
         return jsonify({'error': '无权访问'}), 403
     
-    if conversation_id in conversations:
-        del conversations[conversation_id]
-    if username in user_conversations and conversation_id in user_conversations[username]:
-        user_conversations[username].remove(conversation_id)
+    # 从数据库删除
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM conversations WHERE conversation_id = %s AND username = %s", 
+                          (conversation_id, username))
+            conn.commit()
+    
     return jsonify({'success': True})
 
 @app.route('/api/conversations', methods=['GET'])
@@ -344,22 +469,27 @@ def list_conversations():
         return jsonify({'error': '未登录'}), 401
     
     username = session['username']
+    
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT conversation_id, messages, updated_at FROM conversations WHERE username = %s ORDER BY updated_at DESC",
+                (username,)
+            )
+            results = cursor.fetchall()
+    
     conversation_list = []
+    for row in results:
+        messages = json.loads(row['messages']) if row['messages'] else []
+        if messages:
+            first_message = next((m for m in messages if m['role'] == 'user'), None)
+            conversation_list.append({
+                'id': row['conversation_id'],
+                'title': first_message['content'][:50] if first_message else '新对话',
+                'updated_at': row['updated_at'].isoformat() if row['updated_at'] else '',
+                'message_count': len(messages)
+            })
     
-    for conv_id in user_conversations.get(username, []):
-        if conv_id in conversations:
-            messages = conversations[conv_id]
-            if messages:
-                first_message = next((m for m in messages if m['role'] == 'user'), None)
-                conversation_list.append({
-                    'id': conv_id,
-                    'title': first_message['content'][:50] if first_message else '新对话',
-                    'updated_at': messages[-1]['timestamp'],
-                    'message_count': len(messages)
-                })
-    
-    # 按更新时间排序
-    conversation_list.sort(key=lambda x: x['updated_at'], reverse=True)
     return jsonify({'conversations': conversation_list})
 
 @app.route('/api/models', methods=['GET'])
@@ -414,6 +544,13 @@ if __name__ == '__main__':
     os.makedirs('static/css', exist_ok=True)
     os.makedirs('static/js', exist_ok=True)
     
+    # 初始化数据库表
+    try:
+        init_database()
+    except Exception as e:
+        print(f"⚠️  数据库初始化失败: {e}")
+        print("   请确保 MySQL 已启动并配置正确的连接信息")
+    
     print("\n" + "="*50)
     print("🚀 AI Chat Platform Starting...")
     print("="*50)
@@ -434,4 +571,4 @@ if __name__ == '__main__':
     print(f"📝 访问地址: http://localhost:5000")
     print("="*50 + "\n")
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

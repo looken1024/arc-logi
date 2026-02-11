@@ -1,0 +1,148 @@
+/* 工具列表页面样式 */
+
+/* 页面头部 */
+.page-header {
+    height: 60px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+}
+
+.page-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* 侧边栏导航 */
+.sidebar-nav {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.nav-item:hover {
+    background-color: var(--hover-bg);
+}
+
+.nav-item.active {
+    background-color: var(--hover-bg);
+    color: var(--primary-color);
+}
+
+.nav-item i:first-child {
+    width: 20px;
+    text-align: center;
+}
+
+/* 工具容器 */
+.tools-container {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+/* 工具网格 */
+.tools-grid {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* 工具卡片 */
+.tool-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background-color: var(--message-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+}
+
+.tool-card:hover {
+    background-color: var(--hover-bg);
+    border-color: var(--primary-color);
+    transform: translateX(4px);
+}
+
+.tool-icon {
+    width: 48px;
+    height: 48px;
+    background-color: var(--primary-color);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.tool-icon i {
+    font-size: 24px;
+    color: white;
+}
+
+.tool-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.tool-info h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 4px;
+}
+
+.tool-info p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tool-arrow {
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.tool-card:hover .tool-arrow {
+    color: var(--primary-color);
+    transform: translateX(4px);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .tools-container {
+        padding: 16px;
+    }
+    
+    .tool-card {
+        padding: 16px;
+    }
+    
+    .tool-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .tool-icon i {
+        font-size: 20px;
+    }
+}
