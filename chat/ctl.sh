@@ -13,7 +13,7 @@ start() {
         PID=$(cat "$PID_FILE")
         if kill -0 "$PID" 2>/dev/null; then
             echo "❌ 服务已在运行 (PID: $PID)"
-            exit 1
+            return 1
         else
             rm -f "$PID_FILE"
         fi
@@ -21,7 +21,7 @@ start() {
 
     if [ ! -d "venv" ]; then
         echo "❌ 错误: 虚拟环境不存在，请先运行 setup.sh 或手动创建"
-        exit 1
+        return 1
     fi
 
     echo "=========================================="
@@ -61,14 +61,14 @@ except Exception as e:
 stop() {
     if [ ! -f "$PID_FILE" ]; then
         echo "❌ 服务未运行 (未找到 PID 文件)"
-        exit 1
+        return 1
     fi
 
     PID=$(cat "$PID_FILE")
     if ! kill -0 "$PID" 2>/dev/null; then
         echo "❌ 服务未运行 (PID: $PID 可能已失效)"
         rm -f "$PID_FILE"
-        exit 1
+        return 1
     fi
 
     echo "🛑 停止服务 (PID: $PID)..."
@@ -79,7 +79,7 @@ stop() {
         if ! kill -0 "$PID" 2>/dev/null; then
             rm -f "$PID_FILE"
             echo "✅ 服务已停止"
-            exit 0
+            return 0
         fi
         sleep 1
         TIMEOUT=$((TIMEOUT - 1))
@@ -93,7 +93,7 @@ stop() {
 
 restart() {
     echo "🔄 重启服务..."
-    stop
+    stop || echo "ℹ️  服务未运行或停止失败，尝试启动..."
     sleep 2
     start
 }
@@ -117,10 +117,10 @@ status() {
 
 case "$1" in
     start)
-        start
+        start || exit 1
         ;;
     stop)
-        stop
+        stop || exit 1
         ;;
     restart)
         restart

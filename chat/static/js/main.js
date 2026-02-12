@@ -137,8 +137,8 @@ function initializeEventListeners() {
     });
 
     // 点击下拉菜单项
-    document.getElementById('openMd5Tool')?.addEventListener('click', () => {
-        window.location.href = '/md5';
+    document.getElementById('openTools')?.addEventListener('click', () => {
+        window.location.href = '/tools';
     });
 
     // 打开 Skills 管理
