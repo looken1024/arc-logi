@@ -25,7 +25,10 @@ const elements = {
     closeSettings: document.getElementById('closeSettings'),
     moreActionsBtn: document.getElementById('moreActionsBtn'),
     moreActionsMenu: document.getElementById('moreActionsMenu'),
-    dropdown: document.getElementById('moreActionsDropdown')
+    dropdown: document.getElementById('moreActionsDropdown'),
+    skillsModal: document.getElementById('skillsModal'),
+    closeSkills: document.getElementById('closeSkills'),
+    skillsList: document.getElementById('skillsList')
 };
 
 // 初始化
@@ -136,6 +139,24 @@ function initializeEventListeners() {
     // 点击下拉菜单项
     document.getElementById('openMd5Tool')?.addEventListener('click', () => {
         window.location.href = '/md5';
+    });
+
+    // 打开 Skills 管理
+    document.getElementById('openSkillsManager')?.addEventListener('click', async () => {
+        elements.skillsModal.classList.add('active');
+        await loadSkills();
+    });
+
+    // 关闭 Skills 模态框
+    elements.closeSkills?.addEventListener('click', () => {
+        elements.skillsModal.classList.remove('active');
+    });
+
+    // 点击 Skills 模态框背景关闭
+    elements.skillsModal?.addEventListener('click', (e) => {
+        if (e.target === elements.skillsModal) {
+            elements.skillsModal.classList.remove('active');
+        }
     });
 
     // 点击其他地方关闭下拉菜单
@@ -553,4 +574,88 @@ function highlightCurrentNav() {
             item.classList.remove('active');
         }
     });
+}
+
+// 加载技能列表
+async function loadSkills() {
+    try {
+        const response = await fetch('/api/user/skills');
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || '加载技能列表失败');
+        }
+
+        elements.skillsList.innerHTML = '';
+
+        if (data.skills.length === 0) {
+            elements.skillsList.innerHTML = '<div class="empty-state"><i class="fas fa-robot"></i><span>暂无可用技能</span></div>';
+            return;
+        }
+
+        data.skills.forEach(skill => {
+            const skillItem = document.createElement('div');
+            skillItem.className = 'skill-item';
+            skillItem.dataset.skillName = skill.name;
+
+            skillItem.innerHTML = `
+                <div class="skill-info">
+                    <div class="skill-name">
+                        <i class="fas fa-cube"></i>
+                        <span>${escapeHtml(skill.name)}</span>
+                    </div>
+                    <div class="skill-description">${escapeHtml(skill.description)}</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" class="skill-toggle" data-skill="${escapeHtml(skill.name)}" ${skill.enabled ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            `;
+
+            elements.skillsList.appendChild(skillItem);
+        });
+
+        // 添加切换事件监听
+        document.querySelectorAll('.skill-toggle').forEach(toggle => {
+            toggle.addEventListener('change', async (e) => {
+                const skillName = e.target.dataset.skill;
+                const enabled = e.target.checked;
+                await updateSkillStatus(skillName, enabled);
+            });
+        });
+
+    } catch (error) {
+        console.error('加载技能列表失败:', error);
+        elements.skillsList.innerHTML = `<div class="error-state"><i class="fas fa-exclamation-triangle"></i><span>${escapeHtml(error.message)}</span></div>`;
+    }
+}
+
+// 更新技能状态
+async function updateSkillStatus(skillName, enabled) {
+    try {
+        const response = await fetch(`/api/user/skills/${encodeURIComponent(skillName)}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ enabled })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || '更新技能状态失败');
+        }
+
+        console.log(`技能 "${skillName}" 已${enabled ? '启用' : '禁用'}`);
+
+    } catch (error) {
+        console.error('更新技能状态失败:', error);
+        // 恢复切换状态
+        const toggle = document.querySelector(`.skill-toggle[data-skill="${escapeHtml(skillName)}"]`);
+        if (toggle) {
+            toggle.checked = !toggle.checked;
+        }
+        alert('更新技能状态失败: ' + error.message);
+    }
 }

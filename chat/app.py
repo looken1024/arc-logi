@@ -79,6 +79,20 @@ def init_database():
                     UNIQUE KEY uk_user_conv (username, conversation_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
+
+            # 创建用户技能状态表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_skills (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL,
+                    skill_name VARCHAR(100) NOT NULL,
+                    enabled TINYINT(1) DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_user_skill (username, skill_name),
+                    INDEX idx_username (username)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
             
             conn.commit()
             print("✅ 数据库表初始化完成")
@@ -322,14 +336,16 @@ def chat():
                     if msg['role'] in ['user', 'assistant']
                 ]
                 
-                # 获取所有技能的函数定义
-                tools = [
-                    {
-                        "type": "function",
-                        "function": func_def
-                    }
-                    for func_def in skill_registry.get_all_function_definitions()
-                ]
+                # 获取用户启用的技能函数定义
+                enabled_skills = get_enabled_skills_for_user(username)
+                tools = []
+                for skill_name in enabled_skills:
+                    skill = skill_registry.get_skill(skill_name)
+                    if skill:
+                        tools.append({
+                            "type": "function",
+                            "function": skill.to_function_definition()
+                        })
                 
                 # 第一次 API 调用（可能触发 function calling）
                 response = client.chat.completions.create(
@@ -525,13 +541,117 @@ def execute_skill_api(skill_name):
     """手动执行指定技能（用于测试）"""
     if 'username' not in session:
         return jsonify({'error': '未登录'}), 401
-    
+
     try:
         data = request.json or {}
         result = skill_registry.execute_skill(skill_name, **data)
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/user/skills', methods=['GET'])
+def get_user_skills():
+    """获取用户所有技能的启用状态"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+
+    username = session['username']
+    all_skills = skill_registry.list_skills()
+
+    # 获取用户设置的技能状态
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT skill_name, enabled FROM user_skills WHERE username = %s",
+                (username,)
+            )
+            user_settings = {row['skill_name']: row['enabled'] for row in cursor.fetchall()}
+
+    # 组合所有技能信息
+    skills = []
+    for skill_name in all_skills:
+        skill = skill_registry.get_skill(skill_name)
+        if skill:
+            enabled = user_settings.get(skill_name, 1)
+            skills.append({
+                'name': skill.name,
+                'description': skill.description,
+                'enabled': bool(enabled)
+            })
+
+    return jsonify({
+        'skills': skills,
+        'count': len(skills)
+    })
+
+@app.route('/api/user/skills/<skill_name>', methods=['PUT'])
+def update_user_skill(skill_name):
+    """更新用户指定技能的启用状态"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+
+    username = session['username']
+    all_skills = skill_registry.list_skills()
+
+    if skill_name not in all_skills:
+        return jsonify({'error': '技能不存在'}), 404
+
+    try:
+        data = request.json
+        enabled = data.get('enabled', True)
+
+        if not isinstance(enabled, bool):
+            enabled = bool(enabled)
+
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO user_skills (username, skill_name, enabled) VALUES (%s, %s, %s) "
+                    "ON DUPLICATE KEY UPDATE enabled = %s, updated_at = CURRENT_TIMESTAMP",
+                    (username, skill_name, int(enabled), int(enabled))
+                )
+                conn.commit()
+
+        return jsonify({
+            'success': True,
+            'skill_name': skill_name,
+            'enabled': enabled
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def get_user_enabled_skills(username):
+    """获取用户所有启用的技能"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT skill_name FROM user_skills WHERE username = %s AND enabled = 1",
+                (username,)
+            )
+            enabled_skills = {row['skill_name'] for row in cursor.fetchall()}
+
+    all_skills = skill_registry.list_skills()
+    return [s for s in all_skills if s in enabled_skills or s not in set(enabled_skills)]
+
+def get_enabled_skills_for_user(username):
+    """获取用户启用的技能列表（未设置的技能默认启用）"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT skill_name, enabled FROM user_skills WHERE username = %s",
+                (username,)
+            )
+            user_settings = {row['skill_name']: row['enabled'] for row in cursor.fetchall()}
+
+    all_skills = skill_registry.list_skills()
+    enabled_skills = []
+    for skill_name in all_skills:
+        if skill_name in user_settings:
+            if user_settings[skill_name]:
+                enabled_skills.append(skill_name)
+        else:
+            enabled_skills.append(skill_name)
+    return enabled_skills
 
 @app.route('/health', methods=['GET'])
 def health_check():

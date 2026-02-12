@@ -28,3 +28,15 @@ CREATE TABLE IF NOT EXISTS conversations (
     INDEX idx_username (username),
     UNIQUE KEY uk_user_conv (username, conversation_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 用户技能启用状态表
+CREATE TABLE IF NOT EXISTS user_skills (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    skill_name VARCHAR(100) NOT NULL,
+    enabled TINYINT(1) DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_skill (username, skill_name),
+    INDEX idx_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
