@@ -22,7 +22,7 @@ def discover_skills(skills_dir: str = None) -> dict:
     """
     自动发现所有技能
     
-    扫描 skills 目录下的所有子文件夹，查找包含 skill.py 的文件夹。
+    扫描 skills 目录下的所有子文件夹，查找包含 scripts/skill.py 的文件夹。
     
     Args:
         skills_dir: skills 目录路径，默认为当前模块所在目录
@@ -47,8 +47,8 @@ def discover_skills(skills_dir: str = None) -> dict:
         if item.startswith('_') or item.startswith('.'):
             continue
         
-        # 检查是否包含 skill.py
-        skill_file = os.path.join(item_path, 'skill.py')
+        # 检查是否包含 scripts/skill.py
+        skill_file = os.path.join(item_path, 'scripts', 'skill.py')
         if os.path.isfile(skill_file):
             discovered_skills[item] = skill_file
     
@@ -67,8 +67,20 @@ def load_skill(skill_name: str, skill_path: str) -> BaseSkill:
         BaseSkill: 技能实例
     """
     try:
+        # 确保项目根目录在路径中
+        skill_dir = os.path.dirname(skill_path)  # scripts 目录
+        parent_dir = os.path.dirname(skill_dir)  # get_current_date 目录
+        skills_dir = os.path.dirname(parent_dir)  # skills 目录
+        project_root = os.path.dirname(skills_dir)  # 项目根目录
+        
+        # 添加项目根目录到路径（skills 包所在位置）
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        
         # 使用 importlib 动态加载模块
         spec = importlib.util.spec_from_file_location(f"skills.{skill_name}", skill_path)
+        if spec is None:
+            raise ImportError(f"无法从路径 {skill_path} 创建模块规范")
         module = importlib.util.module_from_spec(spec)
         sys.modules[f"skills.{skill_name}"] = module
         spec.loader.exec_module(module)
