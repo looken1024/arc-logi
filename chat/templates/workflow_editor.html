@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作流编辑器 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/workflow-editor.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- jsPlumb CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsplumb/2.15.5/css/jsplumbtoolkit-defaults.min.css">
+    <style>
+        .jtk-connector { z-index: 4; }
+        .jtk-endpoint { z-index: 5; }
+        .jtk-overlay { z-index: 6; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/workflows" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回工作流列表</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>工作流编辑器</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="workflowTitle">工作流编辑器</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="saveWorkflowBtn">
+                        <i class="fas fa-save"></i>
+                        保存工作流
+                    </button>
+                    <button class="btn btn-primary" id="addNodeBtn">
+                        <i class="fas fa-plus"></i>
+                        添加节点
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-secondary dropdown-toggle" id="workflowActionsBtn">
+                            <i class="fas fa-cog"></i>
+                            操作
+                        </button>
+                        <div class="dropdown-menu">
+                            <div class="dropdown-item" id="executeWorkflowBtn">
+                                <i class="fas fa-play"></i>
+                                执行工作流
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-item" id="exportWorkflowBtn">
+                                <i class="fas fa-download"></i>
+                                导出
+                            </div>
+                            <div class="dropdown-item" id="importWorkflowBtn">
+                                <i class="fas fa-upload"></i>
+                                导入
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="workflow-editor-container">
+                <!-- 节点面板 -->
+                <div class="node-palette" id="nodePalette">
+                    <h3>节点类型</h3>
+                    <div class="node-palette-list">
+                        <div class="palette-node" data-type="start" draggable="true">
+                            <i class="fas fa-play-circle"></i>
+                            <span>开始</span>
+                        </div>
+                        <div class="palette-node" data-type="end" draggable="true">
+                            <i class="fas fa-stop-circle"></i>
+                            <span>结束</span>
+                        </div>
+                        <div class="palette-node" data-type="llm" draggable="true">
+                            <i class="fas fa-brain"></i>
+                            <span>LLM</span>
+                        </div>
+                        <div class="palette-node" data-type="script" draggable="true">
+                            <i class="fas fa-code"></i>
+                            <span>脚本</span>
+                        </div>
+                        <div class="palette-node" data-type="condition" draggable="true">
+                            <i class="fas fa-code-branch"></i>
+                            <span>条件</span>
+                        </div>
+                        <div class="palette-node" data-type="input" draggable="true">
+                            <i class="fas fa-keyboard"></i>
+                            <span>输入</span>
+                        </div>
+                        <div class="palette-node" data-type="output" draggable="true">
+                            <i class="fas fa-terminal"></i>
+                            <span>输出</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 工作流画布 -->
+                <div class="workflow-canvas-container">
+                    <div class="canvas-toolbar">
+                        <button class="btn btn-small" id="zoomInBtn">
+                            <i class="fas fa-search-plus"></i>
+                        </button>
+                        <button class="btn btn-small" id="zoomOutBtn">
+                            <i class="fas fa-search-minus"></i>
+                        </button>
+                        <button class="btn btn-small" id="resetZoomBtn">
+                            <i class="fas fa-expand-arrows-alt"></i>
+                        </button>
+                        <div class="toolbar-separator"></div>
+                        <button class="btn btn-small" id="deleteSelectedBtn">
+                            <i class="fas fa-trash"></i>
+                            删除选中
+                        </button>
+                        <button class="btn btn-small" id="clearCanvasBtn">
+                            <i class="fas fa-broom"></i>
+                            清空画布
+                        </button>
+                    </div>
+                    <div class="workflow-canvas" id="workflowCanvas">
+                        <!-- 节点将通过js动态添加到这里 -->
+                    </div>
+                </div>
+
+                <!-- 节点属性面板 -->
+                <div class="node-properties" id="nodeProperties">
+                    <h3>节点属性</h3>
+                    <div class="properties-content">
+                        <p id="noSelectionMessage">请选择一个节点以编辑属性</p>
+                        <form id="nodePropertiesForm" style="display: none;">
+                            <input type="hidden" id="nodeId" name="node_id">
+                            <input type="hidden" id="nodeType" name="node_type">
+                            
+                            <div class="form-group">
+                                <label for="nodeName">节点名称</label>
+                                <input type="text" id="nodeName" name="name" required>
+                            </div>
+                            
+                            <div class="form-group" id="nodeConfigGroup">
+                                <!-- 动态配置字段将在这里插入 -->
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="nodeDescription">描述</label>
+                                <textarea id="nodeDescription" name="description" rows="3"></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">保存属性</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 节点配置模态框 -->
+    <div class="modal" id="nodeConfigModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="nodeConfigTitle">节点配置</h2>
+                <button class="modal-close" id="closeNodeConfigModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="nodeConfigForm">
+                    <!-- 动态配置内容 -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelNodeConfigBtn">取消</button>
+                <button class="btn btn-primary" id="saveNodeConfigBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- jsPlumb库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsplumb/2.15.5/js/jsplumb.min.js"></script>
+    <script>
+        // 如果CDN加载失败，使用本地版本
+        if (typeof jsPlumb === 'undefined') {
+            console.log('CDN jsPlumb failed, loading local version...');
+            document.write('<script src="{{ url_for('static', filename='js/jsplumb.min.js') }}"><\/script>');
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        // 如果CDN加载失败，使用本地版本
+        if (typeof jQuery === 'undefined') {
+            console.log('CDN jQuery failed, loading local version...');
+            document.write('<script src="{{ url_for('static', filename='js/jquery.min.js') }}"><\/script>');
+        }
+    </script>
+    <script>
+        const workflowId = "{{ workflow_id }}";
+        const username = "{{ session.get('username', '') }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/workflow-editor.js') }}"></script>
+</body>
+</html>

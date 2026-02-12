@@ -9,6 +9,7 @@ import openai
 from typing import Generator
 import secrets
 import pymysql
+import uuid
 from contextlib import contextmanager
 
 # 导入 skills 模块
@@ -94,6 +95,104 @@ def init_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
             
+            # 创建工作流表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflows (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    username VARCHAR(50) NOT NULL,
+                    status ENUM('draft', 'active', 'paused', 'archived') DEFAULT 'draft',
+                    definition JSON,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_status (status),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # 创建工作流节点表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_nodes (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    workflow_id INT NOT NULL,
+                    node_id VARCHAR(50) NOT NULL,
+                    node_type ENUM('start', 'end', 'llm', 'script', 'condition', 'input', 'output', 'delay') NOT NULL,
+                    name VARCHAR(100),
+                    config JSON,
+                    position_x INT DEFAULT 0,
+                    position_y INT DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_workflow_id (workflow_id),
+                    INDEX idx_node_type (node_type),
+                    UNIQUE KEY uk_workflow_node (workflow_id, node_id),
+                    FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # 创建工作流边表（节点连接关系）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_edges (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    workflow_id INT NOT NULL,
+                    source_node_id VARCHAR(50) NOT NULL,
+                    target_node_id VARCHAR(50) NOT NULL,
+                    `condition` TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_workflow_id (workflow_id),
+                    INDEX idx_source_target (source_node_id, target_node_id),
+                    FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # 创建工作流执行表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_executions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    workflow_id INT NOT NULL,
+                    username VARCHAR(50) NOT NULL,
+                    execution_id VARCHAR(64) NOT NULL,
+                    status ENUM('pending', 'running', 'completed', 'failed', 'cancelled') DEFAULT 'pending',
+                    input_data JSON,
+                    output_data JSON,
+                    error_message TEXT,
+                    started_at DATETIME,
+                    completed_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_workflow_id (workflow_id),
+                    INDEX idx_username (username),
+                    INDEX idx_execution_id (execution_id),
+                    INDEX idx_status (status),
+                    INDEX idx_created_at (created_at),
+                    FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # 创建工作流节点执行表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_node_executions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    execution_id INT NOT NULL,
+                    node_id VARCHAR(50) NOT NULL,
+                    node_type VARCHAR(50) NOT NULL,
+                    status ENUM('pending', 'running', 'completed', 'failed', 'skipped') DEFAULT 'pending',
+                    input_data JSON,
+                    output_data JSON,
+                    error_message TEXT,
+                    started_at DATETIME,
+                    completed_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_execution_id (execution_id),
+                    INDEX idx_node_id (node_id),
+                    INDEX idx_status (status),
+                    FOREIGN KEY (execution_id) REFERENCES workflow_executions(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
             conn.commit()
             print("✅ 数据库表初始化完成")
 
@@ -134,6 +233,34 @@ def tools():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('tools.html')
+
+@app.route('/workflows')
+def workflows():
+    """工作流管理页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('workflows.html')
+
+@app.route('/workflows/editor/<int:workflow_id>')
+def workflow_editor(workflow_id):
+    """工作流编辑器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    # 验证工作流存在且属于当前用户
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT id, name, description, status, username 
+                FROM workflows 
+                WHERE id = %s AND username = %s
+            """, (workflow_id, session['username']))
+            workflow = cursor.fetchone()
+    
+    if not workflow:
+        return "工作流不存在或无权访问", 404
+    
+    return render_template('workflow_editor.html', workflow_id=workflow_id)
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
@@ -652,6 +779,703 @@ def get_enabled_skills_for_user(username):
         else:
             enabled_skills.append(skill_name)
     return enabled_skills
+
+# ==================================================
+# 工作流 API
+# ==================================================
+
+@app.route('/api/workflows', methods=['GET'])
+def get_workflows():
+    """获取用户的工作流列表"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, name, description, status, created_at, updated_at "
+                    "FROM workflows WHERE username = %s ORDER BY updated_at DESC",
+                    (username,)
+                )
+                workflows = cursor.fetchall()
+                
+                # 转换日期格式为字符串
+                for wf in workflows:
+                    for field in ['created_at', 'updated_at']:
+                        if wf[field] and isinstance(wf[field], datetime):
+                            wf[field] = wf[field].isoformat()
+                
+                return jsonify({'workflows': workflows})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows', methods=['POST'])
+def create_workflow():
+    """创建新的工作流"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        data = request.json
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+        
+        if not name:
+            return jsonify({'error': '工作流名称不能为空'}), 400
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO workflows (name, description, username, status) VALUES (%s, %s, %s, %s)",
+                    (name, description, username, 'draft')
+                )
+                workflow_id = cursor.lastrowid
+                conn.commit()
+                
+                # 获取创建的工作流
+                cursor.execute(
+                    "SELECT id, name, description, status, created_at, updated_at FROM workflows WHERE id = %s",
+                    (workflow_id,)
+                )
+                workflow = cursor.fetchone()
+                
+                # 转换日期格式
+                for field in ['created_at', 'updated_at']:
+                    if workflow[field] and isinstance(workflow[field], datetime):
+                        workflow[field] = workflow[field].isoformat()
+                
+                return jsonify({'workflow': workflow})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>', methods=['GET'])
+def get_workflow(workflow_id):
+    """获取工作流详情（包括节点和边）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 获取工作流基本信息
+                cursor.execute(
+                    "SELECT id, name, description, status, definition, created_at, updated_at "
+                    "FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                workflow = cursor.fetchone()
+                
+                if not workflow:
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 获取节点
+                cursor.execute(
+                    "SELECT id, node_id, node_type, name, config, position_x, position_y, created_at, updated_at "
+                    "FROM workflow_nodes WHERE workflow_id = %s",
+                    (workflow_id,)
+                )
+                nodes = cursor.fetchall()
+                
+                # 获取边
+                cursor.execute(
+                    "SELECT id, source_node_id, target_node_id, `condition` FROM workflow_edges WHERE workflow_id = %s",
+                    (workflow_id,)
+                )
+                edges = cursor.fetchall()
+                
+                # 转换日期格式
+                for field in ['created_at', 'updated_at']:
+                    if workflow[field] and isinstance(workflow[field], datetime):
+                        workflow[field] = workflow[field].isoformat()
+                
+                for node in nodes:
+                    for field in ['created_at', 'updated_at']:
+                        if node[field] and isinstance(node[field], datetime):
+                            node[field] = node[field].isoformat()
+                
+                return jsonify({
+                    'workflow': workflow,
+                    'nodes': nodes,
+                    'edges': edges
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>', methods=['PUT'])
+def update_workflow(workflow_id):
+    """更新工作流"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        data = request.json
+        
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 构建更新字段
+                update_fields = []
+                params = []
+                
+                if 'name' in data:
+                    name = data['name'].strip()
+                    if name:
+                        update_fields.append("name = %s")
+                        params.append(name)
+                
+                if 'description' in data:
+                    update_fields.append("description = %s")
+                    params.append(data['description'].strip())
+                
+                if 'status' in data and data['status'] in ['draft', 'active', 'paused', 'archived']:
+                    update_fields.append("status = %s")
+                    params.append(data['status'])
+                
+                if 'definition' in data:
+                    update_fields.append("definition = %s")
+                    params.append(json.dumps(data['definition']))
+                
+                if not update_fields:
+                    return jsonify({'error': '没有提供更新字段'}), 400
+                
+                # 执行更新
+                params.append(workflow_id)
+                params.append(username)
+                
+                cursor.execute(
+                    f"UPDATE workflows SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP "
+                    "WHERE id = %s AND username = %s",
+                    tuple(params)
+                )
+                conn.commit()
+                
+                # 获取更新后的工作流
+                cursor.execute(
+                    "SELECT id, name, description, status, created_at, updated_at FROM workflows WHERE id = %s",
+                    (workflow_id,)
+                )
+                workflow = cursor.fetchone()
+                
+                # 转换日期格式
+                for field in ['created_at', 'updated_at']:
+                    if workflow[field] and isinstance(workflow[field], datetime):
+                        workflow[field] = workflow[field].isoformat()
+                
+                return jsonify({'workflow': workflow})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>', methods=['DELETE'])
+def delete_workflow(workflow_id):
+    """删除工作流"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查工作流是否存在且用户有权访问
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 删除工作流（级联删除相关节点和边）
+                cursor.execute("DELETE FROM workflows WHERE id = %s", (workflow_id,))
+                conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/api/workflows/<int:workflow_id>/nodes', methods=['GET'])
+def get_workflow_nodes(workflow_id):
+    """获取工作流所有节点"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 获取所有节点
+                cursor.execute(
+                    "SELECT id, node_id, node_type, name, config, position_x, position_y, created_at, updated_at "
+                    "FROM workflow_nodes WHERE workflow_id = %s ORDER BY created_at",
+                    (workflow_id,)
+                )
+                nodes = cursor.fetchall()
+                
+                # 转换日期格式和配置字段
+                for node in nodes:
+                    for field in ['created_at', 'updated_at']:
+                        if node[field] and isinstance(node[field], datetime):
+                            node[field] = node[field].isoformat()
+                    # 确保config是字符串（JSON）
+                    if node['config'] and isinstance(node['config'], str):
+                        try:
+                            node['config'] = json.loads(node['config'])
+                        except:
+                            node['config'] = {}
+                
+                return jsonify(nodes)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/nodes', methods=['POST'])
+def create_workflow_node(workflow_id):
+    """创建工作流节点"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        data = request.json
+        node_id = data.get('node_id', str(uuid.uuid4())[:8])
+        node_type = data.get('node_type', '')
+        name = data.get('name', '').strip()
+        config = data.get('config', {})
+        position_x = data.get('position_x', 0)
+        position_y = data.get('position_y', 0)
+        
+        if not node_type or node_type not in ['start', 'end', 'llm', 'script', 'condition', 'input', 'output', 'delay']:
+            return jsonify({'error': '无效的节点类型'}), 400
+        
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 插入节点
+                cursor.execute(
+                    "INSERT INTO workflow_nodes (workflow_id, node_id, node_type, name, config, position_x, position_y) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (workflow_id, node_id, node_type, name, json.dumps(config), position_x, position_y)
+                )
+                node_db_id = cursor.lastrowid
+                conn.commit()
+                
+                # 获取创建的节点
+                cursor.execute(
+                    "SELECT id, node_id, node_type, name, config, position_x, position_y, created_at, updated_at "
+                    "FROM workflow_nodes WHERE id = %s",
+                    (node_db_id,)
+                )
+                node = cursor.fetchone()
+                
+                # 转换日期格式
+                for field in ['created_at', 'updated_at']:
+                    if node[field] and isinstance(node[field], datetime):
+                        node[field] = node[field].isoformat()
+                
+                return jsonify({'node': node})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/nodes/<node_id>', methods=['PUT'])
+def update_workflow_node(workflow_id, node_id):
+    """更新工作流节点"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        data = request.json
+        
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 构建更新字段
+                update_fields = ["updated_at = CURRENT_TIMESTAMP"]
+                params = []
+                
+                if 'name' in data:
+                    update_fields.append("name = %s")
+                    params.append(data['name'].strip())
+                
+                if 'config' in data:
+                    update_fields.append("config = %s")
+                    params.append(json.dumps(data['config']))
+                
+                if 'position_x' in data:
+                    update_fields.append("position_x = %s")
+                    params.append(data['position_x'])
+                
+                if 'position_y' in data:
+                    update_fields.append("position_y = %s")
+                    params.append(data['position_y'])
+                
+                if len(update_fields) == 1:  # 只有 updated_at
+                    return jsonify({'error': '没有提供更新字段'}), 400
+                
+                # 执行更新
+                params.append(workflow_id)
+                params.append(node_id)
+                
+                cursor.execute(
+                    f"UPDATE workflow_nodes SET {', '.join(update_fields)} "
+                    "WHERE workflow_id = %s AND node_id = %s",
+                    tuple(params)
+                )
+                conn.commit()
+                
+                # 获取更新后的节点
+                cursor.execute(
+                    "SELECT id, node_id, node_type, name, config, position_x, position_y, created_at, updated_at "
+                    "FROM workflow_nodes WHERE workflow_id = %s AND node_id = %s",
+                    (workflow_id, node_id)
+                )
+                node = cursor.fetchone()
+                
+                if not node:
+                    return jsonify({'error': '节点不存在'}), 404
+                
+                # 转换日期格式
+                for field in ['created_at', 'updated_at']:
+                    if node[field] and isinstance(node[field], datetime):
+                        node[field] = node[field].isoformat()
+                
+                return jsonify({'node': node})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/nodes/<node_id>', methods=['DELETE'])
+def delete_workflow_node(workflow_id, node_id):
+    """删除工作流节点"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 删除节点
+                cursor.execute(
+                    "DELETE FROM workflow_nodes WHERE workflow_id = %s AND node_id = %s",
+                    (workflow_id, node_id)
+                )
+                # 同时删除相关的边
+                cursor.execute(
+                    "DELETE FROM workflow_edges WHERE workflow_id = %s AND (source_node_id = %s OR target_node_id = %s)",
+                    (workflow_id, node_id, node_id)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/api/workflows/<int:workflow_id>/edges', methods=['GET'])
+def get_workflow_edges(workflow_id):
+    """获取工作流所有边（连接）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 获取所有边
+                cursor.execute(
+                    "SELECT id, source_node_id, target_node_id, `condition`, created_at "
+                    "FROM workflow_edges WHERE workflow_id = %s ORDER BY created_at",
+                    (workflow_id,)
+                )
+                edges = cursor.fetchall()
+                
+                # 转换日期格式
+                for edge in edges:
+                    if edge['created_at'] and isinstance(edge['created_at'], datetime):
+                        edge['created_at'] = edge['created_at'].isoformat()
+                
+                return jsonify(edges)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/edges', methods=['POST'])
+def create_workflow_edge(workflow_id):
+    """创建工作流边（连接节点）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        data = request.json
+        source_node_id = data.get('source_node_id', '')
+        target_node_id = data.get('target_node_id', '')
+        condition = data.get('condition', '')
+        
+        if not source_node_id or not target_node_id:
+            return jsonify({'error': '源节点和目标节点不能为空'}), 400
+        
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 插入边
+                cursor.execute(
+                    "INSERT INTO workflow_edges (workflow_id, source_node_id, target_node_id, `condition`) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (workflow_id, source_node_id, target_node_id, condition)
+                )
+                edge_id = cursor.lastrowid
+                conn.commit()
+                
+                return jsonify({
+                    'edge': {
+                        'id': edge_id,
+                        'workflow_id': workflow_id,
+                        'source_node_id': source_node_id,
+                        'target_node_id': target_node_id,
+                        'condition': condition
+                    }
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/edges/<int:edge_id>', methods=['DELETE'])
+def delete_workflow_edge(workflow_id, edge_id):
+    """删除工作流边"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 删除边
+                cursor.execute(
+                    "DELETE FROM workflow_edges WHERE id = %s AND workflow_id = %s",
+                    (edge_id, workflow_id)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/start', methods=['POST'])
+def start_workflow(workflow_id):
+    """启动工作流（将状态改为active）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE workflows SET status = 'active', updated_at = CURRENT_TIMESTAMP "
+                    "WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True, 'status': 'active'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/pause', methods=['POST'])
+def pause_workflow(workflow_id):
+    """暂停工作流（将状态改为paused）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE workflows SET status = 'paused', updated_at = CURRENT_TIMESTAMP "
+                    "WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True, 'status': 'paused'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/execute', methods=['POST'])
+def execute_workflow(workflow_id):
+    """执行工作流"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        data = request.json
+        input_data = data.get('input', {})
+        
+        # 检查工作流是否存在且用户有权访问
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, status FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                workflow = cursor.fetchone()
+                
+                if not workflow:
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 创建工作流执行记录
+                execution_id = str(uuid.uuid4())
+                cursor.execute(
+                    "INSERT INTO workflow_executions (workflow_id, username, execution_id, status, input_data) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (workflow_id, username, execution_id, 'pending', json.dumps(input_data))
+                )
+                execution_db_id = cursor.lastrowid
+                
+                # 获取工作流节点
+                cursor.execute(
+                    "SELECT node_id, node_type, name, config FROM workflow_nodes WHERE workflow_id = %s",
+                    (workflow_id,)
+                )
+                nodes = cursor.fetchall()
+                
+                # 创建工作流节点执行记录
+                for node in nodes:
+                    cursor.execute(
+                        "INSERT INTO workflow_node_executions (execution_id, node_id, node_type, status) "
+                        "VALUES (%s, %s, %s, %s)",
+                        (execution_db_id, node['node_id'], node['node_type'], 'pending')
+                    )
+                
+                conn.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'execution_id': execution_id,
+                    'execution_db_id': execution_db_id,
+                    'message': '工作流执行已创建'
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/<int:workflow_id>/executions', methods=['GET'])
+def get_workflow_executions(workflow_id):
+    """获取工作流的执行记录"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查工作流是否存在且用户有权访问
+                cursor.execute(
+                    "SELECT id FROM workflows WHERE id = %s AND username = %s",
+                    (workflow_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '工作流不存在或无权访问'}), 404
+                
+                # 获取执行记录
+                cursor.execute(
+                    "SELECT id, execution_id, status, input_data, output_data, error_message, "
+                    "started_at, completed_at, created_at, updated_at "
+                    "FROM workflow_executions WHERE workflow_id = %s ORDER BY created_at DESC LIMIT 50",
+                    (workflow_id,)
+                )
+                executions = cursor.fetchall()
+                
+                # 转换日期格式和JSON字段
+                for exe in executions:
+                    for field in ['started_at', 'completed_at', 'created_at', 'updated_at']:
+                        if exe[field] and isinstance(exe[field], datetime):
+                            exe[field] = exe[field].isoformat()
+                    
+                    for field in ['input_data', 'output_data']:
+                        if exe[field] and isinstance(exe[field], str):
+                            try:
+                                exe[field] = json.loads(exe[field])
+                            except:
+                                exe[field] = None
+                
+                return jsonify({'executions': executions})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():

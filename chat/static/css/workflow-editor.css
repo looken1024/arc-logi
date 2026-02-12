@@ -1,0 +1,368 @@
+/* 工作流编辑器样式 */
+.workflow-editor-container {
+    display: flex;
+    height: calc(100vh - 80px);
+    gap: 16px;
+    padding: 16px;
+    overflow: hidden;
+}
+
+/* 节点面板 */
+.node-palette {
+    width: 220px;
+    background-color: var(--sidebar-bg);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.node-palette h3 {
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.node-palette-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.palette-node {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: move;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.palette-node:hover {
+    background-color: var(--hover-bg);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.palette-node i {
+    font-size: 16px;
+    color: var(--primary-color);
+    width: 20px;
+    text-align: center;
+}
+
+.palette-node span {
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+/* 工作流画布容器 */
+.workflow-canvas-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--sidebar-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.canvas-toolbar {
+    padding: 12px 16px;
+    background-color: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+    height: auto;
+}
+
+.toolbar-separator {
+    width: 1px;
+    height: 20px;
+    background-color: var(--border-color);
+    margin: 0 8px;
+}
+
+/* 工作流画布 */
+.workflow-canvas {
+    flex: 1;
+    position: relative;
+    overflow: auto;
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+    min-height: 600px;
+}
+
+/* 工作流节点 */
+.workflow-node {
+    position: absolute;
+    width: 160px;
+    min-height: 60px;
+    background-color: var(--input-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: move;
+    z-index: 3;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.workflow-node:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.workflow-node.selected {
+    border-color: var(--secondary-color);
+    background-color: var(--message-bg);
+}
+
+.workflow-node-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.workflow-node-icon {
+    font-size: 14px;
+    color: var(--primary-color);
+}
+
+.workflow-node-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-color);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workflow-node-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.workflow-node-content {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.workflow-node-ports {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.workflow-node-port {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    border: 2px solid var(--bg-color);
+    pointer-events: none; /* 改为none，让点击事件穿透到节点 */
+    cursor: crosshair;
+    z-index: 2; /* 低于节点，避免干扰 */
+}
+
+.workflow-node-port:hover {
+    transform: scale(1.3);
+    background-color: var(--secondary-color);
+}
+
+.workflow-node-port.input {
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.workflow-node-port.output {
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* 节点类型特定样式 */
+.workflow-node[data-node-type="start"] {
+    border-color: #10a37f;
+}
+
+.workflow-node[data-node-type="start"] .workflow-node-icon {
+    color: #10a37f;
+}
+
+.workflow-node[data-node-type="end"] {
+    border-color: #ef4146;
+}
+
+.workflow-node[data-node-type="end"] .workflow-node-icon {
+    color: #ef4146;
+}
+
+.workflow-node[data-node-type="llm"] {
+    border-color: #19c37d;
+}
+
+.workflow-node[data-node-type="llm"] .workflow-node-icon {
+    color: #19c37d;
+}
+
+.workflow-node[data-node-type="script"] {
+    border-color: #f4a261;
+}
+
+.workflow-node[data-node-type="script"] .workflow-node-icon {
+    color: #f4a261;
+}
+
+.workflow-node[data-node-type="condition"] {
+    border-color: #9d4edd;
+}
+
+.workflow-node[data-node-type="condition"] .workflow-node-icon {
+    color: #9d4edd;
+}
+
+/* 节点属性面板 */
+.node-properties {
+    width: 280px;
+    background-color: var(--sidebar-bg);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.node-properties h3 {
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.properties-content {
+    font-size: 14px;
+}
+
+#noSelectionMessage {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.node-properties .form-group {
+    margin-bottom: 16px;
+}
+
+.node-properties label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.node-properties input,
+.node-properties textarea,
+.node-properties select {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+    font-size: 13px;
+}
+
+.node-properties input:focus,
+.node-properties textarea:focus,
+.node-properties select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.node-properties textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* jsPlumb 覆盖样式 */
+.jtk-connector {
+    stroke: var(--primary-color);
+    stroke-width: 2;
+}
+
+.jtk-connector:hover {
+    stroke: var(--secondary-color);
+    stroke-width: 3;
+}
+
+.jtk-endpoint {
+    fill: var(--primary-color);
+    stroke: var(--bg-color);
+    stroke-width: 2;
+}
+
+.jtk-endpoint:hover {
+    fill: var(--secondary-color);
+}
+
+.jtk-overlay {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+    .workflow-editor-container {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .node-palette,
+    .node-properties {
+        width: 100%;
+        max-height: 200px;
+    }
+    
+    .workflow-canvas-container {
+        height: 500px;
+    }
+}

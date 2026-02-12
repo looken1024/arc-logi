@@ -141,6 +141,11 @@ function initializeEventListeners() {
         window.location.href = '/tools';
     });
 
+    // 打开工作流管理
+    document.getElementById('openWorkflows')?.addEventListener('click', () => {
+        window.location.href = '/workflows';
+    });
+
     // 打开 Skills 管理
     document.getElementById('openSkillsManager')?.addEventListener('click', async () => {
         elements.skillsModal.classList.add('active');

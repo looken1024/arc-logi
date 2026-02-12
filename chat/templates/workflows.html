@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作流管理 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/workflows.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>工作流管理</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>工作流管理</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="createWorkflowBtn">
+                        <i class="fas fa-plus"></i>
+                        新建工作流
+                    </button>
+                </div>
+            </header>
+
+            <div class="workflows-container">
+                <!-- 工作流列表 -->
+                <div class="workflows-list" id="workflowsList">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创建/编辑工作流模态框 -->
+    <div class="modal" id="workflowModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="workflowModalTitle">新建工作流</h2>
+                <button class="modal-close" id="closeWorkflowModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="workflowForm">
+                    <div class="form-group">
+                        <label for="workflowName">工作流名称</label>
+                        <input type="text" id="workflowName" name="name" required placeholder="请输入工作流名称">
+                    </div>
+                    <div class="form-group">
+                        <label for="workflowDescription">描述</label>
+                        <textarea id="workflowDescription" name="description" rows="3" placeholder="请输入工作流描述"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="workflowStatus">状态</label>
+                        <select id="workflowStatus" name="status">
+                            <option value="draft">草稿</option>
+                            <option value="active">启用</option>
+                            <option value="paused">暂停</option>
+                            <option value="archived">归档</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="workflowId" name="id" value="">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelWorkflowBtn">取消</button>
+                <button class="btn btn-primary" id="saveWorkflowBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认删除模态框 -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>确认删除</h2>
+                <button class="modal-close" id="closeDeleteModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteMessage">确定要删除这个工作流吗？此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeleteBtn">取消</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/workflows.js') }}"></script>
+</body>
+</html>
