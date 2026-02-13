@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片转换工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .image-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .image-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .image-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .image-section h3 i {
+            color: var(--primary-color);
+        }
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: var(--hover-bg);
+        }
+        .upload-area i {
+            font-size: 48px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        .upload-area p {
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .upload-area .hint {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        .file-input {
+            display: none;
+        }
+        .preview-area {
+            margin-bottom: 16px;
+        }
+        .preview-area img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+        .preview-area .pdf-preview {
+            padding: 20px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .preview-area .pdf-preview i {
+            font-size: 48px;
+            color: var(--primary-color);
+        }
+        .format-select {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .format-select label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .format-select label:hover {
+            background: var(--border-color);
+        }
+        .format-select input:checked + span {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .result-area {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            display: none;
+        }
+        .result-area.show {
+            display: block;
+        }
+        .result-area img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .loading i {
+            font-size: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-image"></i>
+                    <span>图片转换工具</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>图片转换工具</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="image-wrapper">
+                        <div class="image-section">
+                            <h3><i class="fas fa-file-image"></i> 图片格式转换</h3>
+                            <div class="upload-area" onclick="document.getElementById('imageFile').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>点击上传图片或拖拽文件到这里</p>
+                                <span class="hint">支持 PNG, JPG, JPEG, GIF, BMP, WEBP, TIFF, ICO 格式</span>
+                            </div>
+                            <input type="file" id="imageFile" class="file-input" accept="image/*" onchange="previewImage(this)">
+                            
+                            <div class="preview-area" id="imagePreview"></div>
+                            
+                            <div class="format-select">
+                                <label><input type="radio" name="targetFormat" value="PNG" checked><span>PNG</span></label>
+                                <label><input type="radio" name="targetFormat" value="JPEG"><span>JPEG</span></label>
+                                <label><input type="radio" name="targetFormat" value="WEBP"><span>WEBP</span></label>
+                                <label><input type="radio" name="targetFormat" value="GIF"><span>GIF</span></label>
+                                <label><input type="radio" name="targetFormat" value="BMP"><span>BMP</span></label>
+                            </div>
+                            
+                            <div class="btn-row">
+                                <button class="btn btn-primary" onclick="convertImage()">
+                                    <i class="fas fa-exchange-alt"></i> 转换为图片
+                                </button>
+                            </div>
+                            
+                            <div class="loading" id="imageLoading">
+                                <i class="fas fa-spinner"></i>
+                                <p>正在转换...</p>
+                            </div>
+                        </div>
+
+                        <div class="image-section">
+                            <h3><i class="fas fa-file-pdf"></i> 图片转 PDF</h3>
+                            <div class="upload-area" onclick="document.getElementById('pdfFile').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>点击上传图片或拖拽文件到这里</p>
+                                <span class="hint">支持 PNG, JPG, JPEG, GIF, BMP, WEBP 格式</span>
+                            </div>
+                            <input type="file" id="pdfFile" class="file-input" accept="image/*" onchange="previewImageToPdf(this)">
+                            
+                            <div class="preview-area" id="pdfPreview"></div>
+                            
+                            <div class="btn-row">
+                                <button class="btn btn-primary" onclick="convertToPdf()">
+                                    <i class="fas fa-file-pdf"></i> 转换为 PDF
+                                </button>
+                            </div>
+                            
+                            <div class="loading" id="pdfLoading">
+                                <i class="fas fa-spinner"></i>
+                                <p>正在转换...</p>
+                            </div>
+                        </div>
+
+                        <div class="image-section">
+                            <h3><i class="fas fa-images"></i> PDF 转图片</h3>
+                            <div class="upload-area" onclick="document.getElementById('pdfToImageFile').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>点击上传 PDF 文件</p>
+                                <span class="hint">支持 PDF 格式</span>
+                            </div>
+                            <input type="file" id="pdfToImageFile" class="file-input" accept=".pdf" onchange="previewPdf(this)">
+                            
+                            <div class="preview-area" id="pdfToImagePreview"></div>
+                            
+                            <div class="btn-row">
+                                <button class="btn btn-primary" onclick="convertPdfToImage()">
+                                    <i class="fas fa-image"></i> 转换为图片
+                                </button>
+                            </div>
+                            
+                            <div class="loading" id="pdfToImageLoading">
+                                <i class="fas fa-spinner"></i>
+                                <p>正在转换...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentImageFile = null;
+        let currentPdfFile = null;
+        let currentPdfToImageFile = null;
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                currentImageFile = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').innerHTML = 
+                        '<img src="' + e.target.result + '" alt="预览">';
+                };
+                reader.readAsDataURL(currentImageFile);
+            }
+        }
+
+        function previewImageToPdf(input) {
+            if (input.files && input.files[0]) {
+                currentPdfFile = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('pdfPreview').innerHTML = 
+                        '<img src="' + e.target.result + '" alt="预览">';
+                };
+                reader.readAsDataURL(currentPdfFile);
+            }
+        }
+
+        function previewPdf(input) {
+            if (input.files && input.files[0]) {
+                currentPdfToImageFile = input.files[0];
+                document.getElementById('pdfToImagePreview').innerHTML = 
+                    '<div class="pdf-preview"><i class="fas fa-file-pdf"></i><p>' + input.files[0].name + '</p></div>';
+            }
+        }
+
+        function convertImage() {
+            if (!currentImageFile) {
+                alert('请先上传图片');
+                return;
+            }
+
+            const format = document.querySelector('input[name="targetFormat"]:checked').value;
+            const loading = document.getElementById('imageLoading');
+            loading.classList.add('show');
+
+            const formData = new FormData();
+            formData.append('file', currentImageFile);
+            formData.append('format', format);
+
+            fetch('/api/image/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error); });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'converted.' + format.toLowerCase();
+                a.click();
+                URL.revokeObjectURL(url);
+                alert('转换成功！');
+            })
+            .catch(error => {
+                alert('转换失败: ' + error.message);
+            })
+            .finally(() => {
+                loading.classList.remove('show');
+            });
+        }
+
+        function convertToPdf() {
+            if (!currentPdfFile) {
+                alert('请先上传图片');
+                return;
+            }
+
+            const loading = document.getElementById('pdfLoading');
+            loading.classList.add('show');
+
+            const formData = new FormData();
+            formData.append('file', currentPdfFile);
+
+            fetch('/api/image/to-pdf', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error); });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'converted.pdf';
+                a.click();
+                URL.revokeObjectURL(url);
+                alert('转换成功！');
+            })
+            .catch(error => {
+                alert('转换失败: ' + error.message);
+            })
+            .finally(() => {
+                loading.classList.remove('show');
+            });
+        }
+
+        function convertPdfToImage() {
+            if (!currentPdfToImageFile) {
+                alert('请先上传 PDF 文件');
+                return;
+            }
+
+            const loading = document.getElementById('pdfToImageLoading');
+            loading.classList.add('show');
+
+            const formData = new FormData();
+            formData.append('file', currentPdfToImageFile);
+
+            fetch('/api/pdf/to-image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error); });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'page_1.png';
+                a.click();
+                URL.revokeObjectURL(url);
+                alert('转换成功！');
+            })
+            .catch(error => {
+                alert('转换失败: ' + error.message);
+            })
+            .finally(() => {
+                loading.classList.remove('show');
+            });
+        }
+    </script>
+</body>
+</html>

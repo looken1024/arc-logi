@@ -81,8 +81,13 @@
                                 <i class="fas fa-tools"></i>
                                 <span>工具列表</span>
                             </div>
-<div class="dropdown-divider"></div>
-<div class="dropdown-item" id="openSchedules">
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-item" id="openPrompts">
+                                <i class="fas fa-file-alt"></i>
+                                <span>提示词管理</span>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-item" id="openSchedules">
     <i class="fas fa-clock"></i>
     <span>定时任务</span>
 </div>
@@ -92,10 +97,10 @@
                                 <span>工作流</span>
                             </div>
                             <div class="dropdown-divider"></div>
-                            <div class="dropdown-item" id="openSkillsManager">
+                            <a href="/skills" class="dropdown-item">
                                 <i class="fas fa-cogs"></i>
                                 <span>Skills 管理</span>
-                            </div>
+                            </a>
                         </div>
                     </div>
                     <button class="icon-btn" id="settingsBtn" title="设置">
@@ -206,26 +211,6 @@
                             <span>紫色</span>
                             <i class="fas fa-check theme-check"></i>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Skills 管理模态框 -->
-    <div class="modal" id="skillsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-cogs"></i> Skills 管理</h2>
-                <button class="modal-close" id="closeSkills">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="skills-list" id="skillsList">
-                    <div class="loading">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>加载中...</span>
                     </div>
                 </div>
             </div>

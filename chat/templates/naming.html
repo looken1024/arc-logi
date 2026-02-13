@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>起名神器 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .naming-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .naming-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .naming-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .naming-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .form-group label {
+            font-size: 14px;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+        .form-group select,
+        .form-group input {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .main-content {
+            overflow-y: auto;
+        }
+        .result-content {
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            line-height: 1.8;
+        }
+        .result-content h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .result-content h3 {
+            font-size: 16px;
+            margin: 20px 0 12px;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        .result-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .result-content li {
+            margin: 6px 0;
+        }
+        .result-content strong {
+            color: var(--primary-color);
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .error-message {
+            padding: 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回工具</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{{ session.get('username', '用户') }}</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>起名神器</h1>
+            </header>
+
+            <div class="page-content">
+                <div class="naming-wrapper">
+                    <div class="naming-section">
+                        <h3><i class="fas fa-baby"></i> 输入信息</h3>
+                        <div class="naming-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="gender">性别</label>
+                                    <select id="gender">
+                                        <option value="男">男孩</option>
+                                        <option value="女">女孩</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="birthDate">出生日期</label>
+                                    <input type="date" id="birthDate">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="birthTime">出生时辰（可选）</label>
+                                <select id="birthTime">
+                                    <option value="">不确定</option>
+                                    <option value="子时">子时 (23:00-01:00)</option>
+                                    <option value="丑时">丑时 (01:00-03:00)</option>
+                                    <option value="寅时">寅时 (03:00-05:00)</option>
+                                    <option value="卯时">卯时 (05:00-07:00)</option>
+                                    <option value="辰时">辰时 (07:00-09:00)</option>
+                                    <option value="巳时">巳时 (09:00-11:00)</option>
+                                    <option value="午时">午时 (11:00-13:00)</option>
+                                    <option value="未时">未时 (13:00-15:00)</option>
+                                    <option value="申时">申时 (15:00-17:00)</option>
+                                    <option value="酉时">酉时 (17:00-19:00)</option>
+                                    <option value="戌时">戌时 (19:00-21:00)</option>
+                                    <option value="亥时">亥时 (21:00-23:00)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="surname">姓氏（可选）</label>
+                                <input type="text" id="surname" placeholder="如：王、李、张">
+                            </div>
+                            <button class="btn btn-primary" onclick="generateNames()">
+                                <i class="fas fa-wand-magic-sparkles"></i> 生成名字
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="naming-section" id="resultSection" style="display: none;">
+                        <h3><i class="fas fa-list-check"></i> 起名结果</h3>
+                        <div id="resultContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('birthDate').valueAsDate = new Date();
+
+        async function generateNames() {
+            const gender = document.getElementById('gender').value;
+            const birthDate = document.getElementById('birthDate').value;
+            const birthTime = document.getElementById('birthTime').value;
+            const surname = document.getElementById('surname').value.trim();
+            
+            if (!birthDate) {
+                alert('请选择出生日期');
+                return;
+            }
+
+            const resultSection = document.getElementById('resultSection');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            resultSection.style.display = 'block';
+            resultContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 正在生成名字，请稍候...</div>';
+
+            try {
+                const response = await fetch('/api/naming/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        gender: gender,
+                        birth_date: birthDate,
+                        birth_time: birthTime,
+                        surname: surname
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const content = data.content;
+                    resultContainer.innerHTML = `<div class="result-content">${marked.parse(content)}</div>`;
+                } else {
+                    resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> 请求失败: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

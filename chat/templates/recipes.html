@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>菜谱生成器 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .recipe-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .recipe-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .result-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        .result-content th,
+        .result-content td {
+            border: 1px solid var(--border-color);
+            padding: 10px 12px;
+            text-align: left;
+        }
+        .result-content th {
+            background: var(--hover-bg);
+            font-weight: 600;
+        }
+        .result-content tr:nth-child(even) {
+            background: var(--hover-bg);
+        }
+        .recipe-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .recipe-section h3 i {
+            color: var(--primary-color);
+        }
+        .preset-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .preset-item {
+            padding: 8px 16px;
+            background: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .preset-item:hover {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+        .result-table th,
+        .result-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+        .result-table th {
+            background: var(--hover-bg);
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .result-table td {
+            background: var(--message-bg);
+            color: var(--text-color);
+            vertical-align: top;
+        }
+        .result-table tr:hover td {
+            background: var(--hover-bg);
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .result-content {
+            overflow-x: auto;
+        }
+        .error-message {
+            color: #e74c3c;
+            padding: 16px;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-utensils"></i>
+                    <span>菜谱生成器</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>菜谱生成器</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="recipe-wrapper">
+                        <div class="recipe-section">
+                            <h3><i class="fas fa-book"></i> 选择菜谱或输入菜名</h3>
+                            <div class="preset-list">
+                                <div class="preset-item" onclick="selectDish('红烧肉')">红烧肉</div>
+                                <div class="preset-item" onclick="selectDish('宫保鸡丁')">宫保鸡丁</div>
+                                <div class="preset-item" onclick="selectDish('麻婆豆腐')">麻婆豆腐</div>
+                                <div class="preset-item" onclick="selectDish('西红柿炒鸡蛋')">西红柿炒鸡蛋</div>
+                                <div class="preset-item" onclick="selectDish('糖醋排骨')">糖醋排骨</div>
+                                <div class="preset-item" onclick="selectDish('酸辣土豆丝')">酸辣土豆丝</div>
+                                <div class="preset-item" onclick="selectDish('清蒸鱼')">清蒸鱼</div>
+                                <div class="preset-item" onclick="selectDish('蛋炒饭')">蛋炒饭</div>
+                            </div>
+                            <div class="input-group">
+                                <input type="text" id="dishName" placeholder="输入菜名，如：鱼香肉丝、辣子鸡等" onkeypress="handleKeyPress(event)">
+                                <button class="btn btn-primary" onclick="generateRecipe()">
+                                    <i class="fas fa-wand-magic-sparkles"></i> 生成菜谱
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="recipe-section" id="resultSection" style="display: none;">
+                            <h3><i class="fas fa-list-check"></i> 制作步骤</h3>
+                            <div id="resultContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        function selectDish(dish) {
+            document.getElementById('dishName').value = dish;
+            generateRecipe();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                generateRecipe();
+            }
+        }
+
+        async function generateRecipe() {
+            const dishName = document.getElementById('dishName').value.trim();
+            if (!dishName) {
+                alert('请输入菜名或选择预设菜谱');
+                return;
+            }
+
+            const resultSection = document.getElementById('resultSection');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            resultSection.style.display = 'block';
+            resultContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 正在生成菜谱，请稍候...</div>';
+
+            try {
+                const response = await fetch('/api/recipes/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ dish_name: dishName })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const content = data.content;
+                    resultContainer.innerHTML = `<div class="result-content">${marked.parse(content)}</div>`;
+                } else {
+                    resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> 请求失败: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

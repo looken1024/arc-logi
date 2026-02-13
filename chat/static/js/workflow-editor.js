@@ -182,6 +182,48 @@ const nodeTypes = {
         configFields: [
             { name: 'variable', label: '变量名', type: 'text', required: true }
         ]
+    },
+    base64: {
+        icon: 'fas fa-exchange-alt',
+        label: 'Base64',
+        color: '#ff9f43',
+        ports: { inputs: 1, outputs: 1 },
+        configFields: [
+            { name: 'operation', label: '操作', type: 'select', options: ['encode', 'decode'], required: true },
+            { name: 'input', label: '输入内容', type: 'textarea', required: true }
+        ]
+    },
+    json: {
+        icon: 'fas fa-code',
+        label: 'JSON',
+        color: '#2ecc71',
+        ports: { inputs: 1, outputs: 1 },
+        configFields: [
+            { name: 'operation', label: '操作', type: 'select', options: ['format', 'validate', 'minify'], required: true },
+            { name: 'input', label: 'JSON 内容', type: 'textarea', required: true }
+        ]
+    },
+    sql: {
+        icon: 'fas fa-database',
+        label: 'SQL',
+        color: '#3498db',
+        ports: { inputs: 1, outputs: 1 },
+        configFields: [
+            { name: 'operation', label: '操作', type: 'select', options: ['format', 'validate'], required: true },
+            { name: 'input', label: 'SQL 语句', type: 'textarea', required: true }
+        ]
+    },
+    http: {
+        icon: 'fas fa-globe',
+        label: 'HTTP请求',
+        color: '#9b59b6',
+        ports: { inputs: 1, outputs: 1 },
+        configFields: [
+            { name: 'method', label: '请求方法', type: 'select', options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], required: true },
+            { name: 'url', label: '请求 URL', type: 'text', required: true },
+            { name: 'headers', label: '请求头 (JSON格式)', type: 'textarea' },
+            { name: 'body', label: '请求体', type: 'textarea' }
+        ]
     }
 };
 

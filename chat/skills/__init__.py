@@ -22,13 +22,13 @@ def discover_skills(skills_dir: str = None) -> dict:
     """
     自动发现所有技能
     
-    扫描 skills 目录下的所有子文件夹，查找包含 scripts/skill.py 的文件夹。
+    扫描 skills 目录下的所有子文件夹，查找包含 SKILL.md 的文件夹。
     
     Args:
         skills_dir: skills 目录路径，默认为当前模块所在目录
         
     Returns:
-        dict: {skill_name: skill_path} 映射
+        dict: {skill_name: skill_dir_path} 映射
     """
     if skills_dir is None:
         skills_dir = os.path.dirname(os.path.abspath(__file__))
@@ -47,10 +47,10 @@ def discover_skills(skills_dir: str = None) -> dict:
         if item.startswith('_') or item.startswith('.'):
             continue
         
-        # 检查是否包含 scripts/skill.py
-        skill_file = os.path.join(item_path, 'scripts', 'skill.py')
-        if os.path.isfile(skill_file):
-            discovered_skills[item] = skill_file
+        # 检查是否包含 SKILL.md
+        skill_md = os.path.join(item_path, 'SKILL.md')
+        if os.path.isfile(skill_md):
+            discovered_skills[item] = item_path
     
     return discovered_skills
 
@@ -61,11 +61,24 @@ def load_skill(skill_name: str, skill_path: str) -> BaseSkill:
     
     Args:
         skill_name: 技能名称（文件夹名）
-        skill_path: skill.py 的完整路径
+        skill_path: 技能目录的完整路径
         
     Returns:
         BaseSkill: 技能实例
     """
+    skill_file = os.path.join(skill_path, 'scripts', 'skill.py')
+    
+    # 如果存在 scripts/skill.py，按原有方式加载
+    if os.path.isfile(skill_file):
+        return load_skill_from_file(skill_name, skill_file)
+    
+    # 否则，创建基于 SKILL.md 的简单技能
+    skill_md_path = os.path.join(skill_path, 'SKILL.md')
+    return load_skill_from_md(skill_name, skill_path, skill_md_path)
+
+
+def load_skill_from_file(skill_name: str, skill_path: str) -> BaseSkill:
+    """从 scripts/skill.py 加载技能"""
     try:
         # 确保项目根目录在路径中
         skill_dir = os.path.dirname(skill_path)  # scripts 目录
@@ -97,6 +110,42 @@ def load_skill(skill_name: str, skill_path: str) -> BaseSkill:
         
     except Exception as e:
         raise ImportError(f"加载技能 '{skill_name}' 失败: {str(e)}")
+
+
+def load_skill_from_md(skill_name: str, skill_path: str, skill_md_path: str) -> BaseSkill:
+    """从 SKILL.md 创建简单技能（无需 scripts/skill.py）"""
+    from skills.base import BaseSkill
+    
+    description = skill_name.replace('-', ' ').replace('_', ' ').title()
+    
+    # 读取 SKILL.md 内容
+    skill_md = ""
+    if os.path.isfile(skill_md_path):
+        with open(skill_md_path, 'r', encoding='utf-8') as f:
+            skill_md = f.read()
+    
+    class SimpleSkill(BaseSkill):
+        def get_name(self):
+            return skill_name
+        
+        def get_description(self):
+            return description
+        
+        def get_parameters(self):
+            return {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        
+        def execute(self, **kwargs):
+            return {
+                "success": True,
+                "message": f"Skill '{skill_name}' 已执行（基于 SKILL.md）",
+                "skill_md": skill_md
+            }
+    
+    return SimpleSkill()
 
 
 def register_all_skills() -> SkillRegistry:

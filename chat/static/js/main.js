@@ -25,10 +25,7 @@ const elements = {
     closeSettings: document.getElementById('closeSettings'),
     moreActionsBtn: document.getElementById('moreActionsBtn'),
     moreActionsMenu: document.getElementById('moreActionsMenu'),
-    dropdown: document.getElementById('moreActionsDropdown'),
-    skillsModal: document.getElementById('skillsModal'),
-    closeSkills: document.getElementById('closeSkills'),
-    skillsList: document.getElementById('skillsList')
+    dropdown: document.getElementById('moreActionsDropdown')
 };
 
 // 初始化
@@ -50,12 +47,10 @@ async function loadUserInfo() {
             currentTheme = user.theme || 'dark';
             applyTheme(currentTheme);
         } else {
-            // 未登录,重定向到登录页
             window.location.href = '/login';
         }
     } catch (error) {
         console.error('加载用户信息失败:', error);
-        window.location.href = '/login';
     }
 }
 
@@ -78,22 +73,22 @@ function applyTheme(theme) {
 function initializeEventListeners() {
     // 侧边栏切换
     elements.sidebarToggle?.addEventListener('click', () => {
-        elements.sidebar.classList.toggle('active');
+        elements.sidebar?.classList.toggle('active');
     });
 
     // 新对话按钮
-    elements.newChatBtn.addEventListener('click', createNewConversation);
+    elements.newChatBtn?.addEventListener('click', createNewConversation);
 
     // 发送消息
-    elements.sendBtn.addEventListener('click', sendMessage);
+    elements.sendBtn?.addEventListener('click', sendMessage);
     
     // 输入框事件
-    elements.messageInput.addEventListener('input', () => {
+    elements.messageInput?.addEventListener('input', () => {
         elements.sendBtn.disabled = !elements.messageInput.value.trim();
         autoResizeTextarea();
     });
 
-    elements.messageInput.addEventListener('keydown', (e) => {
+    elements.messageInput?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             if (!isGenerating && elements.messageInput.value.trim()) {
@@ -103,28 +98,28 @@ function initializeEventListeners() {
     });
 
     // 模型选择
-    elements.modelSelect.addEventListener('change', (e) => {
+    elements.modelSelect?.addEventListener('change', (e) => {
         currentModel = e.target.value;
     });
 
     // 清空对话
-    elements.clearBtn.addEventListener('click', clearCurrentConversation);
+    elements.clearBtn?.addEventListener('click', clearCurrentConversation);
 
     // 退出登录
-    elements.logoutBtn.addEventListener('click', logout);
+    elements.logoutBtn?.addEventListener('click', logout);
 
     // 设置按钮
-    elements.settingsBtn.addEventListener('click', () => {
-        elements.settingsModal.classList.add('active');
+    elements.settingsBtn?.addEventListener('click', () => {
+        elements.settingsModal?.classList.add('active');
     });
 
     // 关闭设置
-    elements.closeSettings.addEventListener('click', () => {
-        elements.settingsModal.classList.remove('active');
+    elements.closeSettings?.addEventListener('click', () => {
+        elements.settingsModal?.classList.remove('active');
     });
 
     // 点击模态框背景关闭
-    elements.settingsModal.addEventListener('click', (e) => {
+    elements.settingsModal?.addEventListener('click', (e) => {
         if (e.target === elements.settingsModal) {
             elements.settingsModal.classList.remove('active');
         }
@@ -133,7 +128,7 @@ function initializeEventListeners() {
     // 更多操作下拉菜单
     elements.moreActionsBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        elements.moreActionsMenu.classList.toggle('active');
+        elements.moreActionsMenu?.classList.toggle('active');
     });
 
     // 点击下拉菜单项
@@ -151,22 +146,9 @@ function initializeEventListeners() {
         window.location.href = '/workflows';
     });
 
-    // 打开 Skills 管理
-    document.getElementById('openSkillsManager')?.addEventListener('click', async () => {
-        elements.skillsModal.classList.add('active');
-        await loadSkills();
-    });
-
-    // 关闭 Skills 模态框
-    elements.closeSkills?.addEventListener('click', () => {
-        elements.skillsModal.classList.remove('active');
-    });
-
-    // 点击 Skills 模态框背景关闭
-    elements.skillsModal?.addEventListener('click', (e) => {
-        if (e.target === elements.skillsModal) {
-            elements.skillsModal.classList.remove('active');
-        }
+    // 打开提示词管理
+    document.getElementById('openPrompts')?.addEventListener('click', () => {
+        window.location.href = '/prompts';
     });
 
     // 点击其他地方关闭下拉菜单
@@ -586,86 +568,3 @@ function highlightCurrentNav() {
     });
 }
 
-// 加载技能列表
-async function loadSkills() {
-    try {
-        const response = await fetch('/api/user/skills');
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || '加载技能列表失败');
-        }
-
-        elements.skillsList.innerHTML = '';
-
-        if (data.skills.length === 0) {
-            elements.skillsList.innerHTML = '<div class="empty-state"><i class="fas fa-robot"></i><span>暂无可用技能</span></div>';
-            return;
-        }
-
-        data.skills.forEach(skill => {
-            const skillItem = document.createElement('div');
-            skillItem.className = 'skill-item';
-            skillItem.dataset.skillName = skill.name;
-
-            skillItem.innerHTML = `
-                <div class="skill-info">
-                    <div class="skill-name">
-                        <i class="fas fa-cube"></i>
-                        <span>${escapeHtml(skill.name)}</span>
-                    </div>
-                    <div class="skill-description">${escapeHtml(skill.description)}</div>
-                </div>
-                <label class="switch">
-                    <input type="checkbox" class="skill-toggle" data-skill="${escapeHtml(skill.name)}" ${skill.enabled ? 'checked' : ''}>
-                    <span class="slider"></span>
-                </label>
-            `;
-
-            elements.skillsList.appendChild(skillItem);
-        });
-
-        // 添加切换事件监听
-        document.querySelectorAll('.skill-toggle').forEach(toggle => {
-            toggle.addEventListener('change', async (e) => {
-                const skillName = e.target.dataset.skill;
-                const enabled = e.target.checked;
-                await updateSkillStatus(skillName, enabled);
-            });
-        });
-
-    } catch (error) {
-        console.error('加载技能列表失败:', error);
-        elements.skillsList.innerHTML = `<div class="error-state"><i class="fas fa-exclamation-triangle"></i><span>${escapeHtml(error.message)}</span></div>`;
-    }
-}
-
-// 更新技能状态
-async function updateSkillStatus(skillName, enabled) {
-    try {
-        const response = await fetch(`/api/user/skills/${encodeURIComponent(skillName)}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ enabled })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || '更新技能状态失败');
-        }
-
-        console.log(`技能 "${skillName}" 已${enabled ? '启用' : '禁用'}`);
-
-    } catch (error) {
-        console.error('更新技能状态失败:', error);
-        // 恢复切换状态
-        const toggle = document.querySelector(`.skill-toggle[data-skill="${escapeHtml(skillName)}"]`);
-        if (toggle) {
-            toggle.checked = !toggle.checked;
-        }
-        alert('更新技能状态失败: ' + error.message);
-    }
-}

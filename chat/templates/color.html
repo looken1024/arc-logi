@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>颜色选择器 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .color-picker-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .color-preview {
+            width: 100%;
+            height: 120px;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .color-input-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .color-input-row input[type="color"] {
+            width: 80px;
+            height: 50px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0;
+        }
+        .color-input-row input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 16px;
+            font-family: monospace;
+        }
+        .color-formats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .format-card {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .format-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        .format-card .format-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .format-card .format-value {
+            font-size: 16px;
+            font-family: monospace;
+            color: var(--text-color);
+            word-break: break-all;
+        }
+        .color-sliders {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .slider-row label {
+            width: 50px;
+            font-weight: 600;
+        }
+        .slider-row input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            -webkit-appearance: none;
+        }
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+        }
+        .slider-row .slider-value {
+            width: 50px;
+            text-align: right;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-palette"></i>
+                    <span>颜色选择器</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>颜色选择器</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="color-picker-wrapper">
+                        <div class="color-preview" id="colorPreview" style="background-color: #3b82f6;">
+                            #3B82F6
+                        </div>
+
+                        <div class="color-input-row">
+                            <input type="color" id="colorPicker" value="#3b82f6">
+                            <input type="text" id="hexInput" value="#3B82F6" placeholder="输入 HEX 颜色值">
+                            <button class="btn btn-primary" onclick="applyHexColor()">
+                                <i class="fas fa-check"></i> 应用
+                            </button>
+                        </div>
+
+                        <div class="color-sliders">
+                            <div class="slider-row">
+                                <label>R</label>
+                                <input type="range" id="redSlider" min="0" max="255" value="59">
+                                <span class="slider-value" id="redValue">59</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>G</label>
+                                <input type="range" id="greenSlider" min="0" max="255" value="130">
+                                <span class="slider-value" id="greenValue">130</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>B</label>
+                                <input type="range" id="blueSlider" min="0" max="255" value="246">
+                                <span class="slider-value" id="blueValue">246</span>
+                            </div>
+                        </div>
+
+                        <div class="color-formats">
+                            <div class="format-card" onclick="copyFormat('hex')">
+                                <div class="format-label">HEX</div>
+                                <div class="format-value" id="hexValue">#3B82F6</div>
+                            </div>
+                            <div class="format-card" onclick="copyFormat('rgb')">
+                                <div class="format-label">RGB</div>
+                                <div class="format-value" id="rgbValue">rgb(59, 130, 246)</div>
+                            </div>
+                            <div class="format-card" onclick="copyFormat('hsl')">
+                                <div class="format-label">HSL</div>
+                                <div class="format-value" id="hslValue">hsl(217, 92%, 76%)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        const colorPicker = document.getElementById('colorPicker');
+        const hexInput = document.getElementById('hexInput');
+        const colorPreview = document.getElementById('colorPreview');
+        const redSlider = document.getElementById('redSlider');
+        const greenSlider = document.getElementById('greenSlider');
+        const blueSlider = document.getElementById('blueSlider');
+        const redValue = document.getElementById('redValue');
+        const greenValue = document.getElementById('greenValue');
+        const blueValue = document.getElementById('blueValue');
+        const hexValue = document.getElementById('hexValue');
+        const rgbValue = document.getElementById('rgbValue');
+        const hslValue = document.getElementById('hslValue');
+
+        function updateColor(r, g, b) {
+            const hex = rgbToHex(r, g, b);
+            const hsl = rgbToHsl(r, g, b);
+
+            colorPicker.value = hex;
+            hexInput.value = hex.toUpperCase();
+            colorPreview.style.backgroundColor = hex;
+            colorPreview.textContent = hex.toUpperCase();
+
+            redSlider.value = r;
+            greenSlider.value = g;
+            blueSlider.value = b;
+            redValue.textContent = r;
+            greenValue.textContent = g;
+            blueValue.textContent = b;
+
+            hexValue.textContent = hex.toUpperCase();
+            rgbValue.textContent = `rgb(${r}, ${g}, ${b})`;
+            hslValue.textContent = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+        }
+
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(x => {
+                const hex = parseInt(x).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('');
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                    case g: h = ((b - r) / d + 2) / 6; break;
+                    case b: h = ((r - g) / d + 4) / 6; break;
+                }
+            }
+            return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+        }
+
+        colorPicker.addEventListener('input', (e) => {
+            const rgb = hexToRgb(e.target.value);
+            if (rgb) updateColor(rgb.r, rgb.g, rgb.b);
+        });
+
+        hexInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') applyHexColor();
+        });
+
+        function applyHexColor() {
+            const hex = hexInput.value.trim();
+            const rgb = hexToRgb(hex);
+            if (rgb) {
+                updateColor(rgb.r, rgb.g, rgb.b);
+            } else {
+                alert('请输入有效的 HEX 颜色值（如 #FF0000）');
+            }
+        }
+
+        redSlider.addEventListener('input', () => updateColor(redSlider.value, greenSlider.value, blueSlider.value));
+        greenSlider.addEventListener('input', () => updateColor(redSlider.value, greenSlider.value, blueSlider.value));
+        blueSlider.addEventListener('input', () => updateColor(redSlider.value, greenSlider.value, blueSlider.value));
+
+        function copyFormat(format) {
+            let text;
+            if (format === 'hex') text = hexValue.textContent;
+            else if (format === 'rgb') text = rgbValue.textContent;
+            else if (format === 'hsl') text = hslValue.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert('已复制: ' + text);
+            }).catch(() => {
+                alert('复制失败');
+            });
+        }
+    </script>
+</body>
+</html>

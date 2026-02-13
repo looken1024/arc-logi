@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP 请求工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-globe"></i>
+                    <span>HTTP 请求工具</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>HTTP 请求测试工具</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="http-tool-workspace">
+                    <div class="request-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-paper-plane"></i> 请求配置</label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>请求方法</label>
+                            <select id="httpMethod" class="form-control">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                                <option value="PATCH">PATCH</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>请求 URL</label>
+                            <input type="text" id="httpUrl" class="form-control" placeholder="https://api.example.com/data">
+                        </div>
+
+                        <div class="form-group">
+                            <label>请求头 (JSON格式)</label>
+                            <textarea id="httpHeaders" class="form-control" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>请求体</label>
+                            <textarea id="httpBody" class="form-control" rows="4" placeholder='{"key": "value"}'></textarea>
+                        </div>
+
+                        <button class="btn btn-primary btn-large" style="width: 100%;" onclick="sendRequest()">
+                            <i class="fas fa-paper-plane"></i> 发送请求
+                        </button>
+                    </div>
+
+                    <div class="response-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-reply"></i> 响应结果</label>
+                            <div class="action-buttons">
+                                <button class="btn btn-small" onclick="copyResponse()">
+                                    <i class="fas fa-copy"></i> 复制
+                                </button>
+                                <button class="btn btn-small" onclick="clearResponse()">
+                                    <i class="fas fa-trash-alt"></i> 清空
+                                </button>
+                            </div>
+                        </div>
+                        <div id="responseInfo" class="response-info"></div>
+                        <textarea id="responseText" readonly placeholder="响应内容将显示在这里..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        async function sendRequest() {
+            const method = document.getElementById('httpMethod').value;
+            const url = document.getElementById('httpUrl').value;
+            const headersText = document.getElementById('httpHeaders').value;
+            const body = document.getElementById('httpBody').value;
+            const responseText = document.getElementById('responseText');
+            const responseInfo = document.getElementById('responseInfo');
+
+            if (!url) {
+                alert('请输入请求 URL');
+                return;
+            }
+
+            let headers = {};
+            if (headersText) {
+                try {
+                    headers = JSON.parse(headersText);
+                } catch (e) {
+                    alert('请求头 JSON 格式错误');
+                    return;
+                }
+            }
+
+            const startTime = Date.now();
+
+            try {
+                const options = {
+                    method: method,
+                    headers: headers
+                };
+
+                if (body && ['POST', 'PUT', 'PATCH'].includes(method)) {
+                    options.body = body;
+                }
+
+                const response = await fetch(url, options);
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                const responseData = await response.text();
+
+                responseInfo.innerHTML = `
+                    <span class="status-code ${response.ok ? 'success' : 'error'}">${response.status} ${response.statusText}</span>
+                    <span class="response-time"><i class="fas fa-clock"></i> ${duration}ms</span>
+                `;
+
+                try {
+                    const jsonData = JSON.parse(responseData);
+                    responseText.value = JSON.stringify(jsonData, null, 2);
+                } catch {
+                    responseText.value = responseData;
+                }
+            } catch (error) {
+                responseInfo.innerHTML = `<span class="status-code error">请求失败</span>`;
+                responseText.value = '错误: ' + error.message;
+            }
+        }
+
+        function clearResponse() {
+            document.getElementById('responseText').value = '';
+            document.getElementById('responseInfo').innerHTML = '';
+        }
+
+        async function copyResponse() {
+            const responseText = document.getElementById('responseText');
+            try {
+                await navigator.clipboard.writeText(responseText.value);
+                alert('已复制到剪贴板');
+            } catch (e) {
+                alert('复制失败');
+            }
+        }
+    </script>
+</body>
+</html>

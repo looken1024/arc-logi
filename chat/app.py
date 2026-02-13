@@ -1,13 +1,17 @@
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import os
 import json
 from datetime import datetime, timedelta
 import openai
 from typing import Generator
 import secrets
+import io
+from PIL import Image
+from PyPDF2 import PdfReader, PdfWriter
 import pymysql
 import uuid
 import subprocess
@@ -120,7 +124,7 @@ def init_database():
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     workflow_id INT NOT NULL,
                     node_id VARCHAR(50) NOT NULL,
-                    node_type ENUM('start', 'end', 'llm', 'script', 'condition', 'input', 'output', 'delay') NOT NULL,
+                    node_type ENUM('start', 'end', 'llm', 'script', 'condition', 'input', 'output', 'delay', 'base64', 'json', 'sql', 'http') NOT NULL,
                     name VARCHAR(100),
                     config JSON,
                     position_x INT DEFAULT 0,
@@ -236,6 +240,23 @@ def init_database():
                     FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
+
+            # 创建提示词表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS prompts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    content TEXT NOT NULL,
+                    description TEXT,
+                    username VARCHAR(50) NOT NULL,
+                    tags VARCHAR(255),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_name (name),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
             
             conn.commit()
             print("✅ 数据库表初始化完成")
@@ -271,12 +292,416 @@ def md5_tool():
         return redirect(url_for('login'))
     return render_template('md5.html')
 
+@app.route('/color')
+def color_tool():
+    """颜色选择器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('color.html')
+
+@app.route('/datetime')
+def datetime_tool():
+    """时间转换器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('datetime.html')
+
+@app.route('/image')
+def image_tool():
+    """图片转换工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('image.html')
+
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico'}
+ALLOWED_PDF_EXTENSIONS = {'pdf'}
+
+def allowed_file(filename, allowed_extensions):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+@app.route('/api/image/convert', methods=['POST'])
+def image_convert():
+    """图片格式转换"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    file = request.files['file']
+    target_format = request.form.get('format', 'PNG').upper()
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    if not allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+        return jsonify({'success': False, 'error': '不支持的图片格式'})
+    
+    try:
+        image = Image.open(file)
+        if image.mode == 'RGBA' and target_format in ['JPEG', 'JPG']:
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[3])
+            image = background
+        elif image.mode != 'RGB' and target_format in ['JPEG', 'JPG']:
+            image = image.convert('RGB')
+        
+        output = io.BytesIO()
+        image.save(output, format=target_format)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype=f'image/{target_format.lower()}',
+            as_attachment=True,
+            download_name=f'converted.{target_format.lower()}'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/image/to-pdf', methods=['POST'])
+def image_to_pdf():
+    """图片转PDF"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    if not allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+        return jsonify({'success': False, 'error': '不支持的图片格式'})
+    
+    try:
+        image = Image.open(file)
+        if image.mode == 'RGBA':
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[3])
+            image = background
+        elif image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        pdf_output = io.BytesIO()
+        image.save(pdf_output, 'PDF', resolution=100.0)
+        pdf_output.seek(0)
+        
+        return send_file(
+            pdf_output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='converted.pdf'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/pdf/to-image', methods=['POST'])
+def pdf_to_image():
+    """PDF转图片"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    if not allowed_file(file.filename, ALLOWED_PDF_EXTENSIONS):
+        return jsonify({'success': False, 'error': '请上传PDF文件'})
+    
+    try:
+        import fitz
+        pdf_data = file.read()
+        pdf_doc = fitz.open(stream=pdf_data, filetype="pdf")
+        
+        if pdf_doc.page_count == 0:
+            return jsonify({'success': False, 'error': 'PDF文件为空'})
+        
+        page = pdf_doc[0]
+        zoom = 2.0
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat)
+        
+        img_data = pix.tobytes("png")
+        
+        return send_file(
+            io.BytesIO(img_data),
+            mimetype='image/png',
+            as_attachment=True,
+            download_name='page_1.png'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+MICRO_HEADLINE_SYSTEM_PROMPT = """你是一位资深的微头条文案专家，擅长创作吸引眼球的爆款微头条内容。
+
+请根据用户提供的关键词或主题，生成一篇优质的微头条文案。
+
+要求：
+1. 开头要有吸引力，能够引发用户好奇或共鸣
+2. 内容简洁有力，控制在200-500字左右
+3. 语言风格接地气口语化，适合手机阅读
+4. 可以适当添加emoji表情增加趣味性
+5. 结尾可以添加互动话题，引导用户评论
+6. 段落分明，每段不超过3行
+
+请直接输出文案内容，不要添加任何解释或格式符号。"""
+
+RECIPE_SYSTEM_PROMPT = """你是一位专业的中餐厨师，擅长创作各种美味菜品的详细制作步骤。
+
+用户会提供一道菜名，你需要为这道菜生成详细的制作步骤。
+请严格按照以下表格格式输出：
+
+| 步骤 | 操作内容 | 注意事项 |
+|------|----------|----------|
+| 1    | 具体操作 | 需要注意的细节 |
+| 2    | 具体操作 | 需要注意的细节 |
+| ...  | ...      | ...      |
+
+要求：
+1. 步骤要详细清晰，每一步都要包含具体操作和注意事项
+2. 包含所需食材和调料（如果有）
+3. 考虑烹饪时间、火候、食材处理等关键细节
+4. 如果是家常菜，要提供简单易懂的步骤
+5. 如果是复杂菜品，可以适当增加步骤数量
+6. 输出必须只包含表格，不要有任何其他文字解释"""
+
+@app.route('/recipes')
+def recipe_tool():
+    """菜谱生成器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('recipes.html')
+
+@app.route('/api/recipes/generate', methods=['POST'])
+def recipe_generate():
+    """生成菜谱制作步骤"""
+    data = request.get_json()
+    dish_name = data.get('dish_name', '').strip()
+    
+    if not dish_name:
+        return jsonify({'success': False, 'error': '请输入菜名'})
+    
+    try:
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com",
+            timeout=120.0,
+            max_retries=2
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": RECIPE_SYSTEM_PROMPT},
+                {"role": "user", "content": f"请生成菜名「{dish_name}」的详细制作步骤，以表格形式呈现"}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        result = response.choices[0].message.content
+        return jsonify({'success': True, 'content': result})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/weibo')
+def weibo_tool():
+    """微头条文案工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('weibo.html')
+
+@app.route('/api/weibo/generate', methods=['POST'])
+def weibo_generate():
+    """生成微头条文案"""
+    data = request.get_json()
+    keyword = data.get('keyword', '').strip()
+    
+    if not keyword:
+        return jsonify({'success': False, 'error': '请输入关键词或主题'})
+    
+    try:
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com",
+            timeout=60.0,
+            max_retries=2
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": MICRO_HEADLINE_SYSTEM_PROMPT},
+                {"role": "user", "content": f"请为以下主题生成微头条文案：{keyword}"}
+            ],
+            temperature=0.8,
+            max_tokens=1000
+        )
+        
+        result = response.choices[0].message.content
+        return jsonify({'success': True, 'content': result})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+NAMING_SYSTEM_PROMPT = """你是一位专业的姓名学大师，擅长根据八字五行、生肖、星座等为新生儿起名。
+
+用户会提供以下信息：
+- 性别：男孩或女孩
+- 出生日期：年-月-日
+- 出生时辰（如有）：子时、丑时等
+- 姓氏（如有）：姓什么
+
+请根据以上信息生成吉祥的名字，要求：
+1. 提供3-5个精选名字，每个名字都要有详细的起名原因分析
+2. 分析八字五行，看看宝宝缺什么，然后在名字中补充
+3. 考虑名字的音韵美感，读起来朗朗上口
+4. 名字要有美好的寓意和象征
+5. 名字要容易被接受，寓意积极向上
+
+输出格式请使用Markdown，方便前端渲染显示。"""
+
+@app.route('/naming')
+def naming_tool():
+    """起名神器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('naming.html')
+
+@app.route('/api/naming/generate', methods=['POST'])
+def naming_generate():
+    """生成名字"""
+    data = request.get_json()
+    gender = data.get('gender', '').strip()
+    birth_date = data.get('birth_date', '').strip()
+    birth_time = data.get('birth_time', '').strip()
+    surname = data.get('surname', '').strip()
+    
+    if not birth_date:
+        return jsonify({'success': False, 'error': '请选择出生日期'})
+    
+    user_content = f"请为"
+    if surname:
+        user_content += f"姓{surname}的"
+    user_content += f"宝宝起名，性别：{gender}，出生日期：{birth_date}"
+    if birth_time:
+        user_content += f"，出生时辰：{birth_time}"
+    
+    try:
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com",
+            timeout=120.0,
+            max_retries=2
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": NAMING_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content}
+            ],
+            temperature=0.8,
+            max_tokens=2000
+        )
+        
+        result = response.choices[0].message.content
+        return jsonify({'success': True, 'content': result})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/tools')
 def tools():
     """工具列表页面"""
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('tools.html')
+
+CLASSIC_SYSTEM_PROMPT = """你是一个中国传统文化专家，擅长解读经典古籍。你的任务是用通俗易懂的语言解读三字经、千字文等传统启蒙经典，帮助用户理解其含义、教育思想和历史价值。
+
+输出格式请使用Markdown，方便前端渲染显示。"""
+
+@app.route('/sanzijing')
+def sanzijing_tool():
+    """三字经页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('sanzijing.html')
+
+@app.route('/qianziwen')
+def qianziwen_tool():
+    """千字文页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('qianziwen.html')
+
+@app.route('/api/classic/analyze', methods=['POST'])
+def classic_analyze():
+    """经典解读"""
+    data = request.get_json()
+    classic = data.get('classic', '')
+    user_content = data.get('user_content', '')
+    
+    classic_name = '三字经' if classic == 'sanzijing' else '千字文'
+    
+    try:
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com",
+            timeout=120.0,
+            max_retries=2
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": CLASSIC_SYSTEM_PROMPT},
+                {"role": "user", "content": f"关于{classic_name}：{user_content}"}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        result = response.choices[0].message.content
+        return jsonify({'success': True, 'content': result})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/skills')
+def skills_page():
+    """Skills 管理页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('skills.html')
+
+@app.route('/base64')
+def base64_tool():
+    """Base64 工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('base64.html')
+
+@app.route('/json')
+def json_tool():
+    """JSON 工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('json.html')
+
+@app.route('/sql')
+def sql_tool():
+    """SQL 工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('sql.html')
+
+@app.route('/http')
+def http_tool():
+    """HTTP 请求工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('http.html')
 
 @app.route('/schedules')
 def schedules():
@@ -291,6 +716,13 @@ def workflows():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('workflows.html')
+
+@app.route('/prompts')
+def prompts_page():
+    """提示词管理页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('prompts.html')
 
 @app.route('/workflows/editor/<int:workflow_id>')
 def workflow_editor(workflow_id):
@@ -713,6 +1145,32 @@ def get_skills():
         'skills': skills,
         'count': len(skills)
     })
+
+@app.route('/api/skills/scan', methods=['GET'])
+def scan_skills():
+    """扫描并重新加载skills目录下所有技能"""
+    global skill_registry
+    
+    try:
+        skill_registry = register_all_skills()
+        
+        skills = []
+        for skill_name in skill_registry.list_skills():
+            skill = skill_registry.get_skill(skill_name)
+            if skill:
+                skills.append({
+                    'name': skill.name,
+                    'description': skill.description,
+                    'parameters': skill.parameters
+                })
+        
+        return jsonify({
+            'success': True,
+            'skills': skills,
+            'count': len(skills)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/skills/<skill_name>', methods=['POST'])
 def execute_skill_api(skill_name):
@@ -1923,6 +2381,176 @@ def update_schedule_execution(schedule_id, execution_id):
                     tuple(update_values)
                 )
                 conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== 提示词管理 API ====================
+
+@app.route('/api/prompts', methods=['GET'])
+def get_prompts():
+    """获取提示词列表"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    search = request.args.get('search', '')
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                if search:
+                    cursor.execute(
+                        "SELECT * FROM prompts WHERE username = %s AND (name LIKE %s OR content LIKE %s OR tags LIKE %s) ORDER BY updated_at DESC",
+                        (username, f'%{search}%', f'%{search}%', f'%{search}%')
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM prompts WHERE username = %s ORDER BY updated_at DESC",
+                        (username,)
+                    )
+                prompts = cursor.fetchall()
+                
+                for prompt in prompts:
+                    if prompt.get('tags'):
+                        prompt['tags'] = prompt['tags'].split(',') if isinstance(prompt['tags'], str) else []
+                    else:
+                        prompt['tags'] = []
+                
+                return jsonify({'prompts': prompts})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prompts', methods=['POST'])
+def create_prompt():
+    """创建提示词"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    name = data.get('name', '').strip()
+    content = data.get('content', '').strip()
+    description = data.get('description', '').strip()
+    tags = data.get('tags', [])
+    
+    if not name:
+        return jsonify({'error': '提示词名称不能为空'}), 400
+    if not content:
+        return jsonify({'error': '提示词内容不能为空'}), 400
+    
+    tags_str = ','.join(tags) if isinstance(tags, list) else str(tags)
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO prompts (name, content, description, username, tags) VALUES (%s, %s, %s, %s, %s)",
+                    (name, content, description, username, tags_str)
+                )
+                conn.commit()
+                prompt_id = cursor.lastrowid
+                
+                return jsonify({
+                    'success': True,
+                    'prompt': {
+                        'id': prompt_id,
+                        'name': name,
+                        'content': content,
+                        'description': description,
+                        'tags': tags
+                    }
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prompts/<int:prompt_id>', methods=['GET'])
+def get_prompt(prompt_id):
+    """获取单个提示词"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT * FROM prompts WHERE id = %s AND username = %s",
+                    (prompt_id, username)
+                )
+                prompt = cursor.fetchone()
+                
+                if not prompt:
+                    return jsonify({'error': '提示词不存在'}), 404
+                
+                if prompt.get('tags'):
+                    prompt['tags'] = prompt['tags'].split(',') if isinstance(prompt['tags'], str) else []
+                else:
+                    prompt['tags'] = []
+                
+                return jsonify({'prompt': prompt})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prompts/<int:prompt_id>', methods=['PUT'])
+def update_prompt(prompt_id):
+    """更新提示词"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    name = data.get('name', '').strip()
+    content = data.get('content', '').strip()
+    description = data.get('description', '').strip()
+    tags = data.get('tags', [])
+    
+    if not name:
+        return jsonify({'error': '提示词名称不能为空'}), 400
+    if not content:
+        return jsonify({'error': '提示词内容不能为空'}), 400
+    
+    tags_str = ','.join(tags) if isinstance(tags, list) else str(tags)
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE prompts SET name = %s, content = %s, description = %s, tags = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND username = %s",
+                    (name, content, description, tags_str, prompt_id, username)
+                )
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': '提示词不存在'}), 404
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/prompts/<int:prompt_id>', methods=['DELETE'])
+def delete_prompt(prompt_id):
+    """删除提示词"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM prompts WHERE id = %s AND username = %s",
+                    (prompt_id, username)
+                )
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': '提示词不存在'}), 404
                 
                 return jsonify({'success': True})
     except Exception as e:

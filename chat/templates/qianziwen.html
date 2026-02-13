@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>千字文 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .main-content {
+            overflow-y: auto;
+        }
+        .classic-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .classic-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .classic-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .classic-content {
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            line-height: 2;
+            font-size: 15px;
+        }
+        .classic-content p {
+            margin: 8px 0;
+            text-indent: 2em;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            font-size: 14px;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+        .form-group select,
+        .form-group input,
+        .form-group textarea {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group select:focus,
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result-content {
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            line-height: 1.8;
+        }
+        .result-content h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .result-content h3 {
+            font-size: 16px;
+            margin: 20px 0 12px;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .error-message {
+            padding: 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回工具</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{{ session.get('username', '用户') }}</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>千字文</h1>
+            </header>
+
+            <div class="page-content">
+                <div class="classic-wrapper">
+                    <div class="classic-section">
+                        <h3><i class="fas fa-file-alt"></i> 原文</h3>
+                        <div class="classic-content" id="originalText">
+                            <p>天地玄黄，宇宙洪荒。日月盈昃，辰宿列张。</p>
+                            <p>寒来暑往，秋收冬藏。闰余成岁，律吕调阳。</p>
+                            <p>云腾致雨，露结为霜。金生丽水，玉出昆冈。</p>
+                            <p>剑号巨阙，珠称夜光。果珍李柰，菜羹曲酿。</p>
+                            <p>海河淡，鳞潜羽翔。龙师火帝，鸟官人皇。</p>
+                            <p>始制文字，乃服衣裳。推位让国，有虞陶唐。</p>
+                            <p>吊民伐罪，周发殷汤。坐朝问道，垂拱平章。</p>
+                            <p>爱育黎首，臣伏戎羌。遐迩一体，率宾归王。</p>
+                            <p>鸣凤在竹，白驹食场。化被草木，赖及万方。</p>
+                            <p>盖此身发，四大五常。恭惟鞠养，岂敢毁伤。</p>
+                            <p>女慕贞洁，男效才良。知过必改，得能莫忘。</p>
+                            <p>罔谈彼短，靡恃己长。信使可覆，器欲难量。</p>
+                            <p>墨悲丝染，诗赞羔羊。景行维贤， 克念作圣。</p>
+                            <p>德建名立，形端表正。空谷传声，虚堂习听。</p>
+                            <p>祸因恶积，福缘善庆。尺璧非宝，寸阴是竞。</p>
+                            <p>资父事君，曰严与敬。孝当竭力，忠则尽命。</p>
+                            <p>临深履薄，夙兴温凊。似兰斯馨，如松之盛。</p>
+                            <p>川流不息，渊澄取映。容止若思，言辞安定。</p>
+                            <p>笃初诚美，慎终宜令。荣业所基，籍甚无竟。</p>
+                            <p>学优登仕，摄职从政。存以甘棠，去而益咏。</p>
+                            <p>乐殊贵贱，礼别尊卑。上和下睦，夫唱妇随。</p>
+                            <p>外受傅训，入奉母仪。诸姑伯叔，犹子比儿。</p>
+                            <p>孔怀兄弟，同气连枝。交友投分， 切磨箴规。</p>
+                            <p>仁慈隐恻，造次弗离。节义廉退，颠沛匪亏。</p>
+                            <p>性静情逸，心动神疲。守真志满，逐物意移。</p>
+                            <p>坚持雅操，好爵自縻。都邑华夏，东西二京。</p>
+                            <p>背邙面洛，浮渭据泾。宫殿盘郁，楼观飞惊。</p>
+                            <p>图写禽兽，画彩仙灵。丙舍旁启，甲帐对楹。</p>
+                            <p>肆筵设席，鼓瑟吹笙。升阶纳绔，弁转疑星。</p>
+                            <p>右通广内，左达承明。既集坟典，亦聚群英。</p>
+                            <p>杜稿钟隶，漆书壁经。府罗将相，路侠槐卿。</p>
+                            <p>户封八县，家给千兵。高冠陪辇，驱毂振缨。</p>
+                            <p>世禄侈富，车驾肥轻。策功茂实，勒碑刻铭。</p>
+                            <p>盘溪伊尹，佐时阿衡。毫伐单于， 驰坛。</p>
+                            <p>宣威沙漠，驰誉丹青。九州禹迹，百郡秦并。</p>
+                            <p>岳宗恒岱，禅主云亭。雁门紫塞，鸡田赤诚。</p>
+                            <p>昆池碣石，钜野洞庭。旷远绵邈，岩岫杳冥。</p>
+                            <p>治本于农，务兹稼穑。俶载南亩，我艺黍稷。</p>
+                            <p>税熟贡新，劝赏黜陟。孟轲敦素，史鱼秉直。</p>
+                            <p>庶几中庸，劳谦谨敕。聆音察理，鉴貌辨色。</p>
+                            <p>贻厥嘉猷，勉其祗植。省躬讥诫，宠增抗极。</p>
+                            <p>殆辱近耻，林皋幸即。两疏见机，解组谁逼。</p>
+                            <p>索居闲处，沉默寂寥。求古寻论，散虑逍遥。</p>
+                            <p>欣奏累遣，戚谢欢招。渠荷的历，园莽抽条。</p>
+                            <p>枇杷晚翠，梧桐早凋。陈根委翳，落叶飘摇。</p>
+                            <p>游鹍独运，鳞迟。凌摩绛霄，耽读玩市。</p>
+                            <p>寓目囊箱，易輶攸畏。属耳垣墙，具膳餐饭。</p>
+                            <p>适口充肠，饱饫烹宰。饥厌糟糠， 亲舍。</p>
+                            <p>亲戚故旧，老少异粮。妾御绩纺，侍巾帷房。</p>
+                            <p>纨扇圆洁，银烛炜煌。昼眠夕寐，蓝笋象床。</p>
+                            <p>弦歌酒宴，接杯举殇。矫手顿足，悦豫且康。</p>
+                            <p>嫡后嗣续，祭祀烝尝。稽颡再拜，悚惧恐惶。</p>
+                            <p>笺牒简要，俯察渠道。驴骡犊特， 陕。</p>
+                            <p>斩邪留正，贷钱传讱。亲戚故旧，老少异粮。</p>
+                        </div>
+                    </div>
+
+                    <div class="classic-section">
+                        <h3><i class="fas fa-comment-dots"></i> AI 解读</h3>
+                        <div class="form-group">
+                            <label for="queryType">选择解读方式</label>
+                            <select id="queryType">
+                                <option value="summary">全文概要解读</option>
+                                <option value="section">分段详细解读</option>
+                                <option value="custom">自定义问题</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="customQuestionGroup" style="display: none;">
+                            <label for="customQuestion">请输入您的问题</label>
+                            <textarea id="customQuestion" placeholder="例如：千字文讲了什么内容？"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="analyzeClassic()">
+                            <i class="fas fa-wand-magic-sparkles"></i> 开始解读
+                        </button>
+                        <div id="resultContainer" style="margin-top: 20px;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('queryType').addEventListener('change', function() {
+            const customGroup = document.getElementById('customQuestionGroup');
+            customGroup.style.display = this.value === 'custom' ? 'flex' : 'none';
+        });
+
+        async function analyzeClassic() {
+            const queryType = document.getElementById('queryType').value;
+            const customQuestion = document.getElementById('customQuestion').value.trim();
+            const resultContainer = document.getElementById('resultContainer');
+            
+            let userContent = '';
+            if (queryType === 'summary') {
+                userContent = '请对千字文进行全文概要解读，包括其教育意义、历史价值等内容。';
+            } else if (queryType === 'section') {
+                userContent = '请选择千字文中的重点章节进行详细解读，每段解释其含义和教育思想。';
+            } else {
+                if (!customQuestion) {
+                    alert('请输入您的问题');
+                    return;
+                }
+                userContent = customQuestion;
+            }
+            
+            resultContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 正在生成解读，请稍候...</div>';
+
+            try {
+                const response = await fetch('/api/classic/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        classic: 'qianziwen',
+                        query_type: queryType,
+                        custom_question: customQuestion,
+                        user_content: userContent
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const content = data.content;
+                    resultContainer.innerHTML = `<div class="result-content">${marked.parse(content)}</div>`;
+                } else {
+                    resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> 请求失败: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

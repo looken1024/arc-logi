@@ -57,7 +57,10 @@
 
 /* 工具网格 */
 .tools-grid {
-    max-width: 800px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    max-width: 1200px;
     margin: 0 auto;
 }
 
@@ -65,14 +68,13 @@
 .tool-card {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 20px;
+    gap: 12px;
+    padding: 16px;
     background-color: var(--message-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 10px;
     text-decoration: none;
     transition: all 0.2s;
-    margin-bottom: 16px;
 }
 
 .tool-card:hover {
@@ -82,10 +84,10 @@
 }
 
 .tool-icon {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     background-color: var(--primary-color);
-    border-radius: 12px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -93,7 +95,7 @@
 }
 
 .tool-icon i {
-    font-size: 24px;
+    font-size: 18px;
     color: white;
 }
 
@@ -103,14 +105,14 @@
 }
 
 .tool-info h3 {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-color);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .tool-info p {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
@@ -133,16 +135,21 @@
         padding: 16px;
     }
     
+    .tools-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+    }
+    
     .tool-card {
-        padding: 16px;
+        padding: 12px;
     }
     
     .tool-icon {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
     }
     
     .tool-icon i {
-        font-size: 20px;
+        font-size: 16px;
     }
 }

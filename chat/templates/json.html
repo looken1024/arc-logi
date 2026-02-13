@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MD5 工具 - AI Chat Platform</title>
+    <title>JSON 工具 - AI Chat Platform</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -28,8 +28,8 @@
                     <span>返回聊天</span>
                 </a>
                 <div class="nav-item active">
-                    <i class="fas fa-calculator"></i>
-                    <span>MD5 工具</span>
+                    <i class="fas fa-code"></i>
+                    <span>JSON 工具</span>
                 </div>
             </div>
             
@@ -46,14 +46,14 @@
                 <button class="sidebar-toggle" id="sidebarToggle">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1>MD5 加密/解密</h1>
+                <h1>JSON 格式化工具</h1>
             </header>
 
             <div class="tool-container">
                 <div class="tool-workspace">
                     <div class="input-section">
                         <div class="section-header">
-                            <label><i class="fas fa-edit"></i> 输入内容</label>
+                            <label><i class="fas fa-edit"></i> JSON 输入</label>
                             <div class="action-buttons">
                                 <button class="btn btn-small" onclick="clearInput()">
                                     <i class="fas fa-trash-alt"></i> 清空
@@ -63,18 +63,18 @@
                                 </button>
                             </div>
                         </div>
-                        <textarea id="inputText" placeholder="输入要加密或解密的字符串..."></textarea>
+                        <textarea id="inputText" placeholder='{"name": "test", "value": 123}'></textarea>
                     </div>
 
                     <div class="operation-section">
-                        <button class="btn btn-primary btn-large" onclick="encryptMD5()">
-                            <i class="fas fa-lock"></i> 加密
+                        <button class="btn btn-primary btn-large" onclick="formatJSON()">
+                            <i class="fas fa-indent"></i> 格式化
                         </button>
-                        <button class="btn btn-primary btn-large" onclick="decryptMD5()">
-                            <i class="fas fa-unlock"></i> 解密
+                        <button class="btn btn-primary btn-large" onclick="minifyJSON()">
+                            <i class="fas fa-compress-alt"></i> 压缩
                         </button>
-                        <button class="btn btn-primary btn-large" onclick="batchEncryptMD5()">
-                            <i class="fas fa-layer-group"></i> 批量加密
+                        <button class="btn btn-primary btn-large" onclick="validateJSON()">
+                            <i class="fas fa-check-circle"></i> 验证
                         </button>
                     </div>
 
@@ -94,46 +94,36 @@
         </main>
     </div>
 
-    <script src="{{ url_for('static', filename='js/md5.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
-        function encryptMD5() {
+        function formatJSON() {
             const input = document.getElementById('inputText').value;
-            if (!input) {
-                document.getElementById('outputText').value = '请输入要加密的字符串';
-                return;
+            try {
+                const obj = JSON.parse(input);
+                document.getElementById('outputText').value = JSON.stringify(obj, null, 4);
+            } catch (e) {
+                document.getElementById('outputText').value = '错误: ' + e.message;
             }
-            const result = MD5(input);
-            document.getElementById('outputText').value = result;
         }
 
-        function decryptMD5() {
-            const input = document.getElementById('inputText').value.trim();
-            if (!input) {
-                document.getElementById('outputText').value = '请输入要解密的 MD5 哈希值';
-                return;
+        function minifyJSON() {
+            const input = document.getElementById('inputText').value;
+            try {
+                const obj = JSON.parse(input);
+                document.getElementById('outputText').value = JSON.stringify(obj);
+            } catch (e) {
+                document.getElementById('outputText').value = '错误: ' + e.message;
             }
-            if (!/^[a-fA-F0-9]{32}$/.test(input)) {
-                document.getElementById('outputText').value = '请输入有效的 32 位 MD5 哈希值';
-                return;
-            }
-            document.getElementById('outputText').value = 'MD5 解密需要在线查询，请使用专门的 MD5 解密服务';
         }
 
-        function batchEncryptMD5() {
+        function validateJSON() {
             const input = document.getElementById('inputText').value;
-            if (!input) {
-                document.getElementById('outputText').value = '请输入要批量加密的字符串';
-                return;
+            try {
+                JSON.parse(input);
+                document.getElementById('outputText').value = 'JSON 格式有效！';
+            } catch (e) {
+                document.getElementById('outputText').value = '错误: ' + e.message;
             }
-            const lines = input.split('\n');
-            const results = lines.map(line => {
-                if (line.trim()) {
-                    return MD5(line.trim());
-                }
-                return '';
-            }).filter(r => r !== '');
-            document.getElementById('outputText').value = results.join('\n');
         }
 
         function clearInput() {

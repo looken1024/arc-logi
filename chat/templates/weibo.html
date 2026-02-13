@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微头条文案生成 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .weibo-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .weibo-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .weibo-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .weibo-section h3 i {
+            color: var(--primary-color);
+        }
+        .weibo-section p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+        .keyword-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 15px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+        }
+        .keyword-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .keyword-input::placeholder {
+            color: var(--text-secondary);
+        }
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .result-area {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--hover-bg);
+            border-radius: 12px;
+            display: none;
+        }
+        .result-area.show {
+            display: block;
+        }
+        .result-area .content {
+            color: var(--text-color);
+            font-size: 15px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .loading i {
+            font-size: 32px;
+            color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+        .loading p {
+            margin-top: 12px;
+            color: var(--text-secondary);
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .tips {
+            background: var(--hover-bg);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .tips h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+        .tips ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .tips li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-pen"></i>
+                    <span>微头条文案</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>微头条文案生成</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="weibo-wrapper">
+                        <div class="weibo-section">
+                            <h3><i class="fas fa-lightbulb"></i> 生成微头条文案</h3>
+                            <p>输入关键词或主题，AI 将为你生成吸引人的微头条文案</p>
+                            
+                            <div class="tips">
+                                <h4>输入示例：</h4>
+                                <ul>
+                                    <li>职场干货：职场生存法则、面试技巧</li>
+                                    <li>情感故事：婚姻、恋爱、亲情</li>
+                                    <li>生活技巧：收纳、理财、健康</li>
+                                    <li>热点话题：社会新闻、明星八卦</li>
+                                </ul>
+                            </div>
+                            
+                            <input type="text" id="keywordInput" class="keyword-input" 
+                                placeholder="请输入关键词或主题，例如：职场生存法则" 
+                                onkeypress="if(event.key==='Enter')generateWeibo()">
+                            
+                            <div class="btn-row">
+                                <button class="btn btn-primary" onclick="generateWeibo()">
+                                    <i class="fas fa-magic"></i> 生成文案
+                                </button>
+                                <button class="btn" onclick="clearInput()">
+                                    <i class="fas fa-redo"></i> 重新输入
+                                </button>
+                            </div>
+                            
+                            <div class="loading" id="loading">
+                                <i class="fas fa-spinner"></i>
+                                <p>AI 正在创作中...</p>
+                            </div>
+                            
+                            <div class="result-area" id="resultArea">
+                                <div class="content" id="resultContent"></div>
+                                <div class="result-actions">
+                                    <button class="btn btn-small" onclick="copyResult()">
+                                        <i class="fas fa-copy"></i> 复制文案
+                                    </button>
+                                    <button class="btn btn-small" onclick="regenerate()">
+                                        <i class="fas fa-redo"></i> 重新生成
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentKeyword = '';
+
+        function generateWeibo() {
+            const keyword = document.getElementById('keywordInput').value.trim();
+            
+            if (!keyword) {
+                alert('请输入关键词或主题');
+                return;
+            }
+            
+            currentKeyword = keyword;
+            
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('resultArea').classList.remove('show');
+            
+            fetch('/api/weibo/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ keyword: keyword })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('show');
+                
+                if (data.success) {
+                    document.getElementById('resultContent').textContent = data.content;
+                    document.getElementById('resultArea').classList.add('show');
+                } else {
+                    alert('生成失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('show');
+                alert('请求失败: ' + error.message);
+            });
+        }
+
+        function copyResult() {
+            const content = document.getElementById('resultContent').textContent;
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(content).then(() => {
+                    alert('已复制到剪贴板');
+                }).catch(() => {
+                    fallbackCopy(content);
+                });
+            } else {
+                fallbackCopy(content);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('已复制到剪贴板');
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function regenerate() {
+            if (currentKeyword) {
+                document.getElementById('keywordInput').value = currentKeyword;
+                generateWeibo();
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('keywordInput').value = '';
+            document.getElementById('resultArea').classList.remove('show');
+            document.getElementById('keywordInput').focus();
+        }
+    </script>
+</body>
+</html>

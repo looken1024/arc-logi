@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MD5 工具 - AI Chat Platform</title>
+    <title>Base64 工具 - AI Chat Platform</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -28,8 +28,8 @@
                     <span>返回聊天</span>
                 </a>
                 <div class="nav-item active">
-                    <i class="fas fa-calculator"></i>
-                    <span>MD5 工具</span>
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Base64 工具</span>
                 </div>
             </div>
             
@@ -46,7 +46,7 @@
                 <button class="sidebar-toggle" id="sidebarToggle">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1>MD5 加密/解密</h1>
+                <h1>Base64 编解码工具</h1>
             </header>
 
             <div class="tool-container">
@@ -63,18 +63,15 @@
                                 </button>
                             </div>
                         </div>
-                        <textarea id="inputText" placeholder="输入要加密或解密的字符串..."></textarea>
+                        <textarea id="inputText" placeholder="请输入要编码或解码的内容..."></textarea>
                     </div>
 
                     <div class="operation-section">
-                        <button class="btn btn-primary btn-large" onclick="encryptMD5()">
-                            <i class="fas fa-lock"></i> 加密
+                        <button class="btn btn-primary btn-large" onclick="encodeBase64()">
+                            <i class="fas fa-arrow-down"></i> 编码
                         </button>
-                        <button class="btn btn-primary btn-large" onclick="decryptMD5()">
-                            <i class="fas fa-unlock"></i> 解密
-                        </button>
-                        <button class="btn btn-primary btn-large" onclick="batchEncryptMD5()">
-                            <i class="fas fa-layer-group"></i> 批量加密
+                        <button class="btn btn-primary btn-large" onclick="decodeBase64()">
+                            <i class="fas fa-arrow-up"></i> 解码
                         </button>
                     </div>
 
@@ -94,46 +91,26 @@
         </main>
     </div>
 
-    <script src="{{ url_for('static', filename='js/md5.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
-        function encryptMD5() {
+        function encodeBase64() {
             const input = document.getElementById('inputText').value;
-            if (!input) {
-                document.getElementById('outputText').value = '请输入要加密的字符串';
-                return;
+            try {
+                const encoded = btoa(unescape(encodeURIComponent(input)));
+                document.getElementById('outputText').value = encoded;
+            } catch (e) {
+                document.getElementById('outputText').value = '编码失败: ' + e.message;
             }
-            const result = MD5(input);
-            document.getElementById('outputText').value = result;
         }
 
-        function decryptMD5() {
-            const input = document.getElementById('inputText').value.trim();
-            if (!input) {
-                document.getElementById('outputText').value = '请输入要解密的 MD5 哈希值';
-                return;
-            }
-            if (!/^[a-fA-F0-9]{32}$/.test(input)) {
-                document.getElementById('outputText').value = '请输入有效的 32 位 MD5 哈希值';
-                return;
-            }
-            document.getElementById('outputText').value = 'MD5 解密需要在线查询，请使用专门的 MD5 解密服务';
-        }
-
-        function batchEncryptMD5() {
+        function decodeBase64() {
             const input = document.getElementById('inputText').value;
-            if (!input) {
-                document.getElementById('outputText').value = '请输入要批量加密的字符串';
-                return;
+            try {
+                const decoded = decodeURIComponent(escape(atob(input)));
+                document.getElementById('outputText').value = decoded;
+            } catch (e) {
+                document.getElementById('outputText').value = '解码失败: 无效的 Base64 字符串';
             }
-            const lines = input.split('\n');
-            const results = lines.map(line => {
-                if (line.trim()) {
-                    return MD5(line.trim());
-                }
-                return '';
-            }).filter(r => r !== '');
-            document.getElementById('outputText').value = results.join('\n');
         }
 
         function clearInput() {

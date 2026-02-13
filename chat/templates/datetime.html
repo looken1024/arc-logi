@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间转换器 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .datetime-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .datetime-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .datetime-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .datetime-section h3 i {
+            color: var(--primary-color);
+        }
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .input-group input, .input-group select {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .result-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .result-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .result-item:hover {
+            background: var(--border-color);
+        }
+        .result-item .label {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .result-item .value {
+            font-family: monospace;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .current-time-box {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .current-time-box .time {
+            font-size: 32px;
+            font-weight: 600;
+            font-family: monospace;
+        }
+        .current-time-box .date {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+        .current-time-box .timestamp {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 8px;
+            font-family: monospace;
+        }
+        .datetime-inputs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .datetime-inputs input {
+            flex: 1;
+            min-width: calc(16.66% - 7px);
+            padding: 10px;
+            text-align: center;
+        }
+        @media (max-width: 500px) {
+            .datetime-inputs input {
+                min-width: calc(33.33% - 6px);
+            }
+        }
+        .datetime-inputs input::placeholder {
+            opacity: 0.5;
+        }
+        .duration-result {
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            padding: 20px;
+            color: var(--primary-color);
+        }
+        .quick-btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .quick-btns .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .tab-buttons .btn {
+            flex: 1;
+        }
+        .tab-buttons .btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-clock"></i>
+                    <span>时间转换器</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>时间转换器</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="datetime-wrapper">
+                        <div class="datetime-section">
+                            <h3><i class="fas fa-hourglass-half"></i> 当前时间</h3>
+                            <div class="current-time-box">
+                                <div class="time" id="currentTime">--:--:--</div>
+                                <div class="date" id="currentDate">----/--/--</div>
+                                <div class="timestamp" id="currentTimestamp">----------</div>
+                            </div>
+                            <div class="quick-btns">
+                                <button class="btn btn-small" onclick="copyToClipboard(document.getElementById('currentTimestamp').textContent)">
+                                    <i class="fas fa-copy"></i> 复制时间戳(秒)
+                                </button>
+                                <button class="btn btn-small" onclick="copyToClipboard(Math.floor(Date.now() / 1000).toString())">
+                                    <i class="fas fa-copy"></i> 复制时间戳(秒)
+                                </button>
+                                <button class="btn btn-small" onclick="copyToClipboard(Date.now().toString())">
+                                    <i class="fas fa-copy"></i> 复制时间戳(毫秒)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="datetime-section">
+                            <h3><i class="fas fa-exchange-alt"></i> 时间戳转换</h3>
+                            <div class="tab-buttons">
+                                <button class="btn active" onclick="switchTab('ts2date')">时间戳 → 日期</button>
+                                <button class="btn" onclick="switchTab('date2ts')">日期 → 时间戳</button>
+                            </div>
+                            
+                            <div class="tab-content active" id="ts2date">
+                                <div class="input-group">
+                                    <input type="text" id="timestampInput" placeholder="输入时间戳（秒或毫秒）">
+                                    <button class="btn btn-primary" onclick="timestampToDate()">
+                                        <i class="fas fa-arrow-right"></i> 转换
+                                    </button>
+                                </div>
+                                <div class="quick-btns">
+                                    <button class="btn btn-small" onclick="fillCurrentTimestamp()">当前时间戳</button>
+                                </div>
+                                <div class="result-row" id="timestampResult"></div>
+                            </div>
+                            
+                            <div class="tab-content" id="date2ts">
+                                <div class="datetime-inputs">
+                                    <input type="text" id="yearInput" placeholder="年" maxlength="4">
+                                    <input type="text" id="monthInput" placeholder="月" maxlength="2">
+                                    <input type="text" id="dayInput" placeholder="日" maxlength="2">
+                                    <input type="text" id="hourInput" placeholder="时" maxlength="2">
+                                    <input type="text" id="minuteInput" placeholder="分" maxlength="2">
+                                    <input type="text" id="secondInput" placeholder="秒" maxlength="2">
+                                </div>
+                                <div class="input-group" style="margin-top: 12px;">
+                                    <select id="tsUnit">
+                                        <option value="s">秒</option>
+                                        <option value="ms">毫秒</option>
+                                    </select>
+                                    <button class="btn btn-primary" onclick="dateToTimestamp()">
+                                        <i class="fas fa-arrow-right"></i> 转换
+                                    </button>
+                                </div>
+                                <div class="result-row" id="dateResult"></div>
+                            </div>
+                        </div>
+
+                        <div class="datetime-section">
+                            <h3><i class="fas fa-calendar-alt"></i> 日期格式转换</h3>
+                            <div class="input-group">
+                                <input type="text" id="formatInput" placeholder="输入日期字符串，如 2024-01-15 10:30:00">
+                                <button class="btn btn-primary" onclick="parseDateFormat()">
+                                    <i class="fas fa-arrow-right"></i> 解析
+                                </button>
+                            </div>
+                            <div class="result-row" id="formatResult"></div>
+                        </div>
+
+                        <div class="datetime-section">
+                            <h3><i class="fas fa-calculator"></i> 时间间距计算</h3>
+                            <div class="input-group">
+                                <input type="text" id="date1Input" placeholder="日期1 (2024-01-01 10:00:00)">
+                                <input type="text" id="date2Input" placeholder="日期2 (2024-01-02 10:00:00)">
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn btn-primary" onclick="calculateDuration()">
+                                    <i class="fas fa-calculator"></i> 计算
+                                </button>
+                                <button class="btn" onclick="fillNow()">现在</button>
+                            </div>
+                            <div class="duration-result" id="durationResult"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentTimeInterval;
+
+        function updateCurrentTime() {
+            const now = new Date();
+            const pad = n => n.toString().padStart(2, '0');
+            document.getElementById('currentTime').textContent = 
+                `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            document.getElementById('currentDate').textContent = 
+                `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())}`;
+            document.getElementById('currentTimestamp').textContent = 
+                `Unix: ${Math.floor(now.getTime() / 1000)} | ms: ${now.getTime()}`;
+        }
+
+        updateCurrentTime();
+        currentTimeInterval = setInterval(updateCurrentTime, 1000);
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-buttons .btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+        }
+
+        function fillCurrentTimestamp() {
+            document.getElementById('timestampInput').value = Math.floor(Date.now() / 1000);
+            timestampToDate();
+        }
+
+        function timestampToDate() {
+            const input = document.getElementById('timestampInput').value.trim();
+            if (!input) return;
+
+            let ts = parseInt(input);
+            if (isNaN(ts)) {
+                alert('请输入有效的时间戳');
+                return;
+            }
+
+            if (ts < 10000000000) ts *= 1000;
+            const date = new Date(ts);
+            
+            const results = [
+                { label: 'Unix 时间戳（秒）', value: Math.floor(ts / 1000) },
+                { label: 'Unix 时间戳（毫秒）', value: ts },
+                { label: 'ISO 8601', value: date.toISOString() },
+                { label: '本地日期时间', value: date.toLocaleString('zh-CN') },
+                { label: '本地日期', value: date.toLocaleDateString('zh-CN') },
+                { label: '本地时间', value: date.toLocaleTimeString('zh-CN') },
+                { label: 'UTC 日期时间', value: date.toUTCString() },
+                { label: '自定义格式', value: formatDate(date, 'YYYY-MM-DD HH:mm:ss') },
+            ];
+
+            renderResults('timestampResult', results);
+        }
+
+        function dateToTimestamp() {
+            const y = parseInt(document.getElementById('yearInput').value) || new Date().getFullYear();
+            const mo = parseInt(document.getElementById('monthInput').value) || 1;
+            const d = parseInt(document.getElementById('dayInput').value) || 1;
+            const h = parseInt(document.getElementById('hourInput').value) || 0;
+            const mi = parseInt(document.getElementById('minuteInput').value) || 0;
+            const s = parseInt(document.getElementById('secondInput').value) || 0;
+            const unit = document.getElementById('tsUnit').value;
+
+            const date = new Date(y, mo - 1, d, h, mi, s);
+            const ts = unit === 's' ? Math.floor(date.getTime() / 1000) : date.getTime();
+
+            const results = [
+                { label: 'Unix 时间戳（秒）', value: Math.floor(date.getTime() / 1000) },
+                { label: 'Unix 时间戳（毫秒）', value: date.getTime() },
+                { label: 'ISO 8601', value: date.toISOString() },
+                { label: '本地日期时间', value: date.toLocaleString('zh-CN') },
+            ];
+
+            renderResults('dateResult', results);
+        }
+
+        function parseDateFormat() {
+            const input = document.getElementById('formatInput').value.trim();
+            if (!input) return;
+
+            const formats = [
+                /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})$/,
+                /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})$/,
+                /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+                /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
+            ];
+
+            let date = null;
+            for (let fmt of formats) {
+                const match = input.match(fmt);
+                if (match) {
+                    if (fmt === formats[0] || fmt === formats[1]) {
+                        date = new Date(match[1], match[2] - 1, match[3], match[4], match[5], match[6]);
+                    } else {
+                        date = new Date(match[1], match[2] - 1, match[3]);
+                    }
+                    break;
+                }
+            }
+
+            if (!date || isNaN(date.getTime())) {
+                date = new Date(input);
+            }
+
+            if (!date || isNaN(date.getTime())) {
+                alert('无法解析日期格式，请使用常用格式如: 2024-01-15 10:30:00');
+                return;
+            }
+
+            const results = [
+                { label: 'Unix 时间戳（秒）', value: Math.floor(date.getTime() / 1000) },
+                { label: 'ISO 8601', value: date.toISOString() },
+                { label: '本地日期时间', value: date.toLocaleString('zh-CN') },
+                { label: 'UTC 日期时间', value: date.toUTCString() },
+                { label: '年-月-日 时:分:秒', value: formatDate(date, 'YYYY-MM-DD HH:mm:ss') },
+                { label: '年/月/日 时:分:秒', value: formatDate(date, 'YYYY/MM/DD HH:mm:ss') },
+                { label: '月/日/年 时:分:秒', value: formatDate(date, 'MM/DD/YYYY HH:mm:ss') },
+            ];
+
+            renderResults('formatResult', results);
+        }
+
+        function calculateDuration() {
+            const d1 = document.getElementById('date1Input').value.trim();
+            const d2 = document.getElementById('date2Input').value.trim();
+            
+            if (!d1 || !d2) {
+                alert('请输入两个日期');
+                return;
+            }
+
+            const date1 = new Date(d1);
+            const date2 = new Date(d2);
+
+            if (isNaN(date1.getTime()) || isNaN(date2.getTime())) {
+                alert('无效的日期格式');
+                return;
+            }
+
+            const diff = Math.abs(date2.getTime() - date1.getTime());
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            const totalSeconds = Math.floor(diff / 1000);
+            const totalMinutes = Math.floor(diff / (1000 * 60));
+            const totalHours = Math.floor(diff / (1000 * 60 * 60));
+
+            let result = '';
+            if (days > 0) result += `${days} 天 `;
+            if (hours > 0) result += `${hours} 小时 `;
+            if (minutes > 0) result += `${minutes} 分钟 `;
+            result += `${seconds} 秒`;
+
+            document.getElementById('durationResult').innerHTML = `
+                <div>${result}</div>
+                <div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">
+                    共 ${totalSeconds} 秒 / ${totalMinutes} 分钟 / ${totalHours} 小时 / ${days} 天
+                </div>
+            `;
+        }
+
+        function fillNow() {
+            const now = new Date();
+            const pad = n => n.toString().padStart(2, '0');
+            const nowStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            document.getElementById('date2Input').value = nowStr;
+        }
+
+        function formatDate(date, fmt) {
+            const pad = n => n.toString().padStart(2, '0');
+            const y = date.getFullYear();
+            const mo = pad(date.getMonth() + 1);
+            const d = pad(date.getDate());
+            const h = pad(date.getHours());
+            const mi = pad(date.getMinutes());
+            const s = pad(date.getSeconds());
+            
+            return fmt
+                .replace('YYYY', y)
+                .replace('MM', mo)
+                .replace('DD', d)
+                .replace('HH', h)
+                .replace('mm', mi)
+                .replace('ss', s);
+        }
+
+        function renderResults(containerId, results) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = results.map(r => `
+                <div class="result-item" onclick="copyToClipboard('${r.value}')">
+                    <span class="label">${r.label}</span>
+                    <span class="value">${r.value}</span>
+                </div>
+            `).join('');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text.toString()).then(() => {
+                alert('已复制: ' + text);
+            }).catch(() => {
+                alert('复制失败');
+            });
+        }
+
+        document.getElementById('timestampInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') timestampToDate();
+        });
+    </script>
+</body>
+</html>

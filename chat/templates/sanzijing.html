@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三字经 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .main-content {
+            overflow-y: auto;
+        }
+        .classic-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .classic-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .classic-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .classic-content {
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            line-height: 2;
+            font-size: 15px;
+        }
+        .classic-content p {
+            margin: 8px 0;
+            text-indent: 2em;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            font-size: 14px;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+        .form-group select,
+        .form-group input,
+        .form-group textarea {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group select:focus,
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result-content {
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            line-height: 1.8;
+        }
+        .result-content h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .result-content h3 {
+            font-size: 16px;
+            margin: 20px 0 12px;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .error-message {
+            padding: 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回工具</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{{ session.get('username', '用户') }}</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>三字经</h1>
+            </header>
+
+            <div class="page-content">
+                <div class="classic-wrapper">
+                    <div class="classic-section">
+                        <h3><i class="fas fa-file-alt"></i> 原文</h3>
+                        <div class="classic-content" id="originalText">
+                            <p>人之初，性本善，性相近，习相远。</p>
+                            <p>苟不教，性乃迁，教之道，贵以专。</p>
+                            <p>昔孟母，择邻处，子不学，断机杼。</p>
+                            <p>窦燕山，有义方，教五子，名俱扬。</p>
+                            <p>养不教，父之过，教不严，师之惰。</p>
+                            <p>子不学，非所宜，幼不学，老何为？</p>
+                            <p>玉不琢，不成器，人不学，不知义。</p>
+                            <p>为人子，方少时，亲师友，习礼仪。</p>
+                            <p>香九龄，能温席，孝于亲，所当执。</p>
+                            <p>融四岁，能让梨，弟于长，宜先知。</p>
+                            <p>首孝弟，次见闻，知某数，识某文。</p>
+                            <p>一而十，十而百，百而千，千而万。</p>
+                            <p>三才者，天地人，三光者，日月星。</p>
+                            <p>三纲者，君臣义，父子亲，夫妇顺。</p>
+                            <p>曰春夏，曰秋冬，此四时，运不穷。</p>
+                            <p>曰南北，曰西东，此四方，应乎中。</p>
+                            <p>曰水火，木金土，此五行，本乎数。</p>
+                            <p>曰仁义，礼智信，此五常，不容紊。</p>
+                            <p>稻粱菽，麦黍稷，此六谷，人所食。</p>
+                            <p>马牛羊，鸡犬豕，此六畜，人所饲。</p>
+                            <p>曰喜怒，曰哀惧，爱恶欲，七情具。</p>
+                            <p>匏土革，木石金，丝与竹，乃八音。</p>
+                            <p>高曾祖，父而身，身而子，子而孙。</p>
+                            <p>自子孙，至玄曾，乃九族，人之伦。</p>
+                            <p>父子恩，夫妇从，兄则友，弟则恭。</p>
+                            <p>长幼序，友与朋，君则敬，臣则忠。</p>
+                            <p>此十义，人所同，凡训蒙，须讲究。</p>
+                            <p>详训诂，明句读，为学者，必有初。</p>
+                            <p>小学终，至四书，论语者，二十篇。</p>
+                            <p>群弟子，记善言，孟子者，七篇止。</p>
+                            <p>讲道德，说仁义，作中庸，子思笔。</p>
+                            <p>中不偏，庸不易，作大学，乃曾子。</p>
+                            <p>自修齐，至平治，孝经通，四书熟。</p>
+                            <p>如六经，始可读，诗书易，礼春秋。</p>
+                            <p>号六经，当讲求，有连山，有归藏。</p>
+                            <p>有周易，三易详，有典谟，有训诰。</p>
+                            <p>有誓命，书之奥，我周公，作周礼。</p>
+                            <p>著六官，存治体，大小戴，注礼记。</p>
+                            <p>述圣言，礼乐备，曰国风，曰雅颂。</p>
+                            <p>号四诗，当讽咏，诗既亡，春秋作。</p>
+                            <p>寓褒贬，别善恶，三传者，有公羊。</p>
+                            <p>有左氏，有谷梁，经既明，方读子。</p>
+                            <p>撮其要，记其事，五子者，有荀扬。</p>
+                            <p>文中子，及老庄，经子通，读诸史。</p>
+                            <p>考世系，知终始，自羲农，至黄帝。</p>
+                            <p>号三皇，居上世，唐有虞，号二帝。</p>
+                            <p>相揖逊，称盛世，夏有商，有三王。</p>
+                            <p>夏传子，家天下，四百载，迁夏社。</p>
+                            <p>汤伐夏，国号商，六百载，至纣亡。</p>
+                            <p>周武王，始诛纣，八百载，最长久。</p>
+                            <p>周辙东，王纲坠，逞干戈，尚游说。</p>
+                            <p>始春秋，终战国，五霸强，七雄出。</p>
+                            <p>蠃秦氏，始兼并，传二世，楚汉争。</p>
+                            <p>高祖兴，汉业建，至孝平，王莽篡。</p>
+                            <p>光武兴，为东汉，四百年，终于献。</p>
+                            <p>魏蜀吴，争汉鼎，号三国，迭兴亡。</p>
+                            <p>晋武史，称大康，偏隅魏，晋刘宋。</p>
+                            <p>齐与梁，称南朝，号四世，历九筲。</p>
+                            <p>北拓拔，与高齐，迨至隋，一土宇。</parameter>
+                        </div>
+                    </div>
+
+                    <div class="classic-section">
+                        <h3><i class="fas fa-comment-dots"></i> AI 解读</h3>
+                        <div class="form-group">
+                            <label for="queryType">选择解读方式</label>
+                            <select id="queryType">
+                                <option value="summary">全文概要解读</option>
+                                <option value="section">分段详细解读</option>
+                                <option value="custom">自定义问题</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="customQuestionGroup" style="display: none;">
+                            <label for="customQuestion">请输入您的问题</label>
+                            <textarea id="customQuestion" placeholder="例如：三字经中关于学习的部分讲了什么？"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="analyzeClassic()">
+                            <i class="fas fa-wand-magic-sparkles"></i> 开始解读
+                        </button>
+                        <div id="resultContainer" style="margin-top: 20px;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('queryType').addEventListener('change', function() {
+            const customGroup = document.getElementById('customQuestionGroup');
+            customGroup.style.display = this.value === 'custom' ? 'flex' : 'none';
+        });
+
+        async function analyzeClassic() {
+            const queryType = document.getElementById('queryType').value;
+            const customQuestion = document.getElementById('customQuestion').value.trim();
+            const resultContainer = document.getElementById('resultContainer');
+            
+            let userContent = '';
+            if (queryType === 'summary') {
+                userContent = '请对三字经进行全文概要解读，包括其教育意义、历史价值等内容。';
+            } else if (queryType === 'section') {
+                userContent = '请选择三字经中的重点章节进行详细解读，每段解释其含义和教育思想。';
+            } else {
+                if (!customQuestion) {
+                    alert('请输入您的问题');
+                    return;
+                }
+                userContent = customQuestion;
+            }
+            
+            resultContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 正在生成解读，请稍候...</div>';
+
+            try {
+                const response = await fetch('/api/classic/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        classic: 'sanzijing',
+                        query_type: queryType,
+                        custom_question: customQuestion,
+                        user_content: userContent
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const content = data.content;
+                    resultContainer.innerHTML = `<div class="result-content">${marked.parse(content)}</div>`;
+                } else {
+                    resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> 请求失败: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
