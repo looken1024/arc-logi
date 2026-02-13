@@ -203,6 +203,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
+    // 检查工作流ID
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "None" || workflowId === "") {
+        console.error('无效的工作流ID:', workflowId);
+        alert('无效的工作流ID，请从工作流列表页面重新进入编辑器。');
+        return;
+    }
+    
     // 现在初始化jsPlumb
     initializeJsPlumb();
     loadWorkflow();
@@ -226,8 +233,8 @@ async function loadUserInfo() {
 
 // 加载工作流
 async function loadWorkflow(retryCount = 0) {
-    if (!workflowId) {
-        console.error('未提供工作流ID');
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID:', workflowId);
         return;
     }
     
@@ -248,7 +255,8 @@ async function loadWorkflow(retryCount = 0) {
     try {
         const response = await fetch(`/api/workflows/${workflowId}`);
         if (response.ok) {
-            currentWorkflow = await response.json();
+            const data = await response.json();
+            currentWorkflow = data.workflow;
             elements.workflowTitle.textContent = `工作流编辑器 - ${currentWorkflow.name}`;
             
             // 加载节点和边
@@ -264,6 +272,10 @@ async function loadWorkflow(retryCount = 0) {
 
 // 加载节点
 async function loadNodes() {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法加载节点:', workflowId);
+        return;
+    }
     try {
         const response = await fetch(`/api/workflows/${workflowId}/nodes`);
         if (response.ok) {
@@ -288,6 +300,10 @@ async function loadNodes() {
 
 // 加载边
 async function loadEdges() {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法加载边:', workflowId);
+        return;
+    }
     try {
         const response = await fetch(`/api/workflows/${workflowId}/edges`);
         if (response.ok) {
@@ -433,6 +449,10 @@ function initializeJsPlumb() {
 }
 // 创建边
 async function createEdge(sourceNodeId, targetNodeId) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法创建边:', workflowId);
+        return;
+    }
     try {
         const response = await fetch(`/api/workflows/${workflowId}/edges`, {
             method: 'POST',
@@ -458,6 +478,10 @@ async function createEdge(sourceNodeId, targetNodeId) {
 
 // 通过节点ID删除边
 async function deleteEdgeByNodes(sourceNodeId, targetNodeId) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法删除边:', workflowId);
+        return;
+    }
     // 找到匹配的边
     const edge = Object.values(edges).find(e => 
         e.source_node_id === sourceNodeId && e.target_node_id === targetNodeId
@@ -482,6 +506,10 @@ async function deleteEdgeByNodes(sourceNodeId, targetNodeId) {
 }
 // 删除与节点相关的所有边
 async function deleteEdgesForNode(nodeId) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法删除节点相关的边:', workflowId);
+        return;
+    }
     const edgesToDelete = Object.values(edges).filter(e => 
         e.source_node_id === nodeId || e.target_node_id === nodeId
     );
@@ -546,6 +574,11 @@ function setupPaletteDragAndDrop() {
 
 // 创建节点
 function createNode(nodeType, x, y) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法创建节点:', workflowId);
+        alert('无效的工作流ID，请刷新页面后重试。');
+        return;
+    }
     const typeConfig = nodeTypes[nodeType];
     if (!typeConfig) return;
     
@@ -1020,6 +1053,10 @@ function clearCanvas() {
 
 // 删除节点
 async function deleteNode(nodeId) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法删除节点:', workflowId);
+        return;
+    }
     try {
         // 先删除与节点相关的边
         await deleteEdgesForNode(nodeId);
@@ -1060,7 +1097,11 @@ async function deleteNode(nodeId) {
 
 // 保存工作流
 async function saveWorkflow() {
-    if (!currentWorkflow) return;
+    if (!currentWorkflow || !currentWorkflow.id) {
+        console.error('当前工作流无效，无法保存:', currentWorkflow);
+        alert('当前工作流无效，请刷新页面后重试。');
+        return;
+    }
     
     try {
         const response = await fetch(`/api/workflows/${currentWorkflow.id}`, {
@@ -1081,6 +1122,10 @@ async function saveWorkflow() {
 
 // 保存节点到服务器
 async function saveNodeToServer(nodeData) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法保存节点:', workflowId);
+        return;
+    }
     try {
         const response = await fetch(`/api/workflows/${workflowId}/nodes`, {
             method: 'POST',
@@ -1106,6 +1151,10 @@ async function saveNodeToServer(nodeData) {
 
 // 更新节点位置
 async function updateNodePosition(nodeId, x, y) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法更新节点位置:', workflowId);
+        return;
+    }
     const node = nodes[nodeId];
     if (!node) return;
     
@@ -1125,6 +1174,10 @@ async function updateNodePosition(nodeId, x, y) {
 
 // 更新节点到服务器
 async function updateNodeOnServer(node) {
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法更新节点:', workflowId);
+        return;
+    }
     try {
         await fetch(`/api/workflows/${workflowId}/nodes/${node.id}`, {
             method: 'PUT',
@@ -1138,7 +1191,11 @@ async function updateNodeOnServer(node) {
 
 // 执行工作流
 async function executeWorkflow() {
-    if (!workflowId) return;
+    if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "") {
+        console.error('无效的工作流ID，无法执行工作流:', workflowId);
+        alert('无效的工作流ID，请刷新页面后重试。');
+        return;
+    }
     
     try {
         const response = await fetch(`/api/workflows/${workflowId}/execute`, {

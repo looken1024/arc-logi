@@ -10,6 +10,8 @@ from typing import Generator
 import secrets
 import pymysql
 import uuid
+import subprocess
+import threading
 from contextlib import contextmanager
 
 # 导入 skills 模块
@@ -192,6 +194,48 @@ def init_database():
                     FOREIGN KEY (execution_id) REFERENCES workflow_executions(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
+
+            # 创建定时任务表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schedules (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    username VARCHAR(50) NOT NULL,
+                    cron VARCHAR(50) NOT NULL,
+                    preset VARCHAR(50),
+                    command TEXT NOT NULL,
+                    status ENUM('active', 'paused') DEFAULT 'active',
+                    last_run_at DATETIME,
+                    next_run_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_status (status),
+                    INDEX idx_next_run_at (next_run_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
+            # 创建定时任务执行表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schedule_executions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    schedule_id INT NOT NULL,
+                    username VARCHAR(50) NOT NULL,
+                    execution_id VARCHAR(64) NOT NULL,
+                    status ENUM('pending', 'running', 'completed', 'failed') DEFAULT 'pending',
+                    output TEXT,
+                    error_message TEXT,
+                    started_at DATETIME,
+                    completed_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_schedule_id (schedule_id),
+                    INDEX idx_username (username),
+                    INDEX idx_status (status),
+                    INDEX idx_created_at (created_at),
+                    FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
             
             conn.commit()
             print("✅ 数据库表初始化完成")
@@ -233,6 +277,13 @@ def tools():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('tools.html')
+
+@app.route('/schedules')
+def schedules():
+    """定时任务管理页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('schedules.html')
 
 @app.route('/workflows')
 def workflows():
@@ -1474,6 +1525,406 @@ def get_workflow_executions(workflow_id):
                                 exe[field] = None
                 
                 return jsonify({'executions': executions})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/schedules', methods=['GET'])
+def get_schedules():
+    """获取用户的定时任务列表"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, name, description, cron, preset, command, status, last_run_at, next_run_at, created_at, updated_at "
+                    "FROM schedules WHERE username = %s ORDER BY created_at DESC",
+                    (username,)
+                )
+                schedules = cursor.fetchall()
+                
+                # 转换日期格式
+                for schedule in schedules:
+                    for field in ['last_run_at', 'next_run_at', 'created_at', 'updated_at']:
+                        if schedule[field] and isinstance(schedule[field], datetime):
+                            schedule[field] = schedule[field].isoformat()
+                
+                return jsonify(schedules)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/schedules', methods=['POST'])
+def create_schedule():
+    """创建新的定时任务"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    # 验证必要字段
+    required_fields = ['name', 'cron', 'command']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'缺少必要字段: {field}'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO schedules (name, description, username, cron, preset, command, status) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (
+                        data['name'],
+                        data.get('description', ''),
+                        username,
+                        data['cron'],
+                        data.get('preset', ''),
+                        data['command'],
+                        data.get('status', 'active')
+                    )
+                )
+                schedule_id = cursor.lastrowid
+                conn.commit()
+                
+                # 返回新创建的定时任务
+                cursor.execute(
+                    "SELECT id, name, description, cron, preset, command, status, last_run_at, next_run_at, created_at, updated_at "
+                    "FROM schedules WHERE id = %s",
+                    (schedule_id,)
+                )
+                schedule = cursor.fetchone()
+                if schedule:
+                    for field in ['last_run_at', 'next_run_at', 'created_at', 'updated_at']:
+                        if schedule[field] and isinstance(schedule[field], datetime):
+                            schedule[field] = schedule[field].isoformat()
+                
+                return jsonify(schedule), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/schedules/<int:schedule_id>', methods=['PUT'])
+def update_schedule(schedule_id):
+    """更新定时任务"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查定时任务是否存在且用户有权访问
+                cursor.execute(
+                    "SELECT id FROM schedules WHERE id = %s AND username = %s",
+                    (schedule_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '定时任务不存在或无权访问'}), 404
+                
+                # 构建更新语句
+                update_fields = []
+                update_values = []
+                
+                if 'name' in data:
+                    update_fields.append("name = %s")
+                    update_values.append(data['name'])
+                if 'description' in data:
+                    update_fields.append("description = %s")
+                    update_values.append(data['description'])
+                if 'cron' in data:
+                    update_fields.append("cron = %s")
+                    update_values.append(data['cron'])
+                if 'preset' in data:
+                    update_fields.append("preset = %s")
+                    update_values.append(data['preset'])
+                if 'command' in data:
+                    update_fields.append("command = %s")
+                    update_values.append(data['command'])
+                if 'status' in data:
+                    update_fields.append("status = %s")
+                    update_values.append(data['status'])
+                
+                if not update_fields:
+                    return jsonify({'error': '没有提供更新字段'}), 400
+                
+                update_values.append(schedule_id)
+                update_values.append(username)
+                
+                cursor.execute(
+                    f"UPDATE schedules SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP "
+                    "WHERE id = %s AND username = %s",
+                    tuple(update_values)
+                )
+                conn.commit()
+                
+                # 返回更新后的定时任务
+                cursor.execute(
+                    "SELECT id, name, description, cron, preset, command, status, last_run_at, next_run_at, created_at, updated_at "
+                    "FROM schedules WHERE id = %s",
+                    (schedule_id,)
+                )
+                schedule = cursor.fetchone()
+                if schedule:
+                    for field in ['last_run_at', 'next_run_at', 'created_at', 'updated_at']:
+                        if schedule[field] and isinstance(schedule[field], datetime):
+                            schedule[field] = schedule[field].isoformat()
+                
+                return jsonify(schedule)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/schedules/<int:schedule_id>', methods=['DELETE'])
+def delete_schedule(schedule_id):
+    """删除定时任务"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查定时任务是否存在且用户有权访问
+                cursor.execute(
+                    "SELECT id FROM schedules WHERE id = %s AND username = %s",
+                    (schedule_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '定时任务不存在或无权访问'}), 404
+                
+                cursor.execute(
+                    "DELETE FROM schedules WHERE id = %s AND username = %s",
+                    (schedule_id, username)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/schedules/<int:schedule_id>/executions', methods=['GET'])
+def get_schedule_executions(schedule_id):
+    """获取定时任务的执行记录"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查定时任务是否存在且用户有权访问
+                cursor.execute(
+                    "SELECT id FROM schedules WHERE id = %s AND username = %s",
+                    (schedule_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '定时任务不存在或无权访问'}), 404
+                
+                # 获取执行记录
+                cursor.execute(
+                    "SELECT id, schedule_id, execution_id, status, output, error_message, "
+                    "started_at, completed_at, created_at "
+                    "FROM schedule_executions WHERE schedule_id = %s ORDER BY created_at DESC LIMIT 50",
+                    (schedule_id,)
+                )
+                executions = cursor.fetchall()
+                
+                # 转换日期格式
+                for exe in executions:
+                    for field in ['started_at', 'completed_at', 'created_at']:
+                        if exe[field] and isinstance(exe[field], datetime):
+                            exe[field] = exe[field].isoformat()
+                
+                return jsonify({'executions': executions})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def execute_schedule_command(schedule_id, execution_id, command):
+    """执行定时任务命令并更新状态（在后台线程中运行）"""
+    try:
+        # 更新状态为运行中
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE schedule_executions SET status = 'running', started_at = CURRENT_TIMESTAMP "
+                    "WHERE execution_id = %s",
+                    (execution_id,)
+                )
+                conn.commit()
+        
+        # 执行命令（安全警告：这可能会执行任意命令，请谨慎使用）
+        # 这里使用子进程执行命令，设置超时防止无限阻塞
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5分钟超时
+            cwd=os.getcwd()  # 在当前工作目录执行
+        )
+        
+        # 更新执行结果
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                if result.returncode == 0:
+                    status = 'completed'
+                    output = result.stdout
+                    error_message = None
+                else:
+                    status = 'failed'
+                    output = result.stdout
+                    error_message = result.stderr
+                
+                cursor.execute(
+                    "UPDATE schedule_executions SET status = %s, output = %s, error_message = %s, completed_at = CURRENT_TIMESTAMP "
+                    "WHERE execution_id = %s",
+                    (status, output, error_message, execution_id)
+                )
+                conn.commit()
+                
+    except subprocess.TimeoutExpired:
+        # 命令执行超时
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE schedule_executions SET status = 'failed', error_message = %s, completed_at = CURRENT_TIMESTAMP "
+                    "WHERE execution_id = %s",
+                    ("命令执行超时（5分钟）", execution_id)
+                )
+                conn.commit()
+    except Exception as e:
+        # 其他错误
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE schedule_executions SET status = 'failed', error_message = %s, completed_at = CURRENT_TIMESTAMP "
+                    "WHERE execution_id = %s",
+                    (str(e), execution_id)
+                )
+                conn.commit()
+
+@app.route('/api/schedules/<int:schedule_id>/execute', methods=['POST'])
+def execute_schedule(schedule_id):
+    """手动执行定时任务"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查定时任务是否存在且用户有权访问
+                cursor.execute(
+                    "SELECT id, name, command FROM schedules WHERE id = %s AND username = %s",
+                    (schedule_id, username)
+                )
+                schedule = cursor.fetchone()
+                
+                if not schedule:
+                    return jsonify({'error': '定时任务不存在或无权访问'}), 404
+                
+                # 创建执行记录
+                execution_id = str(uuid.uuid4())
+                cursor.execute(
+                    "INSERT INTO schedule_executions (schedule_id, username, execution_id, status) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (schedule_id, username, execution_id, 'pending')
+                )
+                execution_db_id = cursor.lastrowid
+                
+                # 更新定时任务的最后运行时间
+                cursor.execute(
+                    "UPDATE schedules SET last_run_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP "
+                    "WHERE id = %s",
+                    (schedule_id,)
+                )
+                
+                conn.commit()
+                
+                # 在后台线程中执行命令
+                command = schedule['command']
+                thread = threading.Thread(
+                    target=execute_schedule_command,
+                    args=(schedule_id, execution_id, command)
+                )
+                thread.daemon = True  # 设置为守护线程，主程序退出时会自动结束
+                thread.start()
+                
+                return jsonify({
+                    'success': True,
+                    'execution_id': execution_id,
+                    'execution_db_id': execution_db_id,
+                    'message': '定时任务执行已启动，正在后台运行'
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/schedules/<int:schedule_id>/executions/<execution_id>', methods=['PUT'])
+def update_schedule_execution(schedule_id, execution_id):
+    """更新定时任务执行记录状态"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查执行记录是否存在且用户有权访问
+                cursor.execute(
+                    "SELECT id FROM schedule_executions WHERE execution_id = %s AND username = %s AND schedule_id = %s",
+                    (execution_id, username, schedule_id)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '执行记录不存在或无权访问'}), 404
+                
+                # 构建更新语句
+                update_fields = []
+                update_values = []
+                
+                if 'status' in data:
+                    update_fields.append("status = %s")
+                    update_values.append(data['status'])
+                
+                if 'output' in data:
+                    update_fields.append("output = %s")
+                    update_values.append(data['output'])
+                
+                if 'error_message' in data:
+                    update_fields.append("error_message = %s")
+                    update_values.append(data['error_message'])
+                
+                if 'started_at' in data:
+                    update_fields.append("started_at = %s")
+                    update_values.append(data['started_at'])
+                
+                if 'completed_at' in data:
+                    update_fields.append("completed_at = %s")
+                    update_values.append(data['completed_at'])
+                
+                if not update_fields:
+                    return jsonify({'error': '没有提供更新字段'}), 400
+                
+                update_values.append(execution_id)
+                update_values.append(username)
+                update_values.append(schedule_id)
+                
+                cursor.execute(
+                    f"UPDATE schedule_executions SET {', '.join(update_fields)} "
+                    "WHERE execution_id = %s AND username = %s AND schedule_id = %s",
+                    tuple(update_values)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

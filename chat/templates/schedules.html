@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>定时任务 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .execution-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #fff;
+        }
+        .execution-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .execution-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .execution-index {
+            font-weight: bold;
+            color: #666;
+        }
+        .execution-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #f0f0f0;
+            color: #666;
+        }
+        .status-running {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .status-completed {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        .status-failed {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        .execution-time {
+            color: #666;
+            font-size: 13px;
+        }
+        .execution-details {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        .detail-label {
+            flex: 0 0 100px;
+            font-weight: bold;
+            color: #666;
+        }
+        .detail-value {
+            flex: 1;
+            color: #333;
+        }
+        .error-text {
+            color: #d32f2f;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .output-text {
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .toggle-details-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .toggle-details-btn:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-clock"></i>
+                    <span>定时任务</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>定时任务</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="createScheduleBtn">
+                        <i class="fas fa-plus"></i>
+                        新建定时任务
+                    </button>
+                </div>
+            </header>
+
+            <div class="tools-container">
+                <div class="schedules-list" id="schedulesList">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创建/编辑定时任务模态框 -->
+    <div class="modal" id="scheduleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="scheduleModalTitle">新建定时任务</h2>
+                <button class="modal-close" id="closeScheduleModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="scheduleForm">
+                    <div class="form-group">
+                        <label for="scheduleName">任务名称</label>
+                        <input type="text" id="scheduleName" name="name" required placeholder="请输入任务名称">
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleDescription">描述</label>
+                        <textarea id="scheduleDescription" name="description" rows="3" placeholder="请输入任务描述"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleCron">Cron 表达式</label>
+                        <input type="text" id="scheduleCron" name="cron" required placeholder="例如：0 * * * *" pattern="\s*(\S+\s+){4}\S+\s*">
+                        <small class="form-hint">标准的 cron 表达式，格式：分 时 日 月 周</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedulePreset">预设描述</label>
+                        <select id="schedulePreset" name="preset">
+                            <option value="">无预设</option>
+                            <option value="daily">每天午夜 (0 0 * * *)</option>
+                            <option value="hourly">每小时 (0 * * * *)</option>
+                            <option value="weekly">每周一午夜 (0 0 * * 1)</option>
+                            <option value="monthly">每月1号午夜 (0 0 1 * *)</option>
+                        </select>
+                        <small class="form-hint">选择预设会自动填充 cron 表达式</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleCommand">执行命令</label>
+                        <textarea id="scheduleCommand" name="command" rows="4" required placeholder="请输入要执行的命令或操作描述"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleStatus">状态</label>
+                        <select id="scheduleStatus" name="status">
+                            <option value="active">启用</option>
+                            <option value="paused">暂停</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="scheduleId" name="id" value="">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelScheduleBtn">取消</button>
+                <button class="btn btn-primary" id="saveScheduleBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认删除模态框 -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>确认删除</h2>
+                <button class="modal-close" id="closeDeleteModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteMessage">确定要删除这个定时任务吗？此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeleteBtn">取消</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 执行记录模态框 -->
+    <div class="modal" id="executionsModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="executionsModalTitle">定时任务执行记录</h2>
+                <button class="modal-close" id="closeExecutionsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="executions-container">
+                    <div class="loading" id="executionsLoading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>加载中...</span>
+                    </div>
+                    <div class="executions-list" id="executionsList" style="display: none;">
+                        <!-- 执行记录将动态加载 -->
+                    </div>
+                    <div class="empty-state" id="executionsEmpty" style="display: none;">
+                        <i class="fas fa-history"></i>
+                        <h3>暂无执行记录</h3>
+                        <p>该定时任务还没有执行记录</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeExecutionsBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/schedules.js') }}"></script>
+</body>
+</html>

@@ -141,6 +141,11 @@ function initializeEventListeners() {
         window.location.href = '/tools';
     });
 
+    // 打开定时任务
+    document.getElementById('openSchedules')?.addEventListener('click', () => {
+        window.location.href = '/schedules';
+    });
+
     // 打开工作流管理
     document.getElementById('openWorkflows')?.addEventListener('click', () => {
         window.location.href = '/workflows';
