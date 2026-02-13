@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>正则表达式工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .regex-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .regex-options label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .regex-options input[type="checkbox"] {
+            cursor: pointer;
+        }
+        .match-result {
+            padding: 10px;
+            margin: 5px 0;
+            background: #e8f5e9;
+            border-left: 3px solid #4caf50;
+            border-radius: 3px;
+        }
+        .match-result.error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        .match-count {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .group-list {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+        .group-item {
+            margin: 3px 0;
+            font-size: 13px;
+        }
+        .group-label {
+            color: #1976d2;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-code-branch"></i>
+                    <span>正则表达式</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>正则表达式工具</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="input-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-edit"></i> 正则表达式</label>
+                            <div class="action-buttons">
+                                <button class="btn btn-small" onclick="clearInput()">
+                                    <i class="fas fa-trash-alt"></i> 清空
+                                </button>
+                            </div>
+                        </div>
+                        <input type="text" id="regexPattern" placeholder="输入正则表达式，如：\d+" style="width: 100%; padding: 10px; font-family: monospace;">
+                        
+                        <div class="regex-options">
+                            <label><input type="checkbox" id="flagG" checked> 全局匹配 (g)</label>
+                            <label><input type="checkbox" id="flagI" checked> 忽略大小写 (i)</label>
+                            <label><input type="checkbox" id="flagM" checked> 多行模式 (m)</label>
+                            <label><input type="checkbox" id="flagS"> 单行模式 (s)</label>
+                            <label><input type="checkbox" id="flagU"> Unicode (u)</label>
+                        </div>
+                    </div>
+
+                    <div class="input-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-file-text"></i> 待匹配文本</label>
+                            <div class="action-buttons">
+                                <button class="btn btn-small" onclick="clearInput()">
+                                    <i class="fas fa-trash-alt"></i> 清空
+                                </button>
+                                <button class="btn btn-small" onclick="pasteInput()">
+                                    <i class="fas fa-paste"></i> 粘贴
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="inputText" placeholder="输入要匹配的文本..."></textarea>
+                    </div>
+
+                    <div class="input-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-exchange-alt"></i> 替换内容（可选）</label>
+                        </div>
+                        <input type="text" id="replaceText" placeholder="替换为..." style="width: 100%; padding: 10px; font-family: monospace;">
+                    </div>
+
+                    <div class="operation-section">
+                        <button class="btn btn-primary btn-large" onclick="testRegex()">
+                            <i class="fas fa-play"></i> 测试匹配
+                        </button>
+                        <button class="btn btn-primary btn-large" onclick="replaceRegex()">
+                            <i class="fas fa-exchange-alt"></i> 替换
+                        </button>
+                    </div>
+
+                    <div class="output-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-check-circle"></i> 匹配结果</label>
+                            <div class="action-buttons">
+                                <button class="btn btn-small" onclick="copyOutput()">
+                                    <i class="fas fa-copy"></i> 复制
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="outputText" readonly placeholder="匹配结果将显示在这里..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        function getFlags() {
+            let flags = '';
+            if (document.getElementById('flagG').checked) flags += 'g';
+            if (document.getElementById('flagI').checked) flags += 'i';
+            if (document.getElementById('flagM').checked) flags += 'm';
+            if (document.getElementById('flagS').checked) flags += 's';
+            if (document.getElementById('flagU').checked) flags += 'u';
+            return flags;
+        }
+
+        function testRegex() {
+            const pattern = document.getElementById('regexPattern').value;
+            const text = document.getElementById('inputText').value;
+            const output = document.getElementById('outputText');
+            
+            if (!pattern) {
+                output.value = '请输入正则表达式';
+                return;
+            }
+            
+            if (!text) {
+                output.value = '请输入待匹配文本';
+                return;
+            }
+            
+            try {
+                const flags = getFlags();
+                const regex = new RegExp(pattern, flags);
+                
+                let result = '';
+                
+                if (flags.includes('g')) {
+                    const matches = text.match(regex);
+                    if (matches) {
+                        result = `匹配成功！共找到 ${matches.length} 个匹配项：\n\n`;
+                        matches.forEach((match, index) => {
+                            result += `${index + 1}. "${match}"\n`;
+                        });
+                    } else {
+                        result = '未找到匹配项';
+                    }
+                } else {
+                    const match = text.match(regex);
+                    if (match) {
+                        result = `匹配成功！\n\n`;
+                        result += `匹配内容: "${match[0]}"\n`;
+                        result += `位置: ${match.index} - ${match.index + match[0].length}\n`;
+                        
+                        if (match.length > 1) {
+                            result += `\n捕获组:\n`;
+                            for (let i = 1; i < match.length; i++) {
+                                result += `  组${i}: "${match[i]}"\n`;
+                            }
+                        }
+                    } else {
+                        result = '未找到匹配项';
+                    }
+                }
+                
+                output.value = result;
+            } catch (e) {
+                output.value = '正则表达式错误: ' + e.message;
+            }
+        }
+
+        function replaceRegex() {
+            const pattern = document.getElementById('regexPattern').value;
+            const text = document.getElementById('inputText').value;
+            const replace = document.getElementById('replaceText').value;
+            const output = document.getElementById('outputText');
+            
+            if (!pattern) {
+                output.value = '请输入正则表达式';
+                return;
+            }
+            
+            if (!text) {
+                output.value = '请输入待匹配文本';
+                return;
+            }
+            
+            try {
+                const flags = getFlags();
+                const regex = new RegExp(pattern, flags);
+                
+                const result = text.replace(regex, replace);
+                
+                let outputText = '替换完成！\n\n';
+                outputText += `原始文本:\n${text}\n\n`;
+                outputText += `替换内容: ${replace || '(空)'}\n\n`;
+                outputText += `替换结果:\n${result}`;
+                
+                output.value = outputText;
+            } catch (e) {
+                output.value = '正则表达式错误: ' + e.message;
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('regexPattern').value = '';
+            document.getElementById('inputText').value = '';
+            document.getElementById('replaceText').value = '';
+            document.getElementById('outputText').value = '';
+        }
+
+        async function pasteInput() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('inputText').value = text;
+            } catch (e) {
+                alert('无法访问剪贴板');
+            }
+        }
+
+        async function copyOutput() {
+            const output = document.getElementById('outputText');
+            try {
+                await navigator.clipboard.writeText(output.value);
+                alert('已复制到剪贴板');
+            } catch (e) {
+                alert('复制失败');
+            }
+        }
+    </script>
+</body>
+</html>

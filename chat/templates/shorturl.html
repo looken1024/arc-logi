@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>短链接工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .shorturl-result {
+            padding: 15px;
+            margin-top: 15px;
+            background: #e8f5e9;
+            border-left: 3px solid #4caf50;
+            border-radius: 3px;
+        }
+        .shorturl-result.error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        .shorturl-result .label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .shorturl-result .url-text {
+            font-size: 16px;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        .shorturl-result .url-text a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        .shorturl-result .url-text a:hover {
+            text-decoration: underline;
+        }
+        .copy-btn {
+            margin-left: 10px;
+            padding: 3px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .history-list {
+            margin-top: 20px;
+        }
+        .history-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f5f5f5;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .history-item .original {
+            color: #666;
+            text-decoration: none;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .history-item .short {
+            color: #1976d2;
+            font-family: monospace;
+            display: block;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-link"></i>
+                    <span>短链接工具</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>短链接工具</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="input-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-link"></i> 原始 URL</label>
+                        </div>
+                        <input type="text" id="originalUrl" placeholder="输入要缩短的URL，例如：https://example.com/very/long/path" style="width: 100%; padding: 10px;">
+                    </div>
+
+                    <div class="input-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-code"></i> 自定义短码（可选）</label>
+                        </div>
+                        <input type="text" id="customCode" placeholder="输入自定义短码，1-6位字母数字（可选）" style="width: 100%; padding: 10px;" maxlength="6">
+                    </div>
+
+                    <div class="operation-section">
+                        <button class="btn btn-primary btn-large" onclick="createShortUrl()">
+                            <i class="fas fa-bolt"></i> 生成短链接
+                        </button>
+                        <button class="btn btn-secondary btn-large" onclick="clearInput()">
+                            <i class="fas fa-trash-alt"></i> 清空
+                        </button>
+                    </div>
+
+                    <div id="resultSection"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        async function createShortUrl() {
+            const originalUrl = document.getElementById('originalUrl').value.trim();
+            const customCode = document.getElementById('customCode').value.trim();
+            const resultSection = document.getElementById('resultSection');
+            
+            if (!originalUrl) {
+                resultSection.innerHTML = '<div class="shorturl-result error"><div class="label">错误</div><div class="url-text">请输入原始URL</div></div>';
+                return;
+            }
+            
+            resultSection.innerHTML = '<div class="shorturl-result"><div class="label">正在生成...</div></div>';
+            
+            try {
+                const response = await fetch('/api/shorturl/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        original_url: originalUrl,
+                        custom_code: customCode
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultSection.innerHTML = `
+                        <div class="shorturl-result">
+                            <div class="label">短链接创建成功！</div>
+                            <div class="url-text">
+                                <a href="${data.short_url}" target="_blank">${data.short_url}</a>
+                                <button class="btn btn-small copy-btn" onclick="copyToClipboard('${data.short_url}')">
+                                    <i class="fas fa-copy"></i> 复制
+                                </button>
+                            </div>
+                            <div class="label" style="margin-top: 10px;">原始URL</div>
+                            <div class="url-text" style="font-size: 13px; color: #666;">${data.original_url}</div>
+                        </div>
+                    `;
+                } else {
+                    resultSection.innerHTML = `<div class="shorturl-result error"><div class="label">错误</div><div class="url-text">${data.error}</div></div>`;
+                }
+            } catch (e) {
+                resultSection.innerHTML = `<div class="shorturl-result error"><div class="label">错误</div><div class="url-text">请求失败: ${e.message}</div></div>`;
+            }
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('已复制到剪贴板');
+            } catch (e) {
+                alert('复制失败');
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('originalUrl').value = '';
+            document.getElementById('customCode').value = '';
+            document.getElementById('resultSection').innerHTML = '';
+        }
+
+        document.getElementById('originalUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                createShortUrl();
+            }
+        });
+    </script>
+</body>
+</html>

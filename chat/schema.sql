@@ -40,3 +40,12 @@ CREATE TABLE IF NOT EXISTS user_skills (
     UNIQUE KEY uk_user_skill (username, skill_name),
     INDEX idx_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 短链接表
+CREATE TABLE IF NOT EXISTS short_urls (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    original_url TEXT NOT NULL,
+    short_code VARCHAR(6) NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_short_code (short_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

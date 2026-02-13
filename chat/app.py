@@ -313,6 +313,104 @@ def image_tool():
         return redirect(url_for('login'))
     return render_template('image.html')
 
+@app.route('/regex')
+def regex_tool():
+    """正则表达式工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('regex.html')
+
+@app.route('/shorturl')
+def shorturl_tool():
+    """短链接工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('shorturl.html')
+
+@app.route('/api/shorturl/create', methods=['POST'])
+def create_shorturl():
+    """创建短链接"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'})
+    
+    data = request.get_json()
+    original_url = data.get('original_url', '').strip()
+    custom_code = data.get('custom_code', '').strip()
+    
+    if not original_url:
+        return jsonify({'success': False, 'error': '请输入原始URL'})
+    
+    from urllib.parse import urlparse
+    try:
+        result = urlparse(original_url)
+        if not all([result.scheme, result.netloc]):
+            return jsonify({'success': False, 'error': '无效的URL格式'})
+    except:
+        return jsonify({'success': False, 'error': '无效的URL格式'})
+    
+    import random
+    import string
+    import re
+    
+    def generate_code(length=6):
+        chars = string.ascii_letters + string.digits
+        return ''.join(random.choice(chars) for _ in range(length))
+    
+    def validate_code(code):
+        return bool(re.match(r'^[a-zA-Z0-9]{1,6}$', code))
+    
+    if custom_code:
+        if not validate_code(custom_code):
+            return jsonify({'success': False, 'error': '自定义短码只能使用1-6位字母数字'})
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                if custom_code:
+                    cursor.execute("SELECT id FROM short_urls WHERE short_code = %s", (custom_code,))
+                    if cursor.fetchone():
+                        return jsonify({'success': False, 'error': f'短码 {custom_code} 已被占用'})
+                else:
+                    while True:
+                        custom_code = generate_code(6)
+                        cursor.execute("SELECT id FROM short_urls WHERE short_code = %s", (custom_code,))
+                        if not cursor.fetchone():
+                            break
+                
+                cursor.execute(
+                    "INSERT INTO short_urls (original_url, short_code, created_at) VALUES (%s, %s, NOW())",
+                    (original_url, custom_code)
+                )
+                conn.commit()
+        
+        short_domain = os.getenv('SHORT_URL_DOMAIN', request.host_url.rstrip('/'))
+        short_url = f"{short_domain}s/{custom_code}"
+        
+        return jsonify({
+            'success': True,
+            'original_url': original_url,
+            'short_code': custom_code,
+            'short_url': short_url
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'创建短链接失败: {str(e)}'})
+
+@app.route('/s/<code>')
+def redirect_shorturl(code):
+    """短链接重定向"""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT original_url FROM short_urls WHERE short_code = %s", (code,))
+                result = cursor.fetchone()
+        
+        if result:
+            return redirect(result['original_url'])
+        else:
+            return "短链接不存在", 404
+    except:
+        return "短链接不存在", 404
+
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico'}
 ALLOWED_PDF_EXTENSIONS = {'pdf'}
 
