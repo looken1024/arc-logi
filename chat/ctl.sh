@@ -59,16 +59,31 @@ except Exception as e:
 }
 
 stop() {
+    if ! netstat -tuln 2>/dev/null | grep -q ":8000 " && ! ss -tuln 2>/dev/null | grep -q ":8000 "; then
+        echo "❌ 服务未运行 (端口 8000 未监听)"
+        rm -f "$PID_FILE"
+        return 1
+    fi
+
     if [ ! -f "$PID_FILE" ]; then
-        echo "❌ 服务未运行 (未找到 PID 文件)"
+        echo "❌ 服务未运行 (未找到 PID 文件，但端口 8000 被占用)"
         return 1
     fi
 
     PID=$(cat "$PID_FILE")
     if ! kill -0 "$PID" 2>/dev/null; then
-        echo "❌ 服务未运行 (PID: $PID 可能已失效)"
-        rm -f "$PID_FILE"
-        return 1
+        if ! netstat -tuln 2>/dev/null | grep -q ":8000 " && ! ss -tuln 2>/dev/null | grep -q ":8000 "; then
+            rm -f "$PID_FILE"
+            echo "❌ 服务未运行"
+            return 1
+        fi
+        echo "⚠️  PID 文件过期，尝试查找端口 8000 对应的进程..."
+        PID=$(lsof -ti:8000 2>/dev/null | head -1)
+        if [ -z "$PID" ]; then
+            echo "❌ 无法找到端口 8000 对应的进程"
+            return 1
+        fi
+        echo "$PID" > "$PID_FILE"
     fi
 
     echo "🛑 停止服务 (PID: $PID)..."

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>超级管理员 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .main-content {
+            overflow: visible !important;
+        }
+        .admin-container {
+            overflow-y: auto;
+            flex: 1;
+        }
+    </style>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-crown"></i>
+                    <span>超级管理员</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>超级管理员</h1>
+            </header>
+
+            <div class="admin-container">
+                <div class="admin-section">
+                    <div class="section-header">
+                        <i class="fas fa-terminal"></i>
+                        <h2>远程开发</h2>
+                    </div>
+                    <div class="section-description">
+                        使用服务器上的 opencode 根据您的命令完成当前系统的开发和优化
+                    </div>
+                    <div class="remote-dev-container">
+                        <div class="command-input-area">
+                            <textarea 
+                                id="devCommand" 
+                                placeholder="请输入您想要完成的开发任务，例如：&#10;在登录页面增加验证码功能&#10;优化数据库查询性能&#10;添加一个新的API接口"
+                                rows="4"
+                            ></textarea>
+                            <button class="execute-btn" id="executeDevBtn">
+                                <i class="fas fa-paper-plane"></i>
+                                <span>执行命令</span>
+                            </button>
+                        </div>
+                        <div class="output-area">
+                            <div class="output-header">
+                                <span>执行结果</span>
+                                <button class="clear-btn" id="clearDevOutput">
+                                    <i class="fas fa-trash"></i>
+                                    清空
+                                </button>
+                            </div>
+                            <div class="output-content" id="devOutput">
+                                <pre><code class="output-placeholder">执行结果将显示在这里...</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <div class="section-header">
+                        <i class="fas fa-sync-alt"></i>
+                        <h2>系统更新</h2>
+                    </div>
+                    <div class="section-description">
+                        执行服务器上的 restart 命令来重启当前应用
+                    </div>
+                    <div class="system-update-container">
+                        <div class="update-info">
+                            <div class="info-item">
+                                <i class="fas fa-server"></i>
+                                <span>服务器状态: </span>
+                                <span class="status-indicator online" id="serverStatus">运行中</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-clock"></i>
+                                <span>运行时间: </span>
+                                <span id="uptime">--</span>
+                            </div>
+                        </div>
+                        <div class="update-actions">
+                            <button class="restart-btn" id="restartBtn">
+                                <i class="fas fa-redo"></i>
+                                <span>重启应用</span>
+                            </button>
+                        </div>
+                        <div class="restart-output">
+                            <div class="output-header">
+                                <span>操作日志</span>
+                                <button class="clear-btn" id="clearRestartLog">
+                                    <i class="fas fa-trash"></i>
+                                    清空
+                                </button>
+                            </div>
+                            <div class="output-content" id="restartLog">
+                                <pre><code class="output-placeholder">操作日志将显示在这里...</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        const startTime = new Date();
+        
+        function updateUptime() {
+            const now = new Date();
+            const diff = now - startTime;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            document.getElementById('uptime').textContent = `${days}天 ${hours}小时 ${minutes}分钟 ${seconds}秒`;
+        }
+        setInterval(updateUptime, 1000);
+        updateUptime();
+
+        document.getElementById('executeDevBtn')?.addEventListener('click', async () => {
+            const command = document.getElementById('devCommand').value.trim();
+            if (!command) {
+                alert('请输入开发命令');
+                return;
+            }
+
+            const btn = document.getElementById('executeDevBtn');
+            const output = document.getElementById('devOutput');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>执行中...</span>';
+            output.innerHTML = '<pre><code class="language-bash">正在执行命令，请稍候...</code></pre>';
+
+            try {
+                const response = await fetch('/api/admin/opencode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    output.innerHTML = `<pre><code class="language-bash">${escapeHtml(data.output)}</code></pre>`;
+                } else {
+                    output.innerHTML = `<pre><code class="language-bash" style="color: #ff6b6b;">${escapeHtml(data.error || '执行失败')}</code></pre>`;
+                }
+            } catch (error) {
+                output.innerHTML = `<pre><code class="language-bash" style="color: #ff6b6b;">请求失败: ${escapeHtml(error.message)}</code></pre>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i><span>执行命令</span>';
+            }
+        });
+
+        document.getElementById('clearDevOutput')?.addEventListener('click', () => {
+            document.getElementById('devOutput').innerHTML = '<pre><code class="output-placeholder">执行结果将显示在这里...</code></pre>';
+        });
+
+        document.getElementById('restartBtn')?.addEventListener('click', async () => {
+            if (!confirm('确定要重启应用吗？重启期间服务将暂时不可用。')) {
+                return;
+            }
+
+            const btn = document.getElementById('restartBtn');
+            const log = document.getElementById('restartLog');
+            const status = document.getElementById('serverStatus');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>重启中...</span>';
+            status.textContent = '重启中';
+            status.className = 'status-indicator restarting';
+            log.innerHTML = '<pre><code class="language-bash">正在执行重启命令...</code></pre>';
+
+            try {
+                const response = await fetch('/api/admin/restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    log.innerHTML = `<pre><code class="language-bash">${escapeHtml(data.output)}</code></pre>`;
+                    status.textContent = '重启中';
+                    log.innerHTML += '<pre><code class="language-bash">请等待几秒后 <a href="/admin" style="color: #4a9eff;">点击这里</a> 刷新页面</code></pre>';
+                } else {
+                    log.innerHTML = `<pre><code class="language-bash" style="color: #ff6b6b;">${escapeHtml(data.error || '重启失败')}</code></pre>`;
+                    status.textContent = '运行中';
+                    status.className = 'status-indicator online';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-redo"></i><span>重启应用</span>';
+                }
+            } catch (error) {
+                log.innerHTML = `<pre><code class="language-bash" style="color: #ff6b6b;">请求失败: ${escapeHtml(error.message)}</code></pre>`;
+                status.textContent = '运行中';
+                status.className = 'status-indicator online';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-redo"></i><span>重启应用</span>';
+            }
+        });
+
+        document.getElementById('clearRestartLog')?.addEventListener('click', () => {
+            document.getElementById('restartLog').innerHTML = '<pre><code class="output-placeholder">操作日志将显示在这里...</code></pre>';
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

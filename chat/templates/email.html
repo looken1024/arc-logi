@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮件发送 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .email-container {
+            width: 100%;
+            max-width: 100%;
+            padding: 24px 40px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .main-content {
+            overflow: visible !important;
+        }
+        .email-form {
+            background: var(--card-bg, #1e1e1e);
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .form-row {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary, #e0e0e0);
+        }
+        .form-group label i {
+            color: var(--primary-color, #4a9eff);
+            width: 16px;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color, #333);
+            border-radius: 8px;
+            background: var(--input-bg, #2d2d2d);
+            color: var(--text-primary, #e0e0e0);
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color, #4a9eff);
+        }
+        .form-group textarea {
+            min-height: 300px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+        .attachment-area {
+            border: 2px dashed var(--border-color, #333);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 20px;
+        }
+        .attachment-area:hover {
+            border-color: var(--primary-color, #4a9eff);
+            background: rgba(74, 158, 255, 0.05);
+        }
+        .attachment-area i {
+            font-size: 32px;
+            color: var(--primary-color, #4a9eff);
+            margin-bottom: 12px;
+        }
+        .attachment-area p {
+            color: var(--text-secondary, #a0a0a0);
+            margin: 0;
+            font-size: 14px;
+        }
+        .attachment-area input[type="file"] {
+            display: none;
+        }
+        .attachment-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-secondary, #252525);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-primary, #e0e0e0);
+        }
+        .attachment-item i {
+            color: var(--primary-color, #4a9eff);
+        }
+        .attachment-item .remove-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary, #808080);
+            cursor: pointer;
+            padding: 0;
+            margin-left: 4px;
+        }
+        .attachment-item .remove-btn:hover {
+            color: #e74c3c;
+        }
+        .send-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 16px 24px;
+            background: var(--primary-color, #4a9eff);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .send-btn:hover:not(:disabled) {
+            background: var(--primary-hover, #3a8eef);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+        }
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result-message {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result-message.success {
+            display: block;
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+        .result-message.error {
+            display: block;
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-envelope"></i>
+                    <span>邮件发送</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>邮件发送</h1>
+            </header>
+
+            <div class="email-container">
+                <div class="email-form">
+                    <form id="emailForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="toEmail">
+                                    <i class="fas fa-user"></i> 收件人
+                                </label>
+                                <input type="email" id="toEmail" name="toEmail" placeholder="请输入收件人邮箱" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="subject">
+                                    <i class="fas fa-heading"></i> 标题
+                                </label>
+                                <input type="text" id="subject" name="subject" placeholder="请输入邮件标题" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="content">
+                                <i class="fas fa-align-left"></i> 内容
+                            </label>
+                            <textarea id="content" name="content" placeholder="请输入邮件内容" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <i class="fas fa-paperclip"></i> 附件
+                            </label>
+                            <div class="attachment-area" id="attachmentArea">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>点击或拖拽文件到此处上传附件</p>
+                                <input type="file" id="fileInput" multiple>
+                            </div>
+                            <div class="attachment-list" id="attachmentList"></div>
+                        </div>
+                        
+                        <button type="submit" class="send-btn" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>发送邮件</span>
+                        </button>
+                    </form>
+                    
+                    <div class="result-message" id="resultMessage"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        const attachmentArea = document.getElementById('attachmentArea');
+        const fileInput = document.getElementById('fileInput');
+        const attachmentList = document.getElementById('attachmentList');
+        let attachments = [];
+
+        attachmentArea?.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        attachmentArea?.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            attachmentArea.style.borderColor = 'var(--primary-color, #4a9eff)';
+        });
+
+        attachmentArea?.addEventListener('dragleave', () => {
+            attachmentArea.style.borderColor = '';
+        });
+
+        attachmentArea?.addEventListener('drop', (e) => {
+            e.preventDefault();
+            attachmentArea.style.borderColor = '';
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput?.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+            fileInput.value = '';
+        });
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (!attachments.some(a => a.name === file.name && a.size === file.size)) {
+                    attachments.push(file);
+                }
+            });
+            renderAttachments();
+        }
+
+        function renderAttachments() {
+            attachmentList.innerHTML = attachments.map((file, index) => `
+                <div class="attachment-item">
+                    <i class="fas fa-file"></i>
+                    <span>${file.name}</span>
+                    <span style="color: var(--text-secondary, #808080); font-size: 12px;">(${formatSize(file.size)})</span>
+                    <button type="button" class="remove-btn" onclick="removeAttachment(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeAttachment(index) {
+            attachments.splice(index, 1);
+            renderAttachments();
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        document.getElementById('emailForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const toEmail = document.getElementById('toEmail').value.trim();
+            const subject = document.getElementById('subject').value.trim();
+            const content = document.getElementById('content').value;
+            const sendBtn = document.getElementById('sendBtn');
+            const resultMessage = document.getElementById('resultMessage');
+            
+            if (!toEmail || !subject || !content) {
+                showResult('请填写所有字段', 'error');
+                return;
+            }
+            
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>发送中...</span>';
+            resultMessage.className = 'result-message';
+            resultMessage.style.display = 'none';
+            
+            try {
+                const formData = new FormData();
+                formData.append('to', toEmail);
+                formData.append('subject', subject);
+                formData.append('content', content);
+                attachments.forEach(file => {
+                    formData.append('attachments', file);
+                });
+
+                const response = await fetch('/api/email/send', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('邮件发送成功！', 'success');
+                    document.getElementById('emailForm').reset();
+                    attachments = [];
+                    renderAttachments();
+                } else {
+                    showResult('发送失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showResult('请求失败: ' + error.message, 'error');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>发送邮件</span>';
+            }
+        });
+        
+        function showResult(message, type) {
+            const resultMessage = document.getElementById('resultMessage');
+            resultMessage.textContent = message;
+            resultMessage.className = 'result-message ' + type;
+            resultMessage.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -136,6 +136,11 @@ function initializeEventListeners() {
         window.location.href = '/tools';
     });
 
+    // 打开超级管理员
+    document.getElementById('openAdmin')?.addEventListener('click', () => {
+        window.location.href = '/admin';
+    });
+
     // 打开定时任务
     document.getElementById('openSchedules')?.addEventListener('click', () => {
         window.location.href = '/schedules';

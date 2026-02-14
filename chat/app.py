@@ -16,6 +16,11 @@ import pymysql
 import uuid
 import subprocess
 import threading
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 from contextlib import contextmanager
 
 # 导入 skills 模块
@@ -334,6 +339,70 @@ def certificate_tool():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('certificate.html')
+
+@app.route('/email')
+def email_tool():
+    """邮件发送页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('email.html')
+
+@app.route('/api/email/send', methods=['POST'])
+def send_email():
+    """发送邮件API"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '未登录'}), 401
+    
+    try:
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            to_email = request.form.get('to', '').strip()
+            subject = request.form.get('subject', '').strip()
+            content = request.form.get('content', '').strip()
+            files = request.files.getlist('attachments')
+        else:
+            data = request.get_json()
+            to_email = data.get('to', '').strip()
+            subject = data.get('subject', '').strip()
+            content = data.get('content', '').strip()
+            files = []
+        
+        if not to_email or not subject or not content:
+            return jsonify({'success': False, 'error': '参数不完整'})
+        
+        smtp_host = os.getenv('SMTP_HOST', 'smtp.qq.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_user = os.getenv('SMTP_USER', '')
+        smtp_password = os.getenv('SMTP_PASSWORD', '')
+        smtp_from = os.getenv('SMTP_FROM', smtp_user)
+        
+        if not smtp_user or not smtp_password:
+            return jsonify({'success': False, 'error': '邮件服务器未配置'})
+        
+        msg = MIMEMultipart()
+        msg['From'] = smtp_from
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        
+        msg.attach(MIMEText(content, 'plain', 'utf-8'))
+        
+        for file in files:
+            if file.filename:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(file.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename={file.filename}')
+                msg.attach(part)
+        
+        server = smtplib.SMTP(smtp_host, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        
+        return jsonify({'success': True, 'message': '邮件发送成功'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/regex')
 def regex_tool():
@@ -3052,6 +3121,84 @@ def delete_prompt(prompt_id):
                 return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/admin')
+def admin_page():
+    """超级管理员页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('admin.html')
+
+@app.route('/api/admin/opencode', methods=['POST'])
+def admin_opencode():
+    """远程开发 - 执行 opencode 命令"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '未登录'}), 401
+    
+    try:
+        data = request.get_json()
+        command = data.get('command', '').strip()
+        
+        if not command:
+            return jsonify({'success': False, 'error': '命令不能为空'})
+        
+        result = subprocess.run(
+            ['bash', '-c', f'cd /home/yangkai/github/arc-logi/chat && opencode run "{command}"'],
+            capture_output=True,
+            text=True,
+            timeout=300
+        )
+        
+        output = result.stdout
+        if result.stderr:
+            output += '\n' + result.stderr
+        
+        return jsonify({
+            'success': True,
+            'output': output,
+            'returncode': result.returncode
+        })
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': '命令执行超时'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/admin/restart', methods=['POST'])
+def admin_restart():
+    """系统更新 - 重启应用"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '未登录'}), 401
+    
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        ctl_script = os.path.join(script_dir, 'ctl.sh')
+        
+        if not os.path.exists(ctl_script):
+            return jsonify({'success': False, 'error': '重启脚本不存在'})
+        
+        def do_restart():
+            import time
+            time.sleep(2)
+            subprocess.Popen(
+                ['bash', ctl_script, 'restart'],
+                cwd=script_dir,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        
+        thread = threading.Thread(target=do_restart)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'success': True,
+            'output': '重启命令已发送，服务即将重启。请稍候刷新页面。',
+            'returncode': 0
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/health', methods=['GET'])
 def health_check():
