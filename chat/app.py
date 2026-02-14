@@ -1235,6 +1235,13 @@ def base64_tool():
         return redirect(url_for('login'))
     return render_template('base64.html')
 
+@app.route('/diff')
+def diff_tool():
+    """文本差异对比工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('diff.html')
+
 @app.route('/json')
 def json_tool():
     """JSON 工具页面"""
@@ -3166,7 +3173,7 @@ def admin_opencode():
 
 @app.route('/api/admin/restart', methods=['POST'])
 def admin_restart():
-    """系统更新 - 重启应用"""
+    """系统更新 - 停止应用"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': '未登录'}), 401
     
@@ -3181,7 +3188,7 @@ def admin_restart():
             import time
             time.sleep(2)
             subprocess.Popen(
-                ['bash', ctl_script, 'restart'],
+                ['bash', ctl_script, 'stop'],
                 cwd=script_dir,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
@@ -3193,7 +3200,7 @@ def admin_restart():
         
         return jsonify({
             'success': True,
-            'output': '重启命令已发送，服务即将重启。请稍候刷新页面。',
+            'output': '停止命令已发送，服务即将停止。',
             'returncode': 0
         })
         

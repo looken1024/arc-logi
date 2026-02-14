@@ -257,6 +257,12 @@
     max-height: 250px;
 }
 
+.page-header h1 {
+    font-size: 1.2em;
+    padding-left: 16px;
+    padding-top: 16px;
+}
+
 @media (max-width: 768px) {
     .admin-container {
         padding: 12px;
