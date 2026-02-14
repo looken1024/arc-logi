@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>白板工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .whiteboard-container {
+            width: 100%;
+            height: calc(100vh - 80px);
+            border: none;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-chalkboard"></i>
+                    <span>白板工具</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>白板工具</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <iframe 
+                        class="whiteboard-container"
+                        src="https://drawnix.com"
+                        title="Drawnix 白板工具"
+                        allow="fullscreen; clipboard-read; clipboard-write"
+                    >
+                    </iframe>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

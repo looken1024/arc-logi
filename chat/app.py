@@ -328,6 +328,13 @@ def regex_tool():
         return redirect(url_for('login'))
     return render_template('regex.html')
 
+@app.route('/whiteboard')
+def whiteboard_tool():
+    """白板工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('whiteboard.html')
+
 @app.route('/shorturl')
 def shorturl_tool():
     """短链接工具页面"""
