@@ -18,39 +18,54 @@ from pathlib import Path
 from .base import BaseSkill, SkillRegistry
 
 
-def discover_skills(skills_dir: str = None) -> dict:
+def discover_skills(skills_dir: str = None, user_skills_dir: str = None) -> dict:
     """
     自动发现所有技能
     
-    扫描 skills 目录下的所有子文件夹，查找包含 SKILL.md 的文件夹。
+    扫描 skills 目录和用户skills目录下的所有子文件夹。
     
     Args:
         skills_dir: skills 目录路径，默认为当前模块所在目录
+        user_skills_dir: 用户skills目录路径
         
     Returns:
-        dict: {skill_name: skill_dir_path} 映射
+        dict: {skill_name: {path, is_user}} 映射
     """
     if skills_dir is None:
         skills_dir = os.path.dirname(os.path.abspath(__file__))
     
     discovered_skills = {}
     
-    # 遍历 skills 目录
+    # 遍历系统 skills 目录
     for item in os.listdir(skills_dir):
         item_path = os.path.join(skills_dir, item)
         
-        # 只处理文件夹
         if not os.path.isdir(item_path):
             continue
         
-        # 跳过特殊目录
         if item.startswith('_') or item.startswith('.'):
             continue
         
-        # 检查是否包含 SKILL.md
         skill_md = os.path.join(item_path, 'SKILL.md')
         if os.path.isfile(skill_md):
-            discovered_skills[item] = item_path
+            discovered_skills[item] = {'path': item_path, 'is_user': False}
+    
+    # 遍历用户 skills 目录
+    if user_skills_dir and os.path.isdir(user_skills_dir):
+        for item in os.listdir(user_skills_dir):
+            item_path = os.path.join(user_skills_dir, item)
+            
+            if not os.path.isdir(item_path):
+                continue
+            
+            if item.startswith('_') or item.startswith('.'):
+                continue
+            
+            skill_md = os.path.join(item_path, 'SKILL.md')
+            if os.path.isfile(skill_md):
+                # 用户skill名称添加前缀避免冲突
+                user_skill_name = f"user_{item}"
+                discovered_skills[user_skill_name] = {'path': item_path, 'is_user': True, 'original_name': item}
     
     return discovered_skills
 
@@ -167,8 +182,9 @@ def register_all_skills() -> SkillRegistry:
     print(f"\n📥 开始加载技能...")
     
     # 加载并注册每个技能
-    for skill_name, skill_path in discovered.items():
+    for skill_name, skill_info in discovered.items():
         try:
+            skill_path = skill_info['path']
             skill_instance = load_skill(skill_name, skill_path)
             skill_dir = os.path.dirname(skill_path)
             registry.register(skill_instance, skill_dir)

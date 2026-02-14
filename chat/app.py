@@ -30,8 +30,16 @@ CORS(app, supports_credentials=True)
 # 配置
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
+
+# Skills 目录配置
+SKILLS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'skills')
+USER_SKILLS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_skills')
+
+# 确保用户skills目录存在
+os.makedirs(USER_SKILLS_DIR, exist_ok=True)
 
 # 数据库配置
 DB_CONFIG = {
@@ -410,6 +418,234 @@ def redirect_shorturl(code):
             return "短链接不存在", 404
     except:
         return "短链接不存在", 404
+
+@app.route('/stock')
+def stock_tool():
+    """股票行情工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('stock.html')
+
+@app.route('/api/stock/quote')
+def stock_quote():
+    """获取股票实时行情"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'})
+    
+    code = request.args.get('code', '').strip().upper()
+    if not code:
+        return jsonify({'success': False, 'error': '请输入股票代码'})
+    
+    try:
+        import httpx
+        
+        # 判断股票市场
+        if code.startswith('6') or code.startswith('688'):
+            # 上海主板/科创板
+            symbol = f'sh{code}'
+        elif code.startswith('00') or code.startswith('30'):
+            # 深圳主板/创业板
+            symbol = f'sz{code}'
+        elif code.startswith('8') or code.startswith('4'):
+            # 北京交所
+            symbol = f'bj{code}'
+        else:
+            symbol = code
+        
+        # 使用新浪财经API获取实时行情
+        url = f'https://hq.sinajs.cn/list={symbol}'
+        headers = {
+            'Referer': 'https://finance.sina.com.cn/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = httpx.get(url, headers=headers, timeout=10.0)
+        response.encoding = 'gbk'
+        content = response.text
+        
+        if not content or 'var hq_str_' not in content:
+            return jsonify({'success': False, 'error': '股票代码不存在或已退市'})
+        
+        # 解析返回数据
+        data_line = content.split('=')[1].strip('";\n')
+        if not data_line:
+            return jsonify({'success': False, 'error': '无法获取股票数据'})
+        
+        fields = data_line.split(',')
+        
+        if len(fields) < 32:
+            return jsonify({'success': False, 'error': '数据格式错误'})
+        
+        name = fields[0]
+        open_price = fields[1]
+        pre_close = fields[2]
+        price = fields[3]
+        high = fields[4]
+        low = fields[5]
+        volume = fields[8]
+        amount = fields[9]
+        
+        # 计算涨跌和涨跌幅
+        try:
+            pre_close_float = float(pre_close)
+            price_float = float(price)
+            change = round(price_float - pre_close_float, 2)
+            change_percent = round((change / pre_close_float) * 100, 2) if pre_close_float != 0 else 0
+        except:
+            change = 0
+            change_percent = 0
+        
+        # 判断市场
+        if code.startswith('6') or code.startswith('688'):
+            market = '上海证券交易所'
+        elif code.startswith('00') or code.startswith('30'):
+            market = '深圳证券交易所'
+        elif code.startswith('8') or code.startswith('4'):
+            market = '北京证券交易所'
+        else:
+            market = '未知市场'
+        
+        # 格式化成交量
+        try:
+            vol = float(volume)
+            if vol >= 100000000:
+                volume_str = f'{vol/100000000:.2f}亿'
+            elif vol >= 10000:
+                volume_str = f'{vol/10000:.2f}万'
+            else:
+                volume_str = str(vol)
+        except:
+            volume_str = volume
+        
+        # 格式化成交额
+        try:
+            amt = float(amount)
+            if amt >= 100000000:
+                amount_str = f'{amt/100000000:.2f}亿'
+            elif amt >= 10000:
+                amount_str = f'{amt/10000:.2f}万'
+            else:
+                amount_str = str(amount)
+        except:
+            amount_str = amount
+        
+        # 计算涨跌停
+        try:
+            limit_up = round(pre_close_float * 1.10, 2) if pre_close_float != 0 else 0
+            limit_down = round(pre_close_float * 0.90, 2) if pre_close_float != 0 else 0
+        except:
+            limit_up = 0
+            limit_down = 0
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'code': code,
+                'name': name,
+                'market': market,
+                'price': price,
+                'change': f'{change:+.2f}',
+                'changePercent': f'{change_percent:+.2f}%',
+                'open': open_price,
+                'preClose': pre_close,
+                'high': high,
+                'low': low,
+                'volume': volume_str,
+                'amount': amount_str,
+                'limitUp': f'{limit_up:.2f}' if limit_up else '-',
+                'limitDown': f'{limit_down:.2f}' if limit_down else '-',
+                'pe': '-'
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'获取数据失败: {str(e)}'})
+
+@app.route('/api/stock/history')
+def stock_history():
+    """获取股票历史行情"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'})
+    
+    code = request.args.get('code', '').strip().upper()
+    trend_type = request.args.get('type', 'day')
+    
+    if not code:
+        return jsonify({'success': False, 'error': '请输入股票代码'})
+    
+    try:
+        import httpx
+        
+        # 判断股票市场
+        if code.startswith('6') or code.startswith('688'):
+            symbol = f'sh{code}'
+        elif code.startswith('00') or code.startswith('30'):
+            symbol = f'sz{code}'
+        elif code.startswith('8') or code.startswith('4'):
+            symbol = f'bj{code}'
+        else:
+            symbol = code
+        
+        # 使用网易财经API获取历史数据
+        if trend_type == 'day':
+            url = f'https://quotes.sina.cn/cn/api/jsonp.php/var%20_{symbol}=/CN_MarketDataService.getKLineData?symbol={symbol}&scale=240&ma=5'
+        elif trend_type == 'week':
+            url = f'https://quotes.sina.cn/cn/api/jsonp.php/var%20_{symbol}=/CN_MarketDataService.getKLineData?symbol={symbol}&scale=Weekly&ma=5'
+        else:  # month
+            url = f'https://quotes.sina.cn/cn/api/jsonp.php/var%20_{symbol}=/CN_MarketDataService.getKLineData?symbol={symbol}&scale=Monthly&ma=5'
+        
+        headers = {
+            'Referer': 'https://finance.sina.com.cn/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = httpx.get(url, headers=headers, timeout=10.0)
+        response.encoding = 'gbk'
+        content = response.text
+        
+        # 解析JSON数据
+        import re
+        json_match = re.search(r'\[.*\]', content)
+        if not json_match:
+            return jsonify({'success': False, 'error': '暂无历史数据'})
+        
+        import json
+        data = json.loads(json_match.group())
+        
+        if not data:
+            return jsonify({'success': False, 'error': '暂无历史数据'})
+        
+        history = []
+        for i, item in enumerate(data):
+            try:
+                close = float(item.get('close', 0))
+                if i > 0:
+                    prev_close = float(data[i-1].get('close', 0))
+                    if prev_close > 0:
+                        change = round((close - prev_close) / prev_close * 100, 2)
+                    else:
+                        change = 0
+                else:
+                    change = 0
+                history.append({
+                    'date': item.get('day', ''),
+                    'open': item.get('open', ''),
+                    'high': item.get('high', ''),
+                    'low': item.get('low', ''),
+                    'close': item.get('close', ''),
+                    'volume': item.get('volume', ''),
+                    'change': str(change)
+                })
+            except:
+                continue
+        
+        return jsonify({
+            'success': True,
+            'data': history
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'获取历史数据失败: {str(e)}'})
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico'}
 ALLOWED_PDF_EXTENSIONS = {'pdf'}
@@ -1252,14 +1488,27 @@ def scan_skills():
     try:
         skill_registry = register_all_skills()
         
+        user_settings = {}
+        username = session.get('username')
+        if username:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT skill_name, enabled FROM user_skills WHERE username = %s",
+                        (username,)
+                    )
+                    user_settings = {row['skill_name']: bool(row['enabled']) for row in cursor.fetchall()}
+        
         skills = []
         for skill_name in skill_registry.list_skills():
             skill = skill_registry.get_skill(skill_name)
             if skill:
+                enabled = user_settings.get(skill_name, True)
                 skills.append({
                     'name': skill.name,
                     'description': skill.description,
-                    'parameters': skill.parameters
+                    'parameters': skill.parameters,
+                    'enabled': enabled
                 })
         
         return jsonify({

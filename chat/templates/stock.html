@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票行情 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stock-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .stock-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .stock-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stock-section h3 i {
+            color: var(--primary-color);
+        }
+        .stock-search {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stock-search input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .stock-search input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .stock-info-card {
+            background: var(--hover-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .stock-name {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .stock-code {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .stock-price {
+            text-align: right;
+        }
+        .stock-current-price {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+        .stock-current-price.up {
+            color: #f54343;
+        }
+        .stock-current-price.down {
+            color: #4caf50;
+        }
+        .stock-change {
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .stock-change.up {
+            color: #f54343;
+        }
+        .stock-change.down {
+            color: #4caf50;
+        }
+        .stock-details {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .stock-detail-item {
+            background: var(--message-bg);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stock-detail-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .stock-detail-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .stock-chart-container {
+            height: 300px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .trend-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .trend-tabs .btn {
+            flex: 1;
+            padding: 10px;
+            font-size: 13px;
+        }
+        .trend-tabs .btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .kline-container {
+            height: 300px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .error-msg {
+            text-align: center;
+            padding: 20px;
+            color: #f54343;
+            background: rgba(245, 67, 67, 0.1);
+            border-radius: 8px;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        .history-table th,
+        .history-table td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .history-table th {
+            background: var(--hover-bg);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .history-table td {
+            font-size: 13px;
+            color: var(--text-color);
+        }
+        .history-table .up {
+            color: #f54343;
+        }
+        .history-table .down {
+            color: #4caf50;
+        }
+        .chart-container {
+            margin-top: 20px;
+            height: 300px;
+            position: relative;
+        }
+        @media (max-width: 600px) {
+            .stock-details {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-chart-line"></i>
+                    <span>股票行情</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>股票行情</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="stock-wrapper">
+                        <div class="stock-section">
+                            <h3><i class="fas fa-search"></i> 股票查询</h3>
+                            <div class="stock-search">
+                                <input type="text" id="stockCode" placeholder="输入股票代码（如: 600519, 000001, AAPL）" 
+                                       onkeypress="if(event.key==='Enter')queryStock()">
+                                <button class="btn btn-primary" onclick="queryStock()">
+                                    <i class="fas fa-search"></i> 查询
+                                </button>
+                            </div>
+                            <div id="stockResult"></div>
+                        </div>
+
+                        <div class="stock-section">
+                            <h3><i class="fas fa-history"></i> 历史行情</h3>
+                            <div class="trend-tabs">
+                                <button class="btn active" onclick="switchTrend('day')">日K</button>
+                                <button class="btn" onclick="switchTrend('week')">周K</button>
+                                <button class="btn" onclick="switchTrend('month')">月K</button>
+                            </div>
+                            <div id="historyContainer">
+                                <div class="loading-static">请先查询股票</div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="priceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentStockCode = '';
+        let currentTrendType = 'day';
+
+        async function queryStock() {
+            const code = document.getElementById('stockCode').value.trim();
+            if (!code) {
+                alert('请输入股票代码');
+                return;
+            }
+
+            const resultDiv = document.getElementById('stockResult');
+            resultDiv.innerHTML = '<div class="loading-static"><i class="loading-spin"></i> 加载中...</div>';
+
+            try {
+                const response = await fetch(`/api/stock/quote?code=${encodeURIComponent(code)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentStockCode = data.data.code;
+                    renderStockInfo(data.data);
+                    loadHistory(currentStockCode, currentTrendType);
+                } else {
+                    resultDiv.innerHTML = `<div class="error-msg">${data.error || '查询失败，请检查股票代码是否正确'}</div>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<div class="error-msg">网络错误: ${e.message}</div>`;
+            }
+        }
+
+        function renderStockInfo(stock) {
+            const isUp = stock.change >= 0;
+            const changeClass = isUp ? 'up' : 'down';
+            const priceClass = isUp ? 'up' : 'down';
+            
+            const html = `
+                <div class="stock-info-card">
+                    <div class="stock-header">
+                        <div>
+                            <div class="stock-name">${stock.name}</div>
+                            <div class="stock-code">${stock.code} · ${stock.market}</div>
+                        </div>
+                        <div class="stock-price">
+                            <div class="stock-current-price ${priceClass}">${stock.price}</div>
+                            <div class="stock-change ${changeClass}">
+                                ${isUp ? '↑' : '↓'} ${stock.change} (${stock.changePercent}%)
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stock-details">
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">今开</div>
+                            <div class="stock-detail-value">${stock.open}</div>
+                        </div>
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">最高</div>
+                            <div class="stock-detail-value" style="color: #f54343;">${stock.high}</div>
+                        </div>
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">最低</div>
+                            <div class="stock-detail-value" style="color: #4caf50;">${stock.low}</div>
+                        </div>
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">成交量</div>
+                            <div class="stock-detail-value">${stock.volume}</div>
+                        </div>
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">成交额</div>
+                            <div class="stock-detail-value">${stock.amount}</div>
+                        </div>
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">昨收</div>
+                            <div class="stock-detail-value">${stock.preClose}</div>
+                        </div>
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">涨跌停</div>
+                            <div class="stock-detail-value">${stock.limitUp || '-'} / ${stock.limitDown || '-'}</div>
+                        </div>
+                        <div class="stock-detail-item">
+                            <div class="stock-detail-label">市盈率</div>
+                            <div class="stock-detail-value">${stock.pe || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('stockResult').innerHTML = html;
+        }
+
+        async function loadHistory(code, trendType) {
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = '<div class="loading-static"><i class="loading-spin"></i> 加载历史数据...</div>';
+
+            try {
+                const response = await fetch(`/api/stock/history?code=${code}&type=${trendType}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderHistory(data.data, trendType);
+                } else {
+                    container.innerHTML = `<div class="error-msg">${data.error || '加载失败'}</div>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="error-msg">网络错误: ${e.message}</div>`;
+            }
+        }
+
+        function renderHistory(historyData, trendType) {
+            if (!historyData || historyData.length === 0) {
+                document.getElementById('historyContainer').innerHTML = '<div class="loading-static">暂无历史数据</div>';
+                return;
+            }
+
+            const labels = historyData.map(item => item.date);
+            const prices = historyData.map(item => parseFloat(item.close));
+            const isUp = prices[prices.length - 1] >= prices[0];
+            const lineColor = isUp ? '#f54343' : '#4caf50';
+
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            if (window.stockChart) {
+                window.stockChart.destroy();
+            }
+            window.stockChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '收盘价',
+                        data: prices,
+                        borderColor: lineColor,
+                        backgroundColor: isUp ? 'rgba(245, 67, 67, 0.1)' : 'rgba(76, 175, 80, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            ticks: {
+                                maxTicksLimit: 10,
+                                maxRotation: 0
+                            }
+                        },
+                        y: {
+                            display: true,
+                            position: 'right'
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+
+            const reversed = [...historyData].reverse();
+            const html = `
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>开盘</th>
+                            <th>最高</th>
+                            <th>最低</th>
+                            <th>收盘</th>
+                            <th>成交量</th>
+                            <th>涨跌幅</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reversed.slice(-30).map(item => {
+                            const isUp = item.change >= 0;
+                            const changeClass = isUp ? 'up' : 'down';
+                            return `
+                                <tr>
+                                    <td>${item.date}</td>
+                                    <td>${item.open}</td>
+                                    <td style="color: #f54343;">${item.high}</td>
+                                    <td style="color: #4caf50;">${item.low}</td>
+                                    <td>${item.close}</td>
+                                    <td>${item.volume}</td>
+                                    <td class="${changeClass}">${isUp ? '+' : ''}${item.change}%</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('historyContainer').innerHTML = html;
+        }
+
+        function switchTrend(type) {
+            if (!currentStockCode) {
+                return;
+            }
+            currentTrendType = type;
+            document.querySelectorAll('.trend-tabs .btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            loadHistory(currentStockCode, type);
+        }
+    </script>
+</body>
+</html>
