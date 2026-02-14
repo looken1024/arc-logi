@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux 命令 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .linux-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .linux-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .linux-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .linux-section h3 i {
+            color: var(--primary-color);
+        }
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 15px;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .quick-commands {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .quick-commands .cmd-tag {
+            padding: 6px 14px;
+            background: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: monospace;
+        }
+        .quick-commands .cmd-tag:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        .result-content {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            color: #d4d4d4;
+            font-size: 14px;
+            line-height: 1.7;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .result-content h1, .result-content h2, .result-content h3 {
+            color: #569cd6;
+            margin: 16px 0 8px 0;
+        }
+        .result-content h1:first-child, .result-content h3:first-child {
+            margin-top: 0;
+        }
+        .result-content code {
+            background: #2d2d2d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #ce9178;
+        }
+        .result-content pre {
+            background: #2d2d2d;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+        .result-content pre code {
+            background: none;
+            padding: 0;
+            color: #9cdcfe;
+        }
+        .result-content ul, .result-content ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+        .result-content li {
+            margin: 4px 0;
+        }
+        .result-content p {
+            margin: 8px 0;
+        }
+        .result-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+        }
+        .result-content th, .result-content td {
+            border: 1px solid #3c3c3c;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .result-content th {
+            background: #2d2d2d;
+        }
+        .result-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 60px 20px;
+        }
+        .result-placeholder i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-terminal"></i>
+                    <span>Linux 命令</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>Linux 命令</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="linux-wrapper">
+                        <div class="linux-section">
+                            <h3><i class="fas fa-search"></i> 命令查询</h3>
+                            <div class="search-box">
+                                <input type="text" id="commandInput" placeholder="输入命令名称，如 ls, grep, tar, awk..." onkeypress="handleKeyPress(event)">
+                                <button class="btn btn-primary" onclick="searchCommand()">
+                                    <i class="fas fa-search"></i> 查询
+                                </button>
+                            </div>
+                            <div class="quick-commands">
+                                <span class="cmd-tag" onclick="quickSearch('ls')">ls</span>
+                                <span class="cmd-tag" onclick="quickSearch('cd')">cd</span>
+                                <span class="cmd-tag" onclick="quickSearch('grep')">grep</span>
+                                <span class="cmd-tag" onclick="quickSearch('find')">find</span>
+                                <span class="cmd-tag" onclick="quickSearch('tar')">tar</span>
+                                <span class="cmd-tag" onclick="quickSearch('awk')">awk</span>
+                                <span class="cmd-tag" onclick="quickSearch('sed')">sed</span>
+                                <span class="cmd-tag" onclick="quickSearch('curl')">curl</span>
+                                <span class="cmd-tag" onclick="quickSearch('chmod')">chmod</span>
+                                <span class="cmd-tag" onclick="quickSearch('ssh')">ssh</span>
+                                <span class="cmd-tag" onclick="quickSearch('scp')">scp</span>
+                                <span class="cmd-tag" onclick="quickSearch('rsync')">rsync</span>
+                                <span class="cmd-tag" onclick="quickSearch('ps')">ps</span>
+                                <span class="cmd-tag" onclick="quickSearch('kill')">kill</span>
+                                <span class="cmd-tag" onclick="quickSearch('df')">df</span>
+                                <span class="cmd-tag" onclick="quickSearch('du')">du</span>
+                                <span class="cmd-tag" onclick="quickSearch('top')">top</span>
+                                <span class="cmd-tag" onclick="quickSearch('netstat')">netstat</span>
+                                <span class="cmd-tag" onclick="quickSearch('vim')">vim</span>
+                                <span class="cmd-tag" onclick="quickSearch('cat')">cat</span>
+                            </div>
+                        </div>
+
+                        <div class="linux-section">
+                            <h3><i class="fas fa-book"></i> 命令详情</h3>
+                            <div id="resultContainer">
+                                <div class="result-placeholder">
+                                    <i class="fas fa-terminal"></i>
+                                    <p>输入命令名称查看详细用法介绍</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchCommand();
+            }
+        }
+
+        function quickSearch(cmd) {
+            document.getElementById('commandInput').value = cmd;
+            searchCommand();
+        }
+
+        async function searchCommand() {
+            const command = document.getElementById('commandInput').value.trim();
+            if (!command) {
+                alert('请输入命令名称');
+                return;
+            }
+
+            const container = document.getElementById('resultContainer');
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 正在查询...</div>';
+
+            try {
+                const response = await fetch('/api/linux/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    container.innerHTML = '<div class="result-content">' + renderMarkdown(data.content) + '</div>';
+                } else {
+                    container.innerHTML = '<div class="result-placeholder"><i class="fas fa-exclamation-circle"></i><p>' + data.error + '</p></div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="result-placeholder"><i class="fas fa-exclamation-circle"></i><p>查询失败，请稍后重试</p></div>';
+            }
+        }
+
+        function renderMarkdown(text) {
+            let html = text;
+            
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            
+            html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+            
+            html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+            
+            html = html.replace(/\|(.+)\|/g, (match) => {
+                const cells = match.split('|').filter(c => c.trim());
+                if (cells.some(c => c.trim().match(/^-+$/))) {
+                    return '';
+                }
+                const isHeader = !match.includes('-');
+                const tag = isHeader ? 'th' : 'td';
+                const row = cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('');
+                return `<tr>${row}</tr>`;
+            });
+            html = html.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
+            
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<p>' + html + '</p>';
+            html = html.replace(/<p>\s*<(h[123]|ul|ol|pre|table)/g, '<$1');
+            html = html.replace(/<\/(h[123]|ul|ol|pre|table)>\s*<\/p>/g, '</$1>');
+            html = html.replace(/<p>\s*<\/p>/g, '');
+            
+            return html;
+        }
+    </script>
+</body>
+</html>

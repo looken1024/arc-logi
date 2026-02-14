@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频转换工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .video-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .video-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .video-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .video-section h3 i {
+            color: var(--primary-color);
+        }
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: var(--hover-bg);
+        }
+        .upload-area i {
+            font-size: 48px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        .upload-area p {
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .upload-area .hint {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        .file-input {
+            display: none;
+        }
+        .preview-area {
+            margin-bottom: 16px;
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .preview-area i {
+            font-size: 48px;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+        .preview-area .video-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .format-select {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .format-select label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .format-select label:hover {
+            background: var(--border-color);
+        }
+        .format-select input:checked + span {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .result-area {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            display: none;
+        }
+        .result-area.show {
+            display: block;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .loading i {
+            font-size: 24px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 8px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            margin-top: 12px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar.show {
+            display: block;
+        }
+        .progress-bar .progress {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .error-message {
+            color: #e74c3c;
+            padding: 12px;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-video"></i>
+                    <span>视频转换工具</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>视频转换工具</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="video-wrapper">
+                        <div class="video-section">
+                            <h3><i class="fas fa-exchange-alt"></i> 视频格式转换</h3>
+                            <div class="upload-area" onclick="document.getElementById('videoFile').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>点击上传视频或拖拽文件到这里</p>
+                                <span class="hint">支持 MP4, AVI, MKV, MOV, WMV, FLV, WEBM, M4V 格式</span>
+                            </div>
+                            <input type="file" id="videoFile" class="file-input" accept="video/*" onchange="previewVideo(this)">
+                            
+                            <div class="preview-area" id="videoPreview">
+                                <i class="fas fa-film"></i>
+                                <p>请上传视频文件</p>
+                            </div>
+                            
+                            <div class="format-select">
+                                <label><input type="radio" name="targetFormat" value="MP4" checked><span>MP4</span></label>
+                                <label><input type="radio" name="targetFormat" value="AVI"><span>AVI</span></label>
+                                <label><input type="radio" name="targetFormat" value="MKV"><span>MKV</span></label>
+                                <label><input type="radio" name="targetFormat" value="MOV"><span>MOV</span></label>
+                                <label><input type="radio" name="targetFormat" value="WEBM"><span>WEBM</span></label>
+                                <label><input type="radio" name="targetFormat" value="MP3"><span>MP3 (音频)</span></label>
+                            </div>
+                            
+                            <div class="btn-row">
+                                <button class="btn btn-primary" onclick="convertVideo()">
+                                    <i class="fas fa-exchange-alt"></i> 开始转换
+                                </button>
+                            </div>
+                            
+                            <div class="loading" id="videoLoading">
+                                <i class="fas fa-spinner"></i>
+                                <p>正在转换视频...</p>
+                                <div class="progress-bar" id="progressBar">
+                                    <div class="progress" id="progress"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="error-message" id="errorMessage"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentVideoFile = null;
+
+        function previewVideo(input) {
+            if (input.files && input.files[0]) {
+                currentVideoFile = input.files[0];
+                const fileSize = formatFileSize(currentVideoFile.size);
+                document.getElementById('videoPreview').innerHTML = 
+                    '<i class="fas fa-film"></i><p>' + currentVideoFile.name + '</p><div class="video-info">大小: ' + fileSize + '</div>';
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function convertVideo() {
+            if (!currentVideoFile) {
+                showError('请先上传视频');
+                return;
+            }
+
+            const format = document.querySelector('input[name="targetFormat"]:checked').value;
+            const loading = document.getElementById('videoLoading');
+            const progressBar = document.getElementById('progressBar');
+            const progress = document.getElementById('progress');
+            
+            hideError();
+            loading.classList.add('show');
+            progressBar.classList.add('show');
+            progress.style.width = '0%';
+
+            const formData = new FormData();
+            formData.append('file', currentVideoFile);
+            formData.append('format', format);
+
+            let progressInterval;
+            
+            fetch('/api/video/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || err.message); });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                progress.style.width = '100%';
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const originalName = currentVideoFile.name.substring(0, currentVideoFile.name.lastIndexOf('.'));
+                a.download = originalName + '.' + format.toLowerCase();
+                a.click();
+                URL.revokeObjectURL(url);
+                showSuccess('转换成功！');
+            })
+            .catch(error => {
+                showError('转换失败: ' + error.message);
+            })
+            .finally(() => {
+                loading.classList.remove('show');
+                setTimeout(() => {
+                    progressBar.classList.remove('show');
+                }, 500);
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('show');
+        }
+
+        function showSuccess(message) {
+            alert(message);
+        }
+    </script>
+</body>
+</html>

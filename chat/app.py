@@ -321,6 +321,20 @@ def image_tool():
         return redirect(url_for('login'))
     return render_template('image.html')
 
+@app.route('/video')
+def video_tool():
+    """视频转换工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('video.html')
+
+@app.route('/certificate')
+def certificate_tool():
+    """奖状生成器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('certificate.html')
+
 @app.route('/regex')
 def regex_tool():
     """正则表达式工具页面"""
@@ -334,6 +348,13 @@ def whiteboard_tool():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('whiteboard.html')
+
+@app.route('/linux')
+def linux_tool():
+    """Linux 命令工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('linux.html')
 
 @app.route('/shorturl')
 def shorturl_tool():
@@ -425,6 +446,53 @@ def redirect_shorturl(code):
             return "短链接不存在", 404
     except:
         return "短链接不存在", 404
+
+LINUX_COMMAND_PROMPT = """你是一个Linux命令专家，擅长介绍各种Linux命令的用法、选项和示例。
+
+用户会输入一个Linux命令名称或相关关键词，你需要提供该命令的详细信息，包括：
+1. 命令名称和基本作用
+2. 语法格式
+3. 常用选项和参数说明
+4. 实际使用示例（2-3个）
+5. 注意事项和常见用法
+
+请用Markdown格式输出，内容要准确、简洁、实用。如果用户输入的不是有效的命令名称，请提供相关的建议。"""
+
+@app.route('/api/linux/query', methods=['POST'])
+def linux_query():
+    """查询Linux命令"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'})
+    
+    data = request.get_json()
+    command = data.get('command', '').strip()
+    
+    if not command:
+        return jsonify({'success': False, 'error': '请输入命令名称'})
+    
+    try:
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com",
+            timeout=60.0,
+            max_retries=2
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": LINUX_COMMAND_PROMPT},
+                {"role": "user", "content": f"请介绍 Linux 命令「{command}」的用法"}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        result = response.choices[0].message.content
+        return jsonify({'success': True, 'content': result})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/stock')
 def stock_tool():
@@ -767,6 +835,81 @@ def pdf_to_image():
             mimetype='image/png',
             as_attachment=True,
             download_name='page_1.png'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mp3'}
+
+def allowed_video_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_VIDEO_EXTENSIONS
+
+@app.route('/api/video/convert', methods=['POST'])
+def video_convert():
+    """视频格式转换"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    file = request.files['file']
+    target_format = request.form.get('format', 'MP4').upper()
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    if not allowed_video_file(file.filename):
+        return jsonify({'success': False, 'error': '不支持的视频格式'})
+    
+    try:
+        import uuid
+        import shutil
+        
+        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        input_ext = file.filename.rsplit('.', 1)[1].lower()
+        input_filename = f"{uuid.uuid4()}.{input_ext}"
+        input_path = os.path.join(temp_dir, input_filename)
+        output_filename = f"{uuid.uuid4()}.{target_format.lower()}"
+        output_path = os.path.join(temp_dir, output_filename)
+        
+        file.save(input_path)
+        
+        if target_format == 'MP3':
+            cmd = ['ffmpeg', '-i', input_path, '-vn', '-acodec', 'libmp3lame', '-q:a', '2', output_path]
+        else:
+            cmd = ['ffmpeg', '-i', input_path, '-c:v', 'libx264', '-c:a', 'aac', '-y', output_path]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        os.remove(input_path)
+        
+        if result.returncode != 0:
+            error_msg = result.stderr if result.stderr else '转换失败'
+            if 'ffmpeg' in error_msg.lower() or 'not found' in error_msg.lower():
+                return jsonify({'success': False, 'error': '服务器未安装 ffmpeg，请联系管理员安装'})
+            return jsonify({'success': False, 'error': f'转换失败: {error_msg}'})
+        
+        with open(output_path, 'rb') as f:
+            output_data = f.read()
+        
+        os.remove(output_path)
+        
+        mime_types = {
+            'MP4': 'video/mp4',
+            'AVI': 'video/x-msvideo',
+            'MKV': 'video/x-matroska',
+            'MOV': 'video/quicktime',
+            'WEBM': 'video/webm',
+            'MP3': 'audio/mpeg'
+        }
+        
+        original_name = file.filename.rsplit('.', 1)[0]
+        
+        return send_file(
+            io.BytesIO(output_data),
+            mimetype=mime_types.get(target_format, 'application/octet-stream'),
+            as_attachment=True,
+            download_name=f'{original_name}.{target_format.lower()}'
         )
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})

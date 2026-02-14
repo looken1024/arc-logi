@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>奖状生成器 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .certificate-editor {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 120px);
+            padding: 20px;
+        }
+
+        .editor-panel {
+            width: 320px;
+            min-width: 320px;
+            background: var(--bg-secondary, #f5f5f5);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .preview-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary, #f5f5f5);
+            border-radius: 12px;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary, #333);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color, #ddd);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-primary, #fff);
+            color: var(--text-primary, #333);
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .form-group input[type="color"] {
+            height: 36px;
+            padding: 2px;
+            cursor: pointer;
+        }
+
+        .color-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .color-row .form-group {
+            flex: 1;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-save:hover {
+            opacity: 0.9;
+        }
+
+        .certificate-wrapper {
+            width: 800px;
+            height: 560px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .certificate {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 80px;
+            box-sizing: border-box;
+            background: #fffef5;
+            overflow: hidden;
+        }
+
+        .cert-border-outer {
+            position: absolute;
+            inset: 8px;
+            border: 3px solid #c9a84c;
+            pointer-events: none;
+        }
+
+        .cert-border-inner {
+            position: absolute;
+            inset: 16px;
+            border: 1px solid #c9a84c;
+            pointer-events: none;
+        }
+
+        .cert-corner {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+        }
+
+        .cert-corner::before,
+        .cert-corner::after {
+            content: '';
+            position: absolute;
+            background: #c9a84c;
+        }
+
+        .cert-corner.top-left { top: 20px; left: 20px; }
+        .cert-corner.top-left::before { width: 20px; height: 3px; top: 0; left: 0; }
+        .cert-corner.top-left::after { width: 3px; height: 20px; top: 0; left: 0; }
+
+        .cert-corner.top-right { top: 20px; right: 20px; }
+        .cert-corner.top-right::before { width: 20px; height: 3px; top: 0; right: 0; }
+        .cert-corner.top-right::after { width: 3px; height: 20px; top: 0; right: 0; }
+
+        .cert-corner.bottom-left { bottom: 20px; left: 20px; }
+        .cert-corner.bottom-left::before { width: 20px; height: 3px; bottom: 0; left: 0; }
+        .cert-corner.bottom-left::after { width: 3px; height: 20px; bottom: 0; left: 0; }
+
+        .cert-corner.bottom-right { bottom: 20px; right: 20px; }
+        .cert-corner.bottom-right::before { width: 20px; height: 3px; bottom: 0; right: 0; }
+        .cert-corner.bottom-right::after { width: 3px; height: 20px; bottom: 0; right: 0; }
+
+        .cert-title {
+            font-size: 52px;
+            font-weight: 900;
+            color: #c9a84c;
+            letter-spacing: 12px;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .cert-recipient {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #c9a84c;
+            padding-bottom: 4px;
+        }
+
+        .cert-content {
+            font-size: 18px;
+            color: #555;
+            text-align: center;
+            line-height: 1.8;
+            max-width: 580px;
+            margin-bottom: 30px;
+        }
+
+        .cert-footer {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 580px;
+            margin-top: auto;
+        }
+
+        .cert-issuer {
+            font-size: 16px;
+            color: #666;
+            text-align: center;
+        }
+
+        .cert-date {
+            font-size: 16px;
+            color: #666;
+            text-align: center;
+        }
+
+        .cert-seal {
+            position: absolute;
+            bottom: 60px;
+            right: 100px;
+            width: 80px;
+            height: 80px;
+            border: 3px solid #c9271f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #c9271f;
+            font-weight: 700;
+            transform: rotate(-15deg);
+            opacity: 0.8;
+        }
+
+        .template-select {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .template-btn {
+            padding: 6px 12px;
+            border: 2px solid var(--border-color, #ddd);
+            border-radius: 6px;
+            background: var(--bg-primary, #fff);
+            color: var(--text-primary, #333);
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .template-btn:hover,
+        .template-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: #fff;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary, #333);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border-color, #eee);
+        }
+
+        @media (max-width: 900px) {
+            .certificate-editor {
+                flex-direction: column;
+                height: auto;
+            }
+            .editor-panel {
+                width: 100%;
+                min-width: auto;
+            }
+            .certificate-wrapper {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 800 / 560;
+            }
+            .certificate {
+                padding: 30px 40px;
+            }
+            .cert-title {
+                font-size: 32px;
+                letter-spacing: 6px;
+            }
+            .cert-recipient {
+                font-size: 20px;
+            }
+            .cert-content {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-award"></i>
+                    <span>奖状生成器</span>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>奖状生成器</h1>
+            </header>
+
+            <div class="certificate-editor">
+                <div class="editor-panel">
+                    <div class="section-title"><i class="fas fa-palette"></i> 模板选择</div>
+                    <div class="template-select">
+                        <button class="template-btn active" data-template="classic" onclick="applyTemplate('classic')">经典金色</button>
+                        <button class="template-btn" data-template="red" onclick="applyTemplate('red')">喜庆红色</button>
+                        <button class="template-btn" data-template="blue" onclick="applyTemplate('blue')">商务蓝色</button>
+                        <button class="template-btn" data-template="green" onclick="applyTemplate('green')">清新绿色</button>
+                    </div>
+
+                    <div class="section-title"><i class="fas fa-edit"></i> 内容编辑</div>
+                    <div class="form-group">
+                        <label>标题</label>
+                        <input type="text" id="certTitle" value="奖  状" oninput="updatePreview()">
+                    </div>
+                    <div class="form-group">
+                        <label>获奖人</label>
+                        <input type="text" id="certRecipient" value="张三同学" oninput="updatePreview()">
+                    </div>
+                    <div class="form-group">
+                        <label>正文内容</label>
+                        <textarea id="certContent" rows="4" oninput="updatePreview()">在2025年度优秀员工评选中表现突出，成绩优异，特发此状，以资鼓励。</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>颁发单位</label>
+                        <input type="text" id="certIssuer" value="XX公司" oninput="updatePreview()">
+                    </div>
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="text" id="certDate" value="" oninput="updatePreview()">
+                    </div>
+                    <div class="form-group">
+                        <label>印章文字</label>
+                        <input type="text" id="certSeal" value="XX公司" oninput="updatePreview()">
+                    </div>
+
+                    <div class="section-title"><i class="fas fa-sliders-h"></i> 样式设置</div>
+                    <div class="color-row">
+                        <div class="form-group">
+                            <label>背景色</label>
+                            <input type="color" id="certBgColor" value="#fffef5" onchange="updatePreview()">
+                        </div>
+                        <div class="form-group">
+                            <label>边框色</label>
+                            <input type="color" id="certBorderColor" value="#c9a84c" onchange="updatePreview()">
+                        </div>
+                    </div>
+                    <div class="color-row">
+                        <div class="form-group">
+                            <label>标题色</label>
+                            <input type="color" id="certTitleColor" value="#c9a84c" onchange="updatePreview()">
+                        </div>
+                        <div class="form-group">
+                            <label>印章色</label>
+                            <input type="color" id="certSealColor" value="#c9271f" onchange="updatePreview()">
+                        </div>
+                    </div>
+
+                    <button class="btn-save" onclick="saveAsImage()">
+                        <i class="fas fa-download"></i> 保存为图片
+                    </button>
+                </div>
+
+                <div class="preview-panel">
+                    <div class="certificate-wrapper" id="certificateWrapper">
+                        <div class="certificate" id="certificate">
+                            <div class="cert-border-outer"></div>
+                            <div class="cert-border-inner"></div>
+                            <div class="cert-corner top-left"></div>
+                            <div class="cert-corner top-right"></div>
+                            <div class="cert-corner bottom-left"></div>
+                            <div class="cert-corner bottom-right"></div>
+                            <div class="cert-title" id="previewTitle">奖  状</div>
+                            <div class="cert-recipient" id="previewRecipient">张三同学</div>
+                            <div class="cert-content" id="previewContent">在2025年度优秀员工评选中表现突出，成绩优异，特发此状，以资鼓励。</div>
+                            <div class="cert-footer">
+                                <div class="cert-issuer" id="previewIssuer">XX公司</div>
+                                <div class="cert-date" id="previewDate"></div>
+                            </div>
+                            <div class="cert-seal" id="previewSeal">XX公司</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        const templates = {
+            classic: { bg: '#fffef5', border: '#c9a84c', title: '#c9a84c', seal: '#c9271f' },
+            red:     { bg: '#fff5f5', border: '#c9271f', title: '#c9271f', seal: '#c9271f' },
+            blue:    { bg: '#f5f8ff', border: '#2a5caa', title: '#2a5caa', seal: '#c9271f' },
+            green:   { bg: '#f5fff8', border: '#2d8a4e', title: '#2d8a4e', seal: '#c9271f' }
+        };
+
+        function initDate() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            document.getElementById('certDate').value = y + '年' + m + '月' + d + '日';
+            updatePreview();
+        }
+
+        function applyTemplate(name) {
+            const t = templates[name];
+            document.getElementById('certBgColor').value = t.bg;
+            document.getElementById('certBorderColor').value = t.border;
+            document.getElementById('certTitleColor').value = t.title;
+            document.getElementById('certSealColor').value = t.seal;
+            document.querySelectorAll('.template-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.template === name);
+            });
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const title = document.getElementById('certTitle').value;
+            const recipient = document.getElementById('certRecipient').value;
+            const content = document.getElementById('certContent').value;
+            const issuer = document.getElementById('certIssuer').value;
+            const date = document.getElementById('certDate').value;
+            const seal = document.getElementById('certSeal').value;
+            const bgColor = document.getElementById('certBgColor').value;
+            const borderColor = document.getElementById('certBorderColor').value;
+            const titleColor = document.getElementById('certTitleColor').value;
+            const sealColor = document.getElementById('certSealColor').value;
+
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewRecipient').textContent = recipient;
+            document.getElementById('previewContent').textContent = content;
+            document.getElementById('previewIssuer').textContent = issuer;
+            document.getElementById('previewDate').textContent = date;
+            document.getElementById('previewSeal').textContent = seal;
+
+            const cert = document.getElementById('certificate');
+            cert.style.background = bgColor;
+
+            document.querySelector('.cert-border-outer').style.borderColor = borderColor;
+            document.querySelector('.cert-border-inner').style.borderColor = borderColor;
+            document.getElementById('previewTitle').style.color = titleColor;
+            document.getElementById('previewRecipient').style.borderBottomColor = borderColor;
+
+            const sealEl = document.getElementById('previewSeal');
+            sealEl.style.borderColor = sealColor;
+            sealEl.style.color = sealColor;
+
+            document.querySelectorAll('.cert-corner').forEach(corner => {
+                corner.querySelectorAll('::before, ::after').forEach(() => {});
+                corner.style.setProperty('--corner-color', borderColor);
+            });
+            const cornerStyle = document.getElementById('cornerStyle');
+            if (cornerStyle) cornerStyle.remove();
+            const style = document.createElement('style');
+            style.id = 'cornerStyle';
+            style.textContent = `.cert-corner::before, .cert-corner::after { background: ${borderColor} !important; }`;
+            document.head.appendChild(style);
+        }
+
+        function saveAsImage() {
+            const wrapper = document.getElementById('certificateWrapper');
+            html2canvas(wrapper, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: null
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = '奖状_' + document.getElementById('certRecipient').value + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(err => {
+                alert('保存失败: ' + err.message);
+            });
+        }
+
+        initDate();
+    </script>
+</body>
+</html>
