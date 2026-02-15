@@ -1,0 +1,18 @@
+# Skill 元数据定义
+# 此文件用于描述该 Skill 的输入输出结构，便于开发者理解和维护。
+# 目前仅作为文档参考，不参与实际运行逻辑校验。
+
+name: Package
+version: 1.0
+
+# 输入参数定义
+input_schema:
+  draft: string  # 文章初稿
+  tone: string   # 语气风格
+
+# 输出结果定义
+output_schema:
+  title: string               # 最终标题
+  summary: string             # 文章摘要
+  cover_image_prompt: string  # 封面图生成提示词
+

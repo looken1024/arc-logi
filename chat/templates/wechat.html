@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信公众号内容生成 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .wechat-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            width: 100%;
+        }
+        .wechat-left {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .wechat-right {
+            display: flex;
+            flex-direction: column;
+        }
+        .wechat-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .wechat-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .wechat-section h3 i {
+            color: var(--primary-color);
+        }
+        .wechat-section p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-color);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .keyword-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        .keyword-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .keyword-input::placeholder {
+            color: var(--text-secondary);
+        }
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .result-area {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--hover-bg);
+            border-radius: 12px;
+            display: none;
+        }
+        .result-area.show {
+            display: block;
+        }
+        .result-area .content {
+            color: var(--text-color);
+            font-size: 15px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .loading i {
+            font-size: 32px;
+            color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+        .loading p {
+            margin-top: 12px;
+            color: var(--text-secondary);
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .tips {
+            background: var(--hover-bg);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .tips h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+        .tips ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .tips li {
+            margin-bottom: 4px;
+        }
+        .result-section {
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+        .result-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .result-placeholder i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        .result-placeholder p {
+            margin: 0;
+        }
+        .result-area {
+            flex: 1;
+            display: none;
+        }
+        .result-area.show {
+            display: block;
+        }
+        .result-placeholder.hidden {
+            display: none;
+        }
+        @media (max-width: 900px) {
+            .wechat-wrapper {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fab fa-weixin"></i>
+                    <span>微信公众号</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>微信公众号内容生成</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="wechat-wrapper">
+                        <div class="wechat-left">
+                            <div class="wechat-section">
+                                <h3><i class="fas fa-lightbulb"></i> 生成微信公众号文章</h3>
+                                <p>输入细分领域和热门趋势，AI 将为你生成完整的微信公众号文章</p>
+                                
+                                <div class="tips">
+                                    <h4>输入示例：</h4>
+                                    <ul>
+                                        <li>领域：AI技术、职场干货、情感心理、生活技巧、投资理财</li>
+                                        <li>趋势：DeepSeek、Agent、Prompt Engineering、裁员潮、婚恋观</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="input-group">
+                                    <label for="nicheInput">细分领域</label>
+                                    <input type="text" id="nicheInput" class="keyword-input" 
+                                        placeholder="请输入细分领域，例如：AI技术" 
+                                        onkeypress="if(event.key==='Enter')generateWechat()">
+                                </div>
+                                
+                                <div class="input-group">
+                                    <label for="trendsInput">热门趋势（用逗号分隔多个）</label>
+                                    <input type="text" id="trendsInput" class="keyword-input" 
+                                        placeholder="请输入热门趋势，例如：DeepSeek、Agent、Prompt Engineering" 
+                                        onkeypress="if(event.key==='Enter')generateWechat()">
+                                </div>
+                                
+                                <div class="btn-row">
+                                    <button class="btn btn-primary" onclick="generateWechat()">
+                                        <i class="fas fa-magic"></i> 生成文章
+                                    </button>
+                                    <button class="btn" onclick="clearInput()">
+                                        <i class="fas fa-redo"></i> 重新输入
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="loading" id="loading">
+                                <i class="fas fa-spinner"></i>
+                                <p>AI 正在创作中，请稍候...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="wechat-right">
+                            <div class="wechat-section result-section">
+                                <h3><i class="fas fa-file-alt"></i> 生成结果</h3>
+                                <div class="result-area" id="resultArea">
+                                    <div class="content" id="resultContent"></div>
+                                    <div class="result-actions">
+                                        <button class="btn btn-small" onclick="copyResult()">
+                                            <i class="fas fa-copy"></i> 复制文章
+                                        </button>
+                                        <button class="btn btn-small" onclick="regenerate()">
+                                            <i class="fas fa-redo"></i> 重新生成
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="result-placeholder" id="resultPlaceholder">
+                                    <i class="fas fa-pen-fancy"></i>
+                                    <p>生成的文章将显示在这里</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentNiche = '';
+        let currentTrends = '';
+
+        function generateWechat() {
+            const niche = document.getElementById('nicheInput').value.trim();
+            const trends = document.getElementById('trendsInput').value.trim();
+            
+            if (!niche) {
+                alert('请输入细分领域');
+                return;
+            }
+            
+            if (!trends) {
+                alert('请输入热门趋势');
+                return;
+            }
+            
+            currentNiche = niche;
+            currentTrends = trends;
+            
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('resultArea').classList.remove('show');
+            document.getElementById('resultPlaceholder').classList.remove('hidden');
+            
+            fetch('/api/wechat/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ niche: niche, trends: trends })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').classList.remove('show');
+                
+                if (data.success) {
+                    document.getElementById('resultContent').textContent = data.content;
+                    document.getElementById('resultArea').classList.add('show');
+                    document.getElementById('resultPlaceholder').classList.add('hidden');
+                } else {
+                    alert('生成失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('loading').classList.remove('show');
+                alert('请求失败: ' + error.message);
+            });
+        }
+
+        function copyResult() {
+            const content = document.getElementById('resultContent').textContent;
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(content).then(() => {
+                    alert('已复制到剪贴板');
+                }).catch(() => {
+                    fallbackCopy(content);
+                });
+            } else {
+                fallbackCopy(content);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('已复制到剪贴板');
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function regenerate() {
+            if (currentNiche && currentTrends) {
+                document.getElementById('nicheInput').value = currentNiche;
+                document.getElementById('trendsInput').value = currentTrends;
+                generateWechat();
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('nicheInput').value = '';
+            document.getElementById('trendsInput').value = '';
+            document.getElementById('resultArea').classList.remove('show');
+            document.getElementById('resultPlaceholder').classList.remove('hidden');
+            document.getElementById('nicheInput').focus();
+        }
+    </script>
+</body>
+</html>

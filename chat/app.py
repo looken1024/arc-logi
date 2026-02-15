@@ -1104,6 +1104,80 @@ def weibo_generate():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+WECHAT_SYSTEM_PROMPT = """你是一位专业的微信公众号运营专家，擅长创作高质量的公众号文章。
+
+用户会提供以下信息：
+- 细分领域：如 AI技术、职场干货、情感心理、生活技巧等
+- 热门趋势：当前热门话题或关键词
+
+请按照以下工作流程生成完整的微信公众号文章：
+
+## 1. 选题分析
+根据用户提供的领域和趋势，选择一个具体且有吸引力的文章主题。
+
+## 2. 文章大纲
+设计一个清晰的文章结构，包括：
+- 开头钩子：吸引读者注意力的开场
+- 主体内容：3-5个主要论点，每个论点需要有案例或数据支撑
+- 结尾总结：给读者留下深刻印象的结尾
+
+## 3. 标题和摘要
+生成3个备选标题和一段吸引人的摘要。
+
+## 4. 完整文章
+撰写完整的文章内容，要求：
+- 语言风格专业但不晦涩，亲切但不随意
+- 段落长度适中，适合手机阅读
+- 适当使用表情符号增加趣味性
+- 字数控制在1500-3000字之间
+- 文章内容要原创、有价值、有深度
+
+输出格式使用 Markdown，包含标题、摘要、正文内容。"""
+
+@app.route('/wechat')
+def wechat_tool():
+    """微信公众号内容生成工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('wechat.html')
+
+@app.route('/api/wechat/generate', methods=['POST'])
+def wechat_generate():
+    """生成微信公众号文章"""
+    data = request.get_json()
+    niche = data.get('niche', '').strip()
+    trends = data.get('trends', '').strip()
+    
+    if not niche:
+        return jsonify({'success': False, 'error': '请输入细分领域'})
+    
+    if not trends:
+        return jsonify({'success': False, 'error': '请输入热门趋势'})
+    
+    try:
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com",
+            timeout=180.0,
+            max_retries=2
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": WECHAT_SYSTEM_PROMPT},
+                {"role": "user", "content": f"请为以下领域和趋势生成微信公众号文章：\n\n细分领域：{niche}\n热门趋势：{trends}"}
+            ],
+            temperature=0.8,
+            max_tokens=4000
+        )
+        
+        result = response.choices[0].message.content
+        return jsonify({'success': True, 'content': result})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 NAMING_SYSTEM_PROMPT = """你是一位专业的姓名学大师，擅长根据八字五行、生肖、星座等为新生儿起名。
 
 用户会提供以下信息：

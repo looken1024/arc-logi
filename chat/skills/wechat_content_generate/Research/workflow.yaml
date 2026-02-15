@@ -1,0 +1,18 @@
+# Skill 元数据定义
+# 此文件用于描述该 Skill 的输入输出结构，便于开发者理解和维护。
+# 目前仅作为文档参考，不参与实际运行逻辑校验。
+
+name: Research
+version: 1.0
+
+# 输入参数定义
+input_schema:
+  topic: string     # 研究主题
+  keywords: list    # 搜索关键词
+
+# 输出结果定义
+output_schema:
+  notes: string     # 研究笔记/摘要
+  facts: list       # 关键事实/数据
+  references: list  # 参考来源
+
