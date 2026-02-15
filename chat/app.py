@@ -17,6 +17,7 @@ import uuid
 import subprocess
 import threading
 import smtplib
+import redis
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -3211,6 +3212,654 @@ def admin_restart():
             'returncode': 0
         })
         
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ==================================================
+# Redis 客户端工具
+# ==================================================
+
+@app.route('/redis')
+def redis_tool():
+    """Redis 客户端工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('redis.html')
+
+def get_redis_client(host, port, password, db):
+    """创建 Redis 客户端连接"""
+    if password:
+        return redis.Redis(host=host, port=int(port), password=password, db=int(db), decode_responses=True)
+    else:
+        return redis.Redis(host=host, port=int(port), db=int(db), decode_responses=True)
+
+@app.route('/api/redis/connect', methods=['POST'])
+def redis_connect():
+    """测试 Redis 连接"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        
+        if not host:
+            return jsonify({'success': False, 'error': '请输入 Redis 主机地址'})
+        
+        client = get_redis_client(host, port, password, db)
+        client.ping()
+        
+        return jsonify({'success': True, 'message': '连接成功'})
+    except redis.ConnectionError as e:
+        return jsonify({'success': False, 'error': f'连接失败: {str(e)}'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/keys', methods=['POST'])
+def redis_keys():
+    """获取 Redis 键列表"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        pattern = data.get('pattern', '*')
+        
+        client = get_redis_client(host, port, password, db)
+        keys = client.keys(pattern)
+        
+        key_list = []
+        for key in keys:
+            key_type = client.type(key)
+            key_list.append({'key': key, 'type': key_type})
+        
+        return jsonify({'success': True, 'keys': key_list})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/get', methods=['POST'])
+def redis_get():
+    """获取 Redis 值"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        key_type = client.type(key)
+        
+        if key_type == 'none':
+            return jsonify({'success': False, 'error': '键不存在'})
+        
+        value = None
+        if key_type == 'string':
+            value = client.get(key)
+        elif key_type == 'list':
+            value = client.lrange(key, 0, -1)
+        elif key_type == 'set':
+            value = list(client.smembers(key))
+        elif key_type == 'zset':
+            value = client.zrange(key, 0, -1, withscores=True)
+        elif key_type == 'hash':
+            value = client.hgetall(key)
+        
+        ttl = client.ttl(key)
+        
+        return jsonify({
+            'success': True,
+            'value': value,
+            'type': key_type,
+            'ttl': ttl
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/hgetall', methods=['POST'])
+def redis_hgetall():
+    """获取 Hash 所有字段和值"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        key_type = client.type(key)
+        
+        if key_type != 'hash':
+            return jsonify({'success': False, 'error': f'键类型是 {key_type}，不是 hash'})
+        
+        value = client.hgetall(key)
+        ttl = client.ttl(key)
+        
+        return jsonify({
+            'success': True,
+            'value': value,
+            'type': 'hash',
+            'ttl': ttl
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/lrange', methods=['POST'])
+def redis_lrange():
+    """获取 List 所有元素"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        key_type = client.type(key)
+        
+        if key_type != 'list':
+            return jsonify({'success': False, 'error': f'键类型是 {key_type}，不是 list'})
+        
+        value = client.lrange(key, 0, -1)
+        ttl = client.ttl(key)
+        
+        return jsonify({
+            'success': True,
+            'value': value,
+            'type': 'list',
+            'ttl': ttl
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/smembers', methods=['POST'])
+def redis_smembers():
+    """获取 Set 所有成员"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        key_type = client.type(key)
+        
+        if key_type != 'set':
+            return jsonify({'success': False, 'error': f'键类型是 {key_type}，不是 set'})
+        
+        value = client.smembers(key)
+        ttl = client.ttl(key)
+        
+        return jsonify({
+            'success': True,
+            'value': list(value),
+            'type': 'set',
+            'ttl': ttl
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/zrange', methods=['POST'])
+def redis_zrange():
+    """获取 Sorted Set 所有成员"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        key_type = client.type(key)
+        
+        if key_type != 'zset':
+            return jsonify({'success': False, 'error': f'键类型是 {key_type}，不是 zset'})
+        
+        value = client.zrange(key, 0, -1, withscores=True)
+        ttl = client.ttl(key)
+        
+        result = [{'member': v[0], 'score': v[1]} for v in value]
+        
+        return jsonify({
+            'success': True,
+            'value': result,
+            'type': 'zset',
+            'ttl': ttl
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/set', methods=['POST'])
+def redis_set():
+    """设置 Redis 值"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        value = data.get('value', '').strip()
+        ttl = data.get('ttl')
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        if value is None or value == '':
+            return jsonify({'success': False, 'error': '请输入值'})
+        
+        client = get_redis_client(host, port, password, db)
+        
+        if ttl and int(ttl) > 0:
+            client.setex(key, int(ttl), value)
+        else:
+            client.set(key, value)
+        
+        return jsonify({'success': True, 'message': '设置成功'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/hset', methods=['POST'])
+def redis_hset():
+    """设置 Hash 字段"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        field = data.get('field', '').strip()
+        value = data.get('value', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        if not field:
+            return jsonify({'success': False, 'error': '请输入字段名'})
+        if value is None:
+            return jsonify({'success': False, 'error': '请输入值'})
+        
+        client = get_redis_client(host, port, password, db)
+        client.hset(key, field, value)
+        
+        return jsonify({'success': True, 'message': '设置成功'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/del', methods=['POST'])
+@app.route('/api/redis/delete', methods=['POST'])
+def redis_del():
+    """删除 Redis 键"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        count = client.delete(key)
+        
+        return jsonify({'success': True, 'message': f'删除了 {count} 个键'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/expire', methods=['POST'])
+def redis_expire():
+    """设置键的过期时间"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        ttl = data.get('ttl', 0)
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        if not ttl or int(ttl) <= 0:
+            return jsonify({'success': False, 'error': '请输入有效的过期时间（秒）'})
+        
+        client = get_redis_client(host, port, password, db)
+        client.expire(key, int(ttl))
+        
+        return jsonify({'success': True, 'message': f'已设置过期时间 {ttl} 秒'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/persist', methods=['POST'])
+def redis_persist():
+    """移除键的过期时间"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        client.persist(key)
+        
+        return jsonify({'success': True, 'message': '已移除过期时间'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/info', methods=['POST'])
+def redis_info():
+    """获取 Redis 服务器信息"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        
+        client = get_redis_client(host, port, password, db)
+        info = client.info()
+        
+        db_key = f'db{db}'
+        keyspace = info.get('keyspace', {})
+        db_info = keyspace.get(db_key, {})
+        
+        return jsonify({
+            'success': True,
+            'info': {
+                'version': info.get('redis_version', ''),
+                'role': info.get('role', ''),
+                'uptime_days': info.get('uptime_in_days', 0),
+                'used_memory': info.get('used_memory_human', ''),
+                'used_memory_peak': info.get('used_memory_peak_human', ''),
+                'connected_clients': info.get('connected_clients', 0),
+                'total_commands_processed': info.get('total_commands_processed', 0),
+                'keyspace': keyspace
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/execute', methods=['POST'])
+def redis_execute():
+    """执行 Redis 命令"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        command = data.get('command', '').strip()
+        
+        if not command:
+            return jsonify({'success': False, 'error': '请输入命令'})
+        
+        client = get_redis_client(host, port, password, db)
+        
+        parts = command.split()
+        if not parts:
+            return jsonify({'success': False, 'error': '无效的命令'})
+        
+        cmd = parts[0].upper()
+        args = parts[1:]
+        
+        try:
+            result = client.execute_command(cmd, *args)
+        except redis.ResponseError as e:
+            return jsonify({'success': False, 'error': f'命令执行错误: {str(e)}'})
+        
+        return jsonify({'success': True, 'result': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/redis/type', methods=['POST'])
+def redis_type():
+    """获取键的类型"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 6379)
+        password = data.get('password', '').strip()
+        db = data.get('db', 0)
+        key = data.get('key', '').strip()
+        
+        if not key:
+            return jsonify({'success': False, 'error': '请输入键名'})
+        
+        client = get_redis_client(host, port, password, db)
+        key_type = client.type(key)
+        
+        return jsonify({'success': True, 'type': key_type})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/mysql')
+def mysql_tool():
+    """MySQL 客户端页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('mysql.html')
+
+def get_mysql_connection(host, port, user, password, database=None, timeout=10):
+    """获取 MySQL 连接"""
+    config = {
+        'host': host,
+        'port': int(port),
+        'user': user,
+        'password': password,
+        'connect_timeout': int(timeout),
+        'cursorclass': pymysql.cursors.DictCursor
+    }
+    if database:
+        config['database'] = database
+    return pymysql.connect(**config)
+
+@app.route('/api/mysql/connect', methods=['POST'])
+def mysql_connect():
+    """连接 MySQL 数据库"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 3306)
+        user = data.get('user', 'root').strip()
+        password = data.get('password', '')
+        database = data.get('database', '').strip()
+        timeout = data.get('timeout', 10)
+        
+        if not host or not user:
+            return jsonify({'success': False, 'error': '请输入主机地址和用户名'})
+        
+        conn = get_mysql_connection(host, port, user, password, database, timeout)
+        
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SHOW DATABASES")
+                databases = [row['Database'] for row in cursor.fetchall()]
+            
+            return jsonify({
+                'success': True,
+                'databases': databases
+            })
+        finally:
+            conn.close()
+            
+    except pymysql.Error as e:
+        return jsonify({'success': False, 'error': f'连接失败: {str(e)}'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/mysql/tables', methods=['POST'])
+def mysql_tables():
+    """获取数据库表列表"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 3306)
+        user = data.get('user', 'root').strip()
+        password = data.get('password', '')
+        database = data.get('database', '').strip()
+        timeout = data.get('timeout', 10)
+        
+        if not database:
+            return jsonify({'success': False, 'error': '请指定数据库'})
+        
+        conn = get_mysql_connection(host, port, user, password, database, timeout)
+        
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SHOW TABLES")
+                tables = [row[list(row.keys())[0]] for row in cursor.fetchall()]
+            
+            return jsonify({
+                'success': True,
+                'tables': tables
+            })
+        finally:
+            conn.close()
+            
+    except pymysql.Error as e:
+        return jsonify({'success': False, 'error': str(e)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/mysql/execute', methods=['POST'])
+def mysql_execute():
+    """执行 SQL 语句"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        host = data.get('host', 'localhost').strip()
+        port = data.get('port', 3306)
+        user = data.get('user', 'root').strip()
+        password = data.get('password', '')
+        database = data.get('database', '').strip()
+        timeout = data.get('timeout', 10)
+        sql = data.get('sql', '').strip()
+        
+        if not sql:
+            return jsonify({'success': False, 'error': '请输入 SQL 语句'})
+        
+        if not database:
+            return jsonify({'success': False, 'error': '请先选择数据库'})
+        
+        conn = get_mysql_connection(host, port, user, password, database, timeout)
+        
+        try:
+            import time
+            start_time = time.time()
+            
+            with conn.cursor() as cursor:
+                cursor.execute(sql)
+                
+                if sql.strip().upper().startswith('SELECT'):
+                    rows = cursor.fetchall()
+                    execution_time = int((time.time() - start_time) * 1000)
+                    
+                    return jsonify({
+                        'success': True,
+                        'type': 'select',
+                        'rows': rows,
+                        'rowCount': len(rows),
+                        'executionTime': execution_time
+                    })
+                else:
+                    conn.commit()
+                    execution_time = int((time.time() - start_time) * 1000)
+                    affected = cursor.rowcount
+                    
+                    return jsonify({
+                        'success': True,
+                        'type': 'modify',
+                        'affectedRows': affected,
+                        'executionTime': execution_time,
+                        'message': f'执行成功，影响 {affected} 行'
+                    })
+                    
+        except pymysql.Error as e:
+            return jsonify({'success': False, 'error': f'SQL 错误: {str(e)}'})
+        finally:
+            conn.close()
+            
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 

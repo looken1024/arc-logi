@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL 客户端 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min">
+    <style>
+        .mysql-container {
+            padding: 20px;
+            width: 100%;
+        }
+        
+        .mysql-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .mysql-header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+        
+        .mysql-header a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .mysql-header a:hover {
+            color: var(--primary-color);
+        }
+        
+        .mysql-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+        
+        .mysql-sidebar {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+        
+        .connection-form {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .form-group {
+            margin-bottom: 10px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        .mysql-main {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .mysql-panel {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+        
+        .sql-input {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        .sql-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .result-table-wrapper {
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        
+        .result-table {
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .result-table th, .result-table td {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            text-align: left;
+            white-space: normal;
+            max-width: 500px;
+            word-break: break-all;
+        }
+        
+        .result-table th {
+            background: var(--bg-color);
+            font-weight: 600;
+        }
+        
+        .result-table tr:hover {
+            background: var(--bg-color);
+        }
+        
+        .result-info {
+            padding: 10px;
+            background: var(--bg-color);
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-size: 13px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast-success {
+            background: #28a745;
+        }
+        
+        .toast-error {
+            background: #dc3545;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .mysql-panel.result-panel {
+            flex: 1;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .result-content {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .db-list {
+            margin-top: 10px;
+        }
+        
+        .db-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .db-item:hover {
+            background: var(--bg-color);
+        }
+        
+        .db-item.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .table-list {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+        
+        .table-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .table-item:hover {
+            background: var(--bg-color);
+        }
+        
+        .table-item.active {
+            color: var(--primary-color);
+        }
+        
+        .quick-queries {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .quick-queries h4 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .query-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: monospace;
+            color: var(--text-color);
+        }
+        
+        .query-btn:hover {
+            border-color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="displayUsername">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1><i class="fas fa-database"></i> MySQL 客户端</h1>
+            </header>
+
+            <div class="mysql-container">
+                <div class="mysql-content">
+                    <div class="mysql-sidebar">
+                        <div class="connection-form">
+                            <div class="form-group">
+                                <label>主机地址</label>
+                                <input type="text" id="mysqlHost" placeholder="如: 127.0.0.1 或 mysql.example.com" value="localhost">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>端口</label>
+                                    <input type="number" id="mysqlPort" value="3306">
+                                </div>
+                                <div class="form-group">
+                                    <label>连接超时 (秒)</label>
+                                    <input type="number" id="mysqlTimeout" value="10" min="1" max="60">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>用户名</label>
+                                <input type="text" id="mysqlUser" placeholder="用户名" value="root">
+                            </div>
+                            <div class="form-group">
+                                <label>密码</label>
+                                <input type="password" id="mysqlPassword" placeholder="密码">
+                            </div>
+                            <div class="form-group">
+                                <label>数据库</label>
+                                <input type="text" id="mysqlDatabase" placeholder="数据库名(可选)">
+                            </div>
+                            <button class="btn btn-primary btn-block" id="connectBtn" onclick="testConnection()">
+                                <i class="fas fa-plug"></i> 连接
+                            </button>
+                        </div>
+                        
+                        <div id="databasesPanel" style="display: none;">
+                            <h4 style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-secondary);">
+                                <i class="fas fa-database"></i> 数据库
+                            </h4>
+                            <div id="databasesList"></div>
+                        </div>
+                        
+                        <div class="quick-queries">
+                            <h4><i class="fas fa-bolt"></i> 快速查询</h4>
+                            <button class="query-btn" onclick="setQuery('SHOW DATABASES')">SHOW DATABASES</button>
+                            <button class="query-btn" onclick="setQuery('SHOW TABLES')">SHOW TABLES</button>
+                            <button class="query-btn" onclick="setQuery('SHOW CREATE TABLE ')">SHOW CREATE TABLE</button>
+                            <button class="query-btn" onclick="setQuery('DESCRIBE ')">DESCRIBE table</button>
+                            <button class="query-btn" onclick="setQuery('SELECT * FROM ')">SELECT * FROM</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mysql-main">
+                        <div class="mysql-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-terminal"></i> SQL 执行</h3>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <textarea id="sqlInput" class="sql-input" placeholder="输入 SQL 语句，如: SELECT * FROM users LIMIT 10" 
+                                          onkeypress="if(event.key==='Enter' && event.ctrlKey)executeQuery()"></textarea>
+                                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                    <button class="btn btn-primary" onclick="executeQuery()">
+                                        <i class="fas fa-play"></i> 执行 (Ctrl+Enter)
+                                    </button>
+                                    <button class="btn" onclick="clearQuery()">
+                                        <i class="fas fa-trash"></i> 清空
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mysql-panel result-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-list"></i> 查询结果</h3>
+                                <span id="resultInfo" style="font-size: 12px; color: var(--text-secondary);"></span>
+                            </div>
+                            <div id="queryResult" class="result-content">
+                                <div class="empty-state">
+                                    <i class="fas fa-database"></i>
+                                    <p>执行 SQL 查询查看结果</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentConnection = null;
+        let currentDatabases = [];
+        let currentTables = [];
+        let selectedDb = '';
+        
+        async function testConnection() {
+            const host = document.getElementById('mysqlHost').value.trim();
+            const port = document.getElementById('mysqlPort').value;
+            const user = document.getElementById('mysqlUser').value.trim();
+            const password = document.getElementById('mysqlPassword').value;
+            const database = document.getElementById('mysqlDatabase').value.trim();
+            const timeout = document.getElementById('mysqlTimeout').value;
+            
+            if (!host || !user) {
+                showToast('请输入主机地址和用户名', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('connectBtn');
+            btn.innerHTML = '<span class="loading"></span> 连接中...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/mysql/connect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        host,
+                        port: parseInt(port),
+                        user,
+                        password,
+                        database,
+                        timeout: parseInt(timeout)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentConnection = {host, port: parseInt(port), user, password, database, timeout: parseInt(timeout)};
+                    showToast('连接成功', 'success');
+                    
+                    if (data.databases) {
+                        currentDatabases = data.databases;
+                        renderDatabases(data.databases);
+                        document.getElementById('databasesPanel').style.display = 'block';
+                    }
+                } else {
+                    showToast(data.error || '连接失败', 'error');
+                }
+            } catch (e) {
+                showToast('连接失败: ' + e.message, 'error');
+            } finally {
+                btn.innerHTML = '<i class="fas fa-plug"></i> 连接';
+                btn.disabled = false;
+            }
+        }
+        
+        function renderDatabases(databases) {
+            const list = document.getElementById('databasesList');
+            list.innerHTML = databases.map(db => `
+                <div class="db-item" onclick="selectDatabase('${db}')">
+                    <i class="fas fa-database"></i>
+                    ${escapeHtml(db)}
+                </div>
+            `).join('');
+        }
+        
+        async function selectDatabase(dbName) {
+            document.querySelectorAll('.db-item').forEach(el => el.classList.remove('active'));
+            event.target.closest('.db-item').classList.add('active');
+            
+            selectedDb = dbName;
+            
+            try {
+                const response = await fetch('/api/mysql/tables', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ...currentConnection,
+                        database: dbName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentTables = data.tables;
+                    renderTables(data.tables);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function renderTables(tables) {
+            const dbItem = document.querySelector('.db-item.active');
+            if (!dbItem) return;
+            
+            let tableList = dbItem.nextElementSibling;
+            if (!tableList || !tableList.classList.contains('table-list')) {
+                tableList = document.createElement('div');
+                tableList.className = 'table-list';
+                dbItem.parentNode.insertBefore(tableList, dbItem.nextSibling);
+            }
+            
+            tableList.innerHTML = tables.map(table => `
+                <div class="table-item" onclick="setQuery('SELECT * FROM ${table} LIMIT 100')">
+                    <i class="fas fa-table"></i>
+                    ${escapeHtml(table)}
+                </div>
+            `).join('');
+        }
+        
+        function setQuery(sql) {
+            document.getElementById('sqlInput').value = sql;
+        }
+        
+        async function executeQuery() {
+            const sql = document.getElementById('sqlInput').value.trim();
+            if (!sql) {
+                showToast('请输入 SQL 语句', 'error');
+                return;
+            }
+            
+            if (!currentConnection) {
+                showToast('请先连接数据库', 'error');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('queryResult');
+            const infoDiv = document.getElementById('resultInfo');
+            resultDiv.innerHTML = '<div class="loading"></div> 执行中...';
+            
+            try {
+                const response = await fetch('/api/mysql/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ...currentConnection,
+                        sql
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.type === 'select') {
+                        infoDiv.textContent = `返回 ${data.rowCount} 行，耗时 ${data.executionTime}ms`;
+                        
+                        if (data.rows && data.rows.length > 0) {
+                            const columns = Object.keys(data.rows[0]);
+                            let html = '<div class="result-table-wrapper"><table class="result-table"><thead><tr>';
+                            columns.forEach(col => {
+                                html += `<th>${escapeHtml(col)}</th>`;
+                            });
+                            html += '</tr></thead><tbody>';
+                            data.rows.forEach(row => {
+                                html += '<tr>';
+                                columns.forEach(col => {
+                                    const val = row[col];
+                                    const displayVal = val === null ? '<em style="color: #999;">NULL</em>' : escapeHtml(String(val));
+                                    html += `<td>${displayVal}</td>`;
+                                });
+                                html += '</tr>';
+                            });
+                            html += '</tbody></table></div>';
+                            resultDiv.innerHTML = html;
+                        } else {
+                            resultDiv.innerHTML = '<div class="empty-state"><p>查询结果为空</p></div>';
+                        }
+                    } else {
+                        infoDiv.textContent = `影响 ${data.affectedRows} 行，耗时 ${data.executionTime}ms`;
+                        resultDiv.innerHTML = `<div style="padding: 20px; text-align: center;">
+                            <i class="fas fa-check-circle" style="color: #28a745; font-size: 48px;"></i>
+                            <p style="margin-top: 10px;">${escapeHtml(data.message)}</p>
+                        </div>`;
+                    }
+                } else {
+                    infoDiv.textContent = '';
+                    resultDiv.innerHTML = `<div style="padding: 20px;">
+                        <div style="color: #dc3545; margin-bottom: 10px;">SQL 错误:</div>
+                        <pre style="margin: 0; white-space: pre-wrap; word-break: break-all; background: var(--bg-color); padding: 10px; border-radius: 4px;">${escapeHtml(data.error)}</pre>
+                    </div>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<div style="color: #dc3545;">执行失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+        
+        function clearQuery() {
+            document.getElementById('sqlInput').value = '';
+            document.getElementById('queryResult').innerHTML = '<div class="empty-state"><i class="fas fa-database"></i><p>执行 SQL 查询查看结果</p></div>';
+            document.getElementById('resultInfo').textContent = '';
+        }
+        
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
