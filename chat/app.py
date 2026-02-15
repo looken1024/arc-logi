@@ -347,6 +347,13 @@ def email_tool():
         return redirect(url_for('login'))
     return render_template('email.html')
 
+@app.route('/hex')
+def hex_tool():
+    """进制转换器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('hex.html')
+
 @app.route('/api/email/send', methods=['POST'])
 def send_email():
     """发送邮件API"""
