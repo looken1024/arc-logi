@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>远程登录 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .ssh-container {
+            width: 100%;
+            max-width: 100%;
+            padding: 24px 40px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .main-content {
+            overflow: visible !important;
+        }
+        .ssh-form {
+            background: var(--card-bg, #1e1e1e);
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+        }
+        .form-row {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary, #e0e0e0);
+        }
+        .form-group label i {
+            color: var(--primary-color, #4a9eff);
+            width: 16px;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color, #333);
+            border-radius: 8px;
+            background: var(--input-bg, #2d2d2d);
+            color: var(--text-primary, #e0e0e0);
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color, #4a9eff);
+        }
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-secondary, #808080);
+            margin-top: 4px;
+        }
+        .connect-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 16px 24px;
+            background: var(--primary-color, #4a9eff);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .connect-btn:hover:not(:disabled) {
+            background: var(--primary-hover, #3a8eef);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+        }
+        .connect-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result-message {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result-message.success {
+            display: block;
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+        .result-message.error {
+            display: block;
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-server"></i>
+                    <span>远程登录</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="displayUsername">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>远程登录</h1>
+            </header>
+
+            <div class="ssh-container">
+                <div class="ssh-form">
+                    <form id="sshForm">
+                        <div class="form-group">
+                            <label for="host">
+                                <i class="fas fa-desktop"></i> 服务器地址
+                            </label>
+                            <input type="text" id="host" name="host" placeholder="请输入服务器 IP 地址或域名" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="port">
+                                    <i class="fas fa-plug"></i> 端口
+                                </label>
+                                <input type="number" id="port" name="port" value="22" required>
+                                <div class="form-hint">SSH 默认端口为 22</div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="username">
+                                    <i class="fas fa-user"></i> 用户名
+                                </label>
+                                <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">
+                                <i class="fas fa-lock"></i> 密码
+                            </label>
+                            <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                        </div>
+                        
+                        <button type="submit" class="connect-btn" id="connectBtn">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>连接服务器</span>
+                        </button>
+                    </form>
+                    
+                    <div class="result-message" id="resultMessage"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        document.getElementById('sshForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const host = document.getElementById('host').value.trim();
+            const port = document.getElementById('port').value.trim();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const connectBtn = document.getElementById('connectBtn');
+            const resultMessage = document.getElementById('resultMessage');
+            
+            if (!host || !port || !username || !password) {
+                showResult('请填写所有字段', 'error');
+                return;
+            }
+            
+            connectBtn.disabled = true;
+            connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>连接中...</span>';
+            resultMessage.className = 'result-message';
+            resultMessage.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/ssh/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        host: host,
+                        port: parseInt(port),
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('连接成功！', 'success');
+                } else {
+                    showResult('连接失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showResult('请求失败: ' + error.message, 'error');
+            } finally {
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>连接服务器</span>';
+            }
+        });
+        
+        function showResult(message, type) {
+            const resultMessage = document.getElementById('resultMessage');
+            resultMessage.textContent = message;
+            resultMessage.className = 'result-message ' + type;
+            resultMessage.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

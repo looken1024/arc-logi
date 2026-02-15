@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音转文字 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .voice-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .voice-section {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .voice-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .voice-section h3 i {
+            color: var(--primary-color);
+        }
+        .record-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px;
+            gap: 16px;
+        }
+        .record-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .record-btn:hover {
+            transform: scale(1.1);
+        }
+        .record-btn.recording {
+            background: #e74c3c;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            50% { box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
+        }
+        .record-status {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .record-status.active {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: var(--hover-bg);
+        }
+        .upload-area i {
+            font-size: 48px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        .upload-area p {
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .upload-area .hint {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        .file-input {
+            display: none;
+        }
+        .audio-preview {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            display: none;
+        }
+        .audio-preview.show {
+            display: block;
+        }
+        .audio-preview audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+        }
+        .file-info i {
+            color: var(--primary-color);
+            font-size: 20px;
+            margin-bottom: 0;
+        }
+        .result-area {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--hover-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .result-header h4 {
+            font-size: 14px;
+            color: var(--text-color);
+            margin: 0;
+        }
+        .result-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .result-text {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--message-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .result-text:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .loading i {
+            font-size: 24px;
+            animation: spin 1s linear infinite;
+            color: var(--primary-color);
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .hint-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-microphone-alt"></i>
+                    <span>语音转文字</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="displayUsername">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>语音转文字</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="voice-wrapper">
+                        <div class="voice-section">
+                            <h3><i class="fas fa-microphone"></i> 实时录音</h3>
+                            <div class="record-area">
+                                <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <p class="record-status" id="recordStatus">点击开始录音</p>
+                                <p class="hint-text">支持 Chrome、Edge 等现代浏览器</p>
+                            </div>
+                        </div>
+
+                        <div class="voice-section">
+                            <h3><i class="fas fa-file-audio"></i> 音频文件上传</h3>
+                            <div class="upload-area" onclick="document.getElementById('audioFile').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>点击上传音频文件或拖拽文件到这里</p>
+                                <span class="hint">支持 MP3, WAV, M4A, OGG, WEBM, MP4 格式</span>
+                            </div>
+                            <input type="file" id="audioFile" class="file-input" accept="audio/*" onchange="previewAudio(this)">
+                            
+                            <div class="audio-preview" id="audioPreview">
+                                <div class="file-info">
+                                    <i class="fas fa-file-audio"></i>
+                                    <span id="fileName"></span>
+                                </div>
+                                <audio id="audioPlayer" controls></audio>
+                            </div>
+                            
+                            <div style="margin-top: 16px;">
+                                <button class="btn btn-primary" onclick="uploadAudio()">
+                                    <i class="fas fa-exchange-alt"></i> 转换为文字
+                                </button>
+                            </div>
+                            
+                            <div class="loading" id="audioLoading">
+                                <i class="fas fa-spinner"></i>
+                                <p>正在转换...</p>
+                            </div>
+                        </div>
+
+                        <div class="voice-section">
+                            <div class="result-area" id="resultArea">
+                                <div class="result-header">
+                                    <h4><i class="fas fa-align-left"></i> 转换结果</h4>
+                                    <div class="result-actions">
+                                        <button class="btn btn-sm" onclick="copyText()" title="复制">
+                                            <i class="fas fa-copy"></i> 复制
+                                        </button>
+                                        <button class="btn btn-sm" onclick="downloadText()" title="下载">
+                                            <i class="fas fa-download"></i> 下载
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea class="result-text" id="resultText" placeholder="转换后的文字将显示在这里..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentAudioFile = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recognition = null;
+        let isRecording = false;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'zh-CN';
+
+            recognition.onresult = function(event) {
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                if (finalTranscript) {
+                    document.getElementById('resultText').value += finalTranscript;
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error('语音识别错误:', event.error);
+                stopRecording();
+                if (event.error === 'not-allowed') {
+                    alert('请允许麦克风权限后重试');
+                }
+            };
+
+            recognition.onend = function() {
+                if (isRecording) {
+                    recognition.start();
+                }
+            };
+        }
+
+        function toggleRecording() {
+            if (!recognition) {
+                alert('您的浏览器不支持语音识别功能，请使用 Chrome 或 Edge 浏览器');
+                return;
+            }
+
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordStatus');
+
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            isRecording = true;
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordStatus');
+            
+            btn.classList.add('recording');
+            btn.innerHTML = '<i class="fas fa-stop"></i>';
+            status.textContent = '正在录音...';
+            status.classList.add('active');
+            
+            recognition.start();
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordStatus');
+            
+            btn.classList.remove('recording');
+            btn.innerHTML = '<i class="fas fa-microphone"></i>';
+            status.textContent = '点击开始录音';
+            status.classList.remove('active');
+            
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function previewAudio(input) {
+            if (input.files && input.files[0]) {
+                currentAudioFile = input.files[0];
+                const preview = document.getElementById('audioPreview');
+                const fileName = document.getElementById('fileName');
+                const audioPlayer = document.getElementById('audioPlayer');
+                
+                fileName.textContent = currentAudioFile.name;
+                audioPlayer.src = URL.createObjectURL(currentAudioFile);
+                preview.classList.add('show');
+            }
+        }
+
+        function uploadAudio() {
+            if (!currentAudioFile) {
+                alert('请先上传音频文件');
+                return;
+            }
+
+            const loading = document.getElementById('audioLoading');
+            loading.classList.add('show');
+
+            const formData = new FormData();
+            formData.append('file', currentAudioFile);
+
+            fetch('/api/voice/recognize', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('resultText').value = data.text;
+                } else {
+                    alert('转换失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('转换失败: ' + error.message);
+            })
+            .finally(() => {
+                loading.classList.remove('show');
+            });
+        }
+
+        function copyText() {
+            const text = document.getElementById('resultText').value;
+            if (!text) {
+                alert('没有可复制的内容');
+                return;
+            }
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert('复制成功');
+            }).catch(err => {
+                alert('复制失败');
+            });
+        }
+
+        function downloadText() {
+            const text = document.getElementById('resultText').value;
+            if (!text) {
+                alert('没有可下载的内容');
+                return;
+            }
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '语音转文字.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

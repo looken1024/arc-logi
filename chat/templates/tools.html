@@ -47,6 +47,10 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <h1>工具列表</h1>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="toolSearch" placeholder="搜索工具...">
+                </div>
             </header>
 
             <div class="tools-container">
@@ -355,5 +359,26 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('toolSearch');
+            const toolCards = document.querySelectorAll('.tool-card');
+
+            searchInput.addEventListener('input', function(e) {
+                const keyword = e.target.value.toLowerCase().trim();
+                
+                toolCards.forEach(card => {
+                    const title = card.querySelector('.tool-info h3').textContent.toLowerCase();
+                    const desc = card.querySelector('.tool-info p').textContent.toLowerCase();
+                    
+                    if (title.includes(keyword) || desc.includes(keyword)) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

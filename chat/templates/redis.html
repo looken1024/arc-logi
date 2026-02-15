@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis 客户端 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .redis-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .redis-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .redis-header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+        
+        .redis-header a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .redis-header a:hover {
+            color: var(--primary-color);
+        }
+        
+        .redis-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+        
+        .redis-sidebar {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+        
+        .connection-form {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .form-group {
+            margin-bottom: 10px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        .keys-list {
+            margin-top: 10px;
+        }
+        
+        .key-item {
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+        
+        .key-item:hover {
+            background: var(--hover-bg);
+        }
+        
+        .key-item.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .key-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+        
+        .key-type {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--border-color);
+            color: var(--text-secondary);
+            margin-left: 5px;
+        }
+        
+        .redis-main {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .redis-panel {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .info-item {
+            padding: 10px;
+            background: var(--bg-color);
+            border-radius: 4px;
+        }
+        
+        .info-item label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .info-item span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .value-editor {
+            width: 100%;
+            min-height: 200px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        .value-editor:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .value-display {
+            padding: 10px;
+            background: var(--bg-color);
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .value-type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+        
+        .type-string { background: #e3f2fd; color: #1565c0; }
+        .type-list { background: #f3e5f5; color: #7b1fa2; }
+        .type-set { background: #e8f5e9; color: #2e7d32; }
+        .type-zset { background: #fff3e0; color: #ef6c00; }
+        .type-hash { background: #fce4ec; color: #c2185b; }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .search-box {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 8px 10px 8px 30px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-size: 13px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast-success {
+            background: #28a745;
+        }
+        
+        .toast-error {
+            background: #dc3545;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="displayUsername">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1><i class="fas fa-database"></i> Redis 客户端</h1>
+            </header>
+
+            <div class="redis-container">
+                <div class="redis-content">
+                    <div class="redis-sidebar">
+                        <div class="connection-form">
+                            <div class="form-group">
+                                <label>主机地址</label>
+                                <input type="text" id="redisHost" placeholder="如: 127.0.0.1 或 redis.example.com">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>端口</label>
+                                    <input type="number" id="redisPort" value="6379">
+                                </div>
+                                <div class="form-group">
+                                    <label>数据库</label>
+                                    <input type="number" id="redisDb" value="0">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>密码 (可选)</label>
+                                <input type="password" id="redisPassword" placeholder="Redis 密码">
+                            </div>
+                            <div class="form-group">
+                                <label>连接超时 (秒)</label>
+                                <input type="number" id="redisTimeout" value="10" min="1" max="60">
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="redisSsl"> 使用 SSL/TLS 连接
+                                </label>
+                            </div>
+                            <button class="btn btn-primary btn-block" id="connectBtn" onclick="testConnection()">
+                                <i class="fas fa-plug"></i> 连接
+                            </button>
+                        </div>
+                        
+                        <div id="keysSection" style="display: none;">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="keySearch" placeholder="搜索键..." oninput="filterKeys()">
+                            </div>
+                            <div class="form-group">
+                                <label>键模式</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="text" id="keyPattern" value="*" placeholder="如: user:*">
+                                    <button class="btn btn-sm btn-primary" onclick="loadKeys()">刷新</button>
+                                </div>
+                            </div>
+                            <div class="keys-list" id="keysList"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="redis-main">
+                        <div class="redis-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-server"></i> 服务器信息</h3>
+                                <button class="btn btn-sm btn-primary" onclick="loadInfo()" id="infoBtn">
+                                    <i class="fas fa-sync"></i> 刷新
+                                </button>
+                            </div>
+                            <div id="serverInfo">
+                                <div class="empty-state">
+                                    <i class="fas fa-database"></i>
+                                    <p>请先连接 Redis 服务器</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="redis-panel">
+                            <div class="panel-header">
+                                <h3>
+                                    <i class="fas fa-key"></i> 键值查看/编辑
+                                    <span class="value-type-badge" id="currentValueType" style="display: none;"></span>
+                                </h3>
+                                <div class="actions" id="keyActions" style="display: none;">
+                                    <button class="btn btn-sm btn-danger" onclick="deleteKey()">
+                                        <i class="fas fa-trash"></i> 删除
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="valueSection">
+                                <div class="empty-state">
+                                    <i class="fas fa-hand-pointer"></i>
+                                    <p>请选择要查看的键</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentConnection = {
+            host: '',
+            port: 6379,
+            password: '',
+            db: 0,
+            ssl: false,
+            timeout: 10
+        };
+        let currentKey = '';
+        let allKeys = [];
+        
+        async function testConnection() {
+            const host = document.getElementById('redisHost').value.trim();
+            const port = document.getElementById('redisPort').value;
+            const password = document.getElementById('redisPassword').value;
+            const db = document.getElementById('redisDb').value;
+            const ssl = document.getElementById('redisSsl').checked;
+            const timeout = document.getElementById('redisTimeout').value;
+            
+            if (!host) {
+                showToast('请输入 Redis 主机地址', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('connectBtn');
+            btn.innerHTML = '<span class="loading"></span> 连接中...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/redis/connect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        host,
+                        port: parseInt(port),
+                        password,
+                        db: parseInt(db),
+                        ssl,
+                        timeout: parseInt(timeout)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentConnection = {host, port: parseInt(port), password, db: parseInt(db), ssl, timeout: parseInt(timeout)};
+                    showToast('连接成功', 'success');
+                    loadKeys();
+                    loadInfo();
+                    document.getElementById('keysSection').style.display = 'block';
+                } else {
+                    showToast(data.error || '连接失败', 'error');
+                    document.getElementById('keysSection').style.display = 'none';
+                }
+            } catch (e) {
+                showToast('连接失败: ' + e.message, 'error');
+            } finally {
+                btn.innerHTML = '<i class="fas fa-plug"></i> 连接';
+                btn.disabled = false;
+            }
+        }
+        
+        async function loadKeys() {
+            try {
+                const response = await fetch('/api/redis/keys', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ...currentConnection,
+                        pattern: document.getElementById('keyPattern').value || '*'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    allKeys = data.keys;
+                    renderKeys(allKeys);
+                } else {
+                    showToast(data.error || '获取键列表失败', 'error');
+                }
+            } catch (e) {
+                showToast('获取键列表失败: ' + e.message, 'error');
+            }
+        }
+        
+        function renderKeys(keys) {
+            const container = document.getElementById('keysList');
+            const searchTerm = document.getElementById('keySearch').value.toLowerCase();
+            
+            let filteredKeys = keys;
+            if (searchTerm) {
+                filteredKeys = keys.filter(k => k.key.toLowerCase().includes(searchTerm));
+            }
+            
+            if (filteredKeys.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>暂无键</p></div>';
+                return;
+            }
+            
+            container.innerHTML = filteredKeys.map(k => `
+                <div class="key-item ${k.key === currentKey ? 'active' : ''}" onclick="selectKey('${k.key}')">
+                    <span class="key-name" title="${k.key}">${k.key}</span>
+                    <span class="key-type">${k.type}</span>
+                </div>
+            `).join('');
+        }
+        
+        function filterKeys() {
+            renderKeys(allKeys);
+        }
+        
+        async function selectKey(key) {
+            currentKey = key;
+            renderKeys(allKeys);
+            
+            try {
+                const response = await fetch('/api/redis/get', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ...currentConnection,
+                        key
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('keyActions').style.display = 'flex';
+                    const typeBadge = document.getElementById('currentValueType');
+                    typeBadge.textContent = data.type;
+                    typeBadge.className = 'value-type-badge type-' + data.type;
+                    typeBadge.style.display = 'inline-block';
+                    
+                    const valueSection = document.getElementById('valueSection');
+                    
+                    if (data.type === 'string') {
+                        valueSection.innerHTML = `
+                            <textarea class="value-editor" id="valueEditor">${escapeHtml(data.value || '')}</textarea>
+                            <div class="actions">
+                                <button class="btn btn-success" onclick="saveValue()">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                                <button class="btn" onclick="refreshValue()">
+                                    <i class="fas fa-sync"></i> 刷新
+                                </button>
+                            </div>
+                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+                                TTL: ${data.ttl}
+                            </div>
+                        `;
+                    } else {
+                        let displayValue = '';
+                        if (data.type === 'list') {
+                            displayValue = data.value.map((v, i) => `[${i}] ${v}`).join('\n');
+                        } else if (data.type === 'set') {
+                            displayValue = data.value.join('\n');
+                        } else if (data.type === 'zset') {
+                            displayValue = data.value.map(v => `${v[0]} => ${v[1]}`).join('\n');
+                        } else if (data.type === 'hash') {
+                            displayValue = JSON.stringify(data.value, null, 2);
+                        }
+                        
+                        valueSection.innerHTML = `
+                            <textarea class="value-editor" id="valueEditor">${escapeHtml(displayValue)}</textarea>
+                            <div class="actions">
+                                <button class="btn btn-success" onclick="saveValue()">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                                <button class="btn" onclick="refreshValue()">
+                                    <i class="fas fa-sync"></i> 刷新
+                                </button>
+                            </div>
+                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+                                TTL: ${data.ttl}
+                            </div>
+                        `;
+                    }
+                } else {
+                    showToast(data.error || '获取值失败', 'error');
+                }
+            } catch (e) {
+                showToast('获取值失败: ' + e.message, 'error');
+            }
+        }
+        
+        async function saveValue() {
+            const value = document.getElementById('valueEditor').value;
+            const type = document.getElementById('currentValueType').textContent;
+            
+            let finalValue = value;
+            if (type === 'list' || type === 'set') {
+                finalValue = value.split('\n').filter(v => v.trim());
+            } else if (type === 'hash') {
+                try {
+                    finalValue = JSON.parse(value);
+                } catch(e) {
+                    showToast('Hash 类型需要 JSON 格式', 'error');
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/redis/set', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ...currentConnection,
+                        key: currentKey,
+                        value: finalValue,
+                        value_type: type
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('保存成功', 'success');
+                } else {
+                    showToast(data.error || '保存失败', 'error');
+                }
+            } catch (e) {
+                showToast('保存失败: ' + e.message, 'error');
+            }
+        }
+        
+        async function deleteKey() {
+            if (!currentKey) return;
+            
+            if (!confirm(`确定要删除键 "${currentKey}" 吗？`)) return;
+            
+            try {
+                const response = await fetch('/api/redis/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ...currentConnection,
+                        key: currentKey
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('删除成功', 'success');
+                    currentKey = '';
+                    document.getElementById('keyActions').style.display = 'none';
+                    document.getElementById('currentValueType').style.display = 'none';
+                    document.getElementById('valueSection').innerHTML = '<div class="empty-state"><i class="fas fa-hand-pointer"></i><p>请选择要查看的键</p></div>';
+                    loadKeys();
+                } else {
+                    showToast(data.error || '删除失败', 'error');
+                }
+            } catch (e) {
+                showToast('删除失败: ' + e.message, 'error');
+            }
+        }
+        
+        async function refreshValue() {
+            if (currentKey) {
+                selectKey(currentKey);
+            }
+        }
+        
+        async function loadInfo() {
+            if (!currentConnection.host) {
+                return;
+            }
+            
+            const btn = document.getElementById('infoBtn');
+            btn.innerHTML = '<span class="loading"></span>';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/redis/info', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(currentConnection)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const info = data.info;
+                    const db = currentConnection.db;
+                    const keyspace = info.keyspace || {};
+                    const dbInfo = keyspace[`db${db}`] || {};
+                    
+                    document.getElementById('serverInfo').innerHTML = `
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Redis 版本</label>
+                                <span>${info.version || '-'}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>角色</label>
+                                <span>${info.role || '-'}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>运行时间</label>
+                                <span>${info.uptime_days || 0} 天</span>
+                            </div>
+                            <div class="info-item">
+                                <label>已用内存</label>
+                                <span>${info.used_memory || '-'}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>峰值内存</label>
+                                <span>${info.used_memory_peak || '-'}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>客户端连接</label>
+                                <span>${info.connected_clients || 0}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>总命令数</label>
+                                <span>${info.total_commands_processed || 0}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>当前 DB 键数</label>
+                                <span>${dbInfo.keys || 0}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    showToast(data.error || '获取信息失败', 'error');
+                }
+            } catch (e) {
+                showToast('获取信息失败: ' + e.message, 'error');
+            } finally {
+                btn.innerHTML = '<i class="fas fa-sync"></i> 刷新';
+                btn.disabled = false;
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
