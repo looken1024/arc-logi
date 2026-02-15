@@ -571,6 +571,62 @@ def linux_query():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+GIT_COMMAND_PROMPT = """你是一个Git版本控制专家，擅长介绍各种Git命令的用法、选项和示例。
+
+用户会输入一个Git命令名称或相关关键词，你需要提供该命令的详细信息，包括：
+1. 命令名称和基本作用
+2. 语法格式
+3. 常用选项和参数说明
+4. 实际使用示例（2-3个）
+5. 注意事项和常见用法
+
+如果用户输入的不是有效的Git命令，请提供相关的建议。
+
+最好以表格的形式提供选项说明。"""
+
+@app.route('/git')
+def git_tool():
+    """Git 使用工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('git.html')
+
+@app.route('/api/git/query', methods=['POST'])
+def git_query():
+    """查询Git命令"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'})
+    
+    data = request.get_json()
+    command = data.get('command', '').strip()
+    
+    if not command:
+        return jsonify({'success': False, 'error': '请输入命令名称'})
+    
+    try:
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url="https://api.deepseek.com",
+            timeout=60.0,
+            max_retries=2
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": GIT_COMMAND_PROMPT},
+                {"role": "user", "content": f"请介绍 Git 命令「{command}」的用法"}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        result = response.choices[0].message.content
+        return jsonify({'success': True, 'content': result})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/stock')
 def stock_tool():
     """股票行情工具页面"""
