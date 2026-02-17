@@ -10,6 +10,7 @@ import openai
 from typing import Generator
 import secrets
 import io
+import requests
 from PIL import Image
 from PyPDF2 import PdfReader, PdfWriter
 import pymysql
@@ -432,6 +433,68 @@ def linux_tool():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('linux.html')
+
+@app.route('/weather')
+def weather_tool():
+    """天气查询工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('weather.html')
+
+@app.route('/api/weather/query', methods=['POST'])
+def query_weather():
+    """查询天气API"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '请先登录'})
+    
+    data = request.get_json()
+    city = data.get('city', '').strip()
+    
+    if not city:
+        return jsonify({'success': False, 'error': '请输入城市名称'})
+    
+    try:
+        import requests
+        api_key = 'eb4e86c2b456401cbae17a8d9eab0712'
+        
+        geocode_url = f'https://geoapi.qweather.com/v2/city/lookup?location={city}&key={api_key}'
+        geocode_response = requests.get(geocode_url, timeout=10)
+        geocode_data = geocode_response.json()
+        
+        if geocode_data.get('code') != '200':
+            return jsonify({'success': False, 'error': '城市未找到'})
+        
+        location = geocode_data['location'][0]
+        location_id = location['id']
+        city_name = location['name']
+        city_adm = location.get('adm2', location.get('adm1', ''))
+        
+        weather_url = f'https://devapi.qweather.com/v7/weather/now?location={location_id}&key={api_key}'
+        weather_response = requests.get(weather_url, timeout=10)
+        weather_data = weather_response.json()
+        
+        if weather_data.get('code') != '200':
+            return jsonify({'success': False, 'error': '天气数据获取失败'})
+        
+        now = weather_data['now']
+        
+        return jsonify({
+            'success': True,
+            'city': city_name,
+            'province': city_adm,
+            'temp': now['temp'],
+            'text': now['text'],
+            'windDir': now['windDir'],
+            'windScale': now['windScale'],
+            'humidity': now['humidity'],
+            'feelsLike': now['feelsLike'],
+            'vis': now['vis'],
+            'pressure': now['pressure'],
+            'updateTime': weather_data.get('updateTime', '')
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'查询失败: {str(e)}'})
 
 @app.route('/shorturl')
 def shorturl_tool():

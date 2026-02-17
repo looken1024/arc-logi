@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天气查询 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .weather-result {
+            padding: 20px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+        }
+        .weather-result.error {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .weather-result .city-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .weather-result .province {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        .weather-result .temp {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .weather-result .text {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .weather-result .details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+        }
+        .weather-result .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 10px .weather-result .;
+        }
+       detail-item i {
+            width: 20px;
+            text-align: center;
+        }
+        .weather-result .update-time {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 15px;
+            text-align: right;
+        }
+        .weather-icon {
+            font-size: 64px;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-cloud-sun"></i>
+                    <span>天气查询</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>天气查询</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="input-section">
+                        <div class="section-header">
+                            <label><i class="fas fa-map-marker-alt"></i> 城市名称</label>
+                        </div>
+                        <input type="text" id="cityName" placeholder="请输入城市名称，例如：北京、上海、杭州" style="width: 100%; padding: 10px;">
+                    </div>
+
+                    <div class="operation-section">
+                        <button class="btn btn-primary btn-large" onclick="queryWeather()">
+                            <i class="fas fa-search"></i> 查询天气
+                        </button>
+                        <button class="btn btn-secondary btn-large" onclick="clearInput()">
+                            <i class="fas fa-trash-alt"></i> 清空
+                        </button>
+                    </div>
+
+                    <div id="resultSection"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        function getWeatherIcon(text) {
+            const iconMap = {
+                '晴': 'fa-sun',
+                '多云': 'fa-cloud',
+                '阴': 'fa-cloud',
+                '雨': 'fa-cloud-rain',
+                '雪': 'fa-snowflake',
+                '雷': 'fa-bolt',
+                '雾': 'fa-smog',
+                '风': 'fa-wind'
+            };
+            for (const key in iconMap) {
+                if (text.includes(key)) {
+                    return iconMap[key];
+                }
+            }
+            return 'fa-cloud-sun';
+        }
+
+        async function queryWeather() {
+            const city = document.getElementById('cityName').value.trim();
+            const resultSection = document.getElementById('resultSection');
+            
+            if (!city) {
+                resultSection.innerHTML = '<div class="weather-result error"><div class="city-name">请输入城市名称</div></div>';
+                return;
+            }
+            
+            resultSection.innerHTML = '<div class="weather-result"><div class="city-name">正在查询...</div></div>';
+            
+            try {
+                const response = await fetch('/api/weather/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ city: city })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const iconClass = getWeatherIcon(data.text);
+                    resultSection.innerHTML = `
+                        <div class="weather-result">
+                            <div class="city-name">${data.city}</div>
+                            <div class="province">${data.province}</div>
+                            <div class="weather-icon">
+                                <i class="fas ${iconClass}"></i>
+                            </div>
+                            <div class="temp">${data.temp}°C</div>
+                            <div class="text">${data.text}</div>
+                            <div class="details">
+                                <div class="detail-item">
+                                    <i class="fas fa-wind"></i>
+                                    <span>${data.windDir} ${data.windScale}级</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-tint"></i>
+                                    <span>湿度 ${data.humidity}%</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-thermometer-half"></i>
+                                    <span>体感 ${data.feelsLike}°C</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-eye"></i>
+                                    <span>能见度 ${data.vis}km</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-gauge-high"></i>
+                                    <span>气压 ${data.pressure} hPa</span>
+                                </div>
+                            </div>
+                            <div class="update-time">更新时间：${data.updateTime}</div>
+                        </div>
+                    `;
+                } else {
+                    resultSection.innerHTML = `<div class="weather-result error"><div class="city-name">${data.error}</div></div>`;
+                }
+            } catch (e) {
+                resultSection.innerHTML = `<div class="weather-result error"><div class="city-name">请求失败: ${e.message}</div></div>`;
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('cityName').value = '';
+            document.getElementById('resultSection').innerHTML = '';
+        }
+
+        document.getElementById('cityName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                queryWeather();
+            }
+        });
+    </script>
+</body>
+</html>
