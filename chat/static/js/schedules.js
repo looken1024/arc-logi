@@ -50,7 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // 加载用户信息
 async function loadUserInfo() {
     try {
-        const response = await fetch('/api/user');
+        const response = await fetch('/api/user', {
+            credentials: 'same-origin'
+        });
         if (response.ok) {
             const user = await response.json();
             currentUser = user;
@@ -147,7 +149,9 @@ async function loadSchedules() {
             </div>
         `;
 
-        const response = await fetch('/api/schedules');
+        const response = await fetch('/api/schedules', {
+            credentials: 'same-origin'
+        });
         if (response.ok) {
             schedules = await response.json();
             renderSchedules();
@@ -179,13 +183,17 @@ function renderSchedules() {
             <div class="empty-state">
                 <i class="fas fa-clock"></i>
                 <h3>暂无定时任务</h3>
-                <p>点击“新建定时任务”按钮创建一个定时任务</p>
+                <p>点击"新建定时任务"按钮创建一个定时任务</p>
             </div>
         `;
         return;
     }
 
-    const schedulesHtml = schedules.map(schedule => `
+    const schedulesHtml = schedules.map(schedule => {
+        const lastRun = schedule.last_run_at ? new Date(schedule.last_run_at).toLocaleString('zh-CN') : '从未运行';
+        const nextRun = schedule.next_run_at ? new Date(schedule.next_run_at).toLocaleString('zh-CN') : '-';
+        
+        return `
         <div class="schedule-card" data-id="${schedule.id}">
             <div class="schedule-card-header">
                 <h3 class="schedule-name">${escapeHtml(schedule.name)}</h3>
@@ -198,13 +206,23 @@ function renderSchedules() {
                 <div class="schedule-details">
                     <div class="detail-item">
                         <i class="fas fa-clock"></i>
-                        <span class="detail-label">Cron:</span>
+                        <span class="detail-label">执行周期</span>
                         <code class="cron-expression">${escapeHtml(schedule.cron)}</code>
                     </div>
                     <div class="detail-item">
                         <i class="fas fa-terminal"></i>
-                        <span class="detail-label">命令:</span>
+                        <span class="detail-label">执行命令</span>
                         <span class="schedule-command">${escapeHtml(schedule.command)}</span>
+                    </div>
+                </div>
+                <div class="schedule-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-play-circle"></i>
+                        <span>上次运行: ${lastRun}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-forward"></i>
+                        <span>下次运行: ${nextRun}</span>
                     </div>
                 </div>
             </div>
@@ -223,7 +241,7 @@ function renderSchedules() {
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
     elements.schedulesList.innerHTML = `
         <div class="schedules-grid">
@@ -311,10 +329,27 @@ function closeScheduleModal() {
 function updateCronFromPreset() {
     const preset = elements.schedulePreset.value;
     const cronMap = {
-        'daily': '0 0 * * *',
+        'every_minute': '* * * * *',
+        'every_5min': '*/5 * * * *',
+        'every_10min': '*/10 * * * *',
+        'every_15min': '*/15 * * * *',
+        'every_30min': '*/30 * * * *',
         'hourly': '0 * * * *',
-        'weekly': '0 0 * * 1',
-        'monthly': '0 0 1 * *'
+        'hourly_30': '30 * * * *',
+        'hourly_1': '1 * * * *',
+        'hourly_15': '15 * * * *',
+        'hourly_45': '45 * * * *',
+        'daily_midnight': '0 0 * * *',
+        'daily_6am': '0 6 * * *',
+        'daily_9am': '0 9 * * *',
+        'daily_12pm': '0 12 * * *',
+        'daily_6pm': '0 18 * * *',
+        'daily_9pm': '0 21 * * *',
+        'weekly_monday': '0 0 * * 1',
+        'weekly_friday': '0 0 * * 5',
+        'weekday_9am': '0 9 * * 1-5',
+        'monthly_1st': '0 0 1 * *',
+        'monthly_15th': '0 0 15 * *'
     };
     if (cronMap[preset]) {
         elements.scheduleCron.value = cronMap[preset];
@@ -353,6 +388,7 @@ async function saveSchedule() {
 
         const response = await fetch(url, {
             method,
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -391,7 +427,8 @@ async function deleteSchedule() {
 
     try {
         const response = await fetch(`/api/schedules/${scheduleToDelete.id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'same-origin'
         });
 
         if (response.ok) {
@@ -416,6 +453,7 @@ async function runSchedule(schedule) {
     try {
         const response = await fetch(`/api/schedules/${schedule.id}/execute`, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
             }
@@ -455,7 +493,9 @@ async function showScheduleExecutions(schedule) {
     elements.executionsModal.classList.add('active');
     
     try {
-        const response = await fetch(`/api/schedules/${schedule.id}/executions`);
+        const response = await fetch(`/api/schedules/${schedule.id}/executions`, {
+            credentials: 'same-origin'
+        });
         if (response.ok) {
             const data = await response.json();
             const executions = data.executions || [];

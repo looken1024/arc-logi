@@ -10,3 +10,4 @@ PyPDF2>=3.0.0
 pymupdf>=1.23.0
 redis>=5.0.0
 requests>=2.31.0
+croniter>=2.0.0

@@ -46,7 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadUserInfo() {
     try {
-        const response = await fetch('/api/user');
+        const response = await fetch('/api/user', {
+            credentials: 'same-origin'
+        });
         if (response.ok) {
             const user = await response.json();
             currentUser = user;
@@ -129,7 +131,9 @@ function initializeEventListeners() {
 async function loadPrompts(search = '') {
     try {
         const url = search ? `/api/prompts?search=${encodeURIComponent(search)}` : '/api/prompts';
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            credentials: 'same-origin'
+        });
         
         if (response.ok) {
             const data = await response.json();
@@ -255,12 +259,14 @@ async function savePrompt() {
         if (editingPromptId) {
             response = await fetch(`/api/prompts/${editingPromptId}`, {
                 method: 'PUT',
+                credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(promptData)
             });
         } else {
             response = await fetch('/api/prompts', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(promptData)
             });
@@ -302,7 +308,8 @@ async function deletePrompt() {
 
     try {
         const response = await fetch(`/api/prompts/${promptToDelete}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'same-origin'
         });
 
         if (response.ok) {

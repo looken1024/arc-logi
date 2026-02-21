@@ -100,6 +100,505 @@
         .toggle-details-btn:hover {
             color: #333;
         }
+
+        /* 定时任务卡片样式 */
+        .schedules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+            padding: 4px;
+        }
+
+        .schedule-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 0;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .schedule-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+            border-color: #6366f1;
+        }
+
+        .schedule-card-header {
+            padding: 20px 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .schedule-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .schedule-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .schedule-status.active {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .schedule-status.paused {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .schedule-card-body {
+            padding: 16px 20px;
+        }
+
+        .schedule-description {
+            color: #64748b;
+            font-size: 14px;
+            margin: 0 0 16px;
+            line-height: 1.5;
+        }
+
+        .schedule-details {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .detail-item i {
+            color: #6366f1;
+            font-size: 14px;
+            margin-top: 3px;
+            width: 16px;
+            text-align: center;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+            min-width: 50px;
+        }
+
+        .cron-expression {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #475569;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .schedule-command {
+            color: #334155;
+            font-size: 13px;
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .schedule-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #e2e8f0;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .meta-item i {
+            font-size: 12px;
+            color: #cbd5e1;
+        }
+
+        .schedule-card-footer {
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .schedule-card-footer .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+        }
+
+        .schedule-card-footer .btn-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .schedule-card-footer .run-schedule-btn:hover {
+            background: #dcfce7;
+            color: #166534;
+            border-color: #86efac;
+        }
+
+        .schedule-card-footer .executions-schedule-btn:hover {
+            background: #e0e7ff;
+            color: #4338ca;
+            border-color: #a5b4fc;
+        }
+
+        .schedule-card-footer .edit-schedule-btn:hover {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: #fcd34d;
+        }
+
+        .schedule-card-footer .delete-schedule-btn:hover {
+            background: #fee2e2;
+            color: #dc2626;
+            border-color: #fca5a5;
+        }
+
+        /* 预设选择器样式优化 */
+        #schedulePreset {
+            background: linear-gradient(to bottom, #fff 0%, #f8fafc 100%);
+        }
+
+        #schedulePreset optgroup {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        #schedulePreset option {
+            padding: 8px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .schedules-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .schedule-card-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .schedule-status {
+                align-self: flex-start;
+            }
+        }
+
+        /* 定时任务编辑表单美化 */
+        .schedule-modal .modal-content {
+            max-width: 560px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .schedule-modal .modal-header {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            padding: 20px 24px;
+            border-bottom: none;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .schedule-modal .modal-header h2 {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .schedule-modal .modal-header h2 i {
+            color: #fff;
+            opacity: 0.9;
+        }
+
+        .schedule-modal .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+        }
+
+        .schedule-modal .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            color: #fff;
+        }
+
+        .schedule-modal .modal-body {
+            padding: 28px 24px;
+            background: #fafbfc;
+        }
+
+        .schedule-modal .form-group {
+            margin-bottom: 20px;
+        }
+
+        .schedule-modal .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .schedule-modal .form-group label i {
+            color: #6366f1;
+            font-size: 12px;
+        }
+
+        .schedule-modal .form-group input,
+        .schedule-modal .form-group textarea,
+        .schedule-modal .form-group select {
+            width: 100%;
+            padding: 14px 16px;
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 14px;
+            color: #1f2937;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .schedule-modal .form-group input:focus,
+        .schedule-modal .form-group textarea:focus,
+        .schedule-modal .form-group select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .schedule-modal .form-group input::placeholder,
+        .schedule-modal .form-group textarea::placeholder {
+            color: #9ca3af;
+        }
+
+        .schedule-modal .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+        }
+
+        .schedule-modal .form-hint {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .schedule-modal .form-group .form-hint i {
+            color: #6366f1;
+            margin-right: 4px;
+        }
+
+        .schedule-modal .modal-footer {
+            padding: 16px 24px;
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .schedule-modal .modal-footer .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .schedule-modal .modal-footer .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+        }
+
+        .schedule-modal .modal-footer .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .schedule-modal .modal-footer .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .schedule-modal .modal-footer .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        /* 预设选择器特殊样式 */
+        .schedule-modal #schedulePreset {
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 16px center;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 40px;
+        }
+
+        /* 状态选择器美化 */
+        .schedule-modal #scheduleStatus {
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 16px center;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 40px;
+        }
+
+        .schedule-modal #scheduleStatus.active-status {
+            border-color: #10b981;
+            background-color: #ecfdf5;
+        }
+
+        .schedule-modal #scheduleStatus.paused-status {
+            border-color: #f59e0b;
+            background-color: #fffbeb;
+        }
+
+        /* 分组标题样式 */
+        .schedule-modal optgroup {
+            font-weight: 600;
+            color: #6366f1;
+            background: #f3f4f6;
+        }
+
+        /* 删除确认模态框样式 */
+        .delete-modal .modal-content {
+            max-width: 420px;
+            border-radius: 16px;
+        }
+
+        .delete-modal .modal-header {
+            padding: 20px 24px;
+            border-bottom: none;
+        }
+
+        .delete-modal .modal-header h2 {
+            color: #dc2626;
+            font-size: 18px;
+        }
+
+        .delete-modal .modal-header h2 i {
+            color: #dc2626;
+        }
+
+        .delete-modal .modal-body {
+            padding: 24px;
+            text-align: center;
+        }
+
+        .delete-modal .modal-body p {
+            color: #6b7280;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .delete-modal .modal-body .warning-icon {
+            width: 64px;
+            height: 64px;
+            background: #fef2f2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .delete-modal .modal-body .warning-icon i {
+            font-size: 28px;
+            color: #dc2626;
+        }
+
+        .delete-modal .modal-footer {
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .delete-modal .modal-footer .btn-danger {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+        }
+
+        .delete-modal .modal-footer .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
+        }
+
+        /* 执行记录模态框样式 */
+        .executions-modal .modal-content {
+            max-width: 800px;
+            max-height: 85vh;
+        }
+
+        .executions-modal .modal-header {
+            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+            padding: 16px 24px;
+            border-bottom: none;
+        }
+
+        .executions-modal .modal-header h2 {
+            color: #fff;
+            font-size: 18px;
+        }
+
+        .executions-modal .modal-header h2 i {
+            color: #fff;
+        }
+
+        .executions-modal .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .executions-modal .modal-body {
+            padding: 20px 24px;
+            background: #fafbfc;
+        }
+
+        .executions-modal .modal-footer {
+            background: #fff;
+        }
     </style>
 </head>
 <body>
@@ -161,10 +660,10 @@
     </div>
 
     <!-- 创建/编辑定时任务模态框 -->
-    <div class="modal" id="scheduleModal">
+    <div class="modal schedule-modal" id="scheduleModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="scheduleModalTitle">新建定时任务</h2>
+                <h2 id="scheduleModalTitle"><i class="fas fa-clock"></i> 新建定时任务</h2>
                 <button class="modal-close" id="closeScheduleModal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -172,35 +671,62 @@
             <div class="modal-body">
                 <form id="scheduleForm">
                     <div class="form-group">
-                        <label for="scheduleName">任务名称</label>
+                        <label for="scheduleName"><i class="fas fa-tag"></i> 任务名称</label>
                         <input type="text" id="scheduleName" name="name" required placeholder="请输入任务名称">
                     </div>
                     <div class="form-group">
-                        <label for="scheduleDescription">描述</label>
+                        <label for="scheduleDescription"><i class="fas fa-align-left"></i> 描述</label>
                         <textarea id="scheduleDescription" name="description" rows="3" placeholder="请输入任务描述"></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="scheduleCron">Cron 表达式</label>
+                        <label for="scheduleCron"><i class="fas fa-clock"></i> Cron 表达式</label>
                         <input type="text" id="scheduleCron" name="cron" required placeholder="例如：0 * * * *" pattern="\s*(\S+\s+){4}\S+\s*">
-                        <small class="form-hint">标准的 cron 表达式，格式：分 时 日 月 周</small>
+                        <small class="form-hint"><i class="fas fa-info-circle"></i> 标准的 cron 表达式，格式：分 时 日 月 周</small>
                     </div>
                     <div class="form-group">
-                        <label for="schedulePreset">预设描述</label>
+                        <label for="schedulePreset"><i class="fas fa-bolt"></i> 快速设置</label>
                         <select id="schedulePreset" name="preset">
-                            <option value="">无预设</option>
-                            <option value="daily">每天午夜 (0 0 * * *)</option>
-                            <option value="hourly">每小时 (0 * * * *)</option>
-                            <option value="weekly">每周一午夜 (0 0 * * 1)</option>
-                            <option value="monthly">每月1号午夜 (0 0 1 * *)</option>
+                            <option value="">自定义 Cron</option>
+                            <optgroup label="每分钟">
+                                <option value="every_minute">每分钟 (* * * * *)</option>
+                                <option value="every_5min">每5分钟 (*/5 * * * *)</option>
+                                <option value="every_10min">每10分钟 (*/10 * * * *)</option>
+                                <option value="every_15min">每15分钟 (*/15 * * * *)</option>
+                                <option value="every_30min">每30分钟 (*/30 * * * *)</option>
+                            </optgroup>
+                            <optgroup label="每小时">
+                                <option value="hourly">每小时整点 (0 * * * *)</option>
+                                <option value="hourly_30">每小时30分 (30 * * * *)</option>
+                                <option value="hourly_1">每小时1分 (1 * * * *)</option>
+                                <option value="hourly_15">每小时15分 (15 * * * *)</option>
+                                <option value="hourly_45">每小时45分 (45 * * * *)</option>
+                            </optgroup>
+                            <optgroup label="每天">
+                                <option value="daily_midnight">每天午夜 (0 0 * * *)</option>
+                                <option value="daily_6am">每天早上6点 (0 6 * * *)</option>
+                                <option value="daily_9am">每天早上9点 (0 9 * * *)</option>
+                                <option value="daily_12pm">每天中午12点 (0 12 * * *)</option>
+                                <option value="daily_6pm">每天下午6点 (0 18 * * *)</option>
+                                <option value="daily_9pm">每天晚上9点 (0 21 * * *)</option>
+                            </optgroup>
+                            <optgroup label="每周">
+                                <option value="weekly_monday">每周一午夜 (0 0 * * 1)</option>
+                                <option value="weekly_friday">每周五午夜 (0 0 * * 5)</option>
+                                <option value="weekday_9am">工作日早上9点 (0 9 * * 1-5)</option>
+                            </optgroup>
+                            <optgroup label="每月">
+                                <option value="monthly_1st">每月1号午夜 (0 0 1 * *)</option>
+                                <option value="monthly_15th">每月15号午夜 (0 0 15 * *)</option>
+                            </optgroup>
                         </select>
-                        <small class="form-hint">选择预设会自动填充 cron 表达式</small>
+                        <small class="form-hint"><i class="fas fa-info-circle"></i> 选择预设会自动填充 cron 表达式</small>
                     </div>
                     <div class="form-group">
-                        <label for="scheduleCommand">执行命令</label>
+                        <label for="scheduleCommand"><i class="fas fa-terminal"></i> 执行命令</label>
                         <textarea id="scheduleCommand" name="command" rows="4" required placeholder="请输入要执行的命令或操作描述"></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="scheduleStatus">状态</label>
+                        <label for="scheduleStatus"><i class="fas fa-toggle-on"></i> 状态</label>
                         <select id="scheduleStatus" name="status">
                             <option value="active">启用</option>
                             <option value="paused">暂停</option>
@@ -217,15 +743,18 @@
     </div>
 
     <!-- 确认删除模态框 -->
-    <div class="modal" id="confirmDeleteModal">
+    <div class="modal delete-modal" id="confirmDeleteModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>确认删除</h2>
+                <h2><i class="fas fa-exclamation-triangle"></i> 确认删除</h2>
                 <button class="modal-close" id="closeDeleteModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
+                <div class="warning-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
                 <p id="deleteMessage">确定要删除这个定时任务吗？此操作不可撤销。</p>
             </div>
             <div class="modal-footer">
@@ -236,10 +765,10 @@
     </div>
 
     <!-- 执行记录模态框 -->
-    <div class="modal" id="executionsModal">
+    <div class="modal executions-modal" id="executionsModal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
-                <h2 id="executionsModalTitle">定时任务执行记录</h2>
+                <h2 id="executionsModalTitle"><i class="fas fa-history"></i> 定时任务执行记录</h2>
                 <button class="modal-close" id="closeExecutionsModal">
                     <i class="fas fa-times"></i>
                 </button>

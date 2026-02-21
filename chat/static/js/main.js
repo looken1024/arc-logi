@@ -49,7 +49,9 @@ function initSidebar() {
 // 加载用户信息
 async function loadUserInfo() {
     try {
-        const response = await fetch('/api/user');
+        const response = await fetch('/api/user', {
+            credentials: 'same-origin'
+        });
         if (response.ok) {
             const user = await response.json();
             currentUser = user;
@@ -237,7 +239,8 @@ async function logout() {
     
     try {
         const response = await fetch('/api/logout', {
-            method: 'POST'
+            method: 'POST',
+            credentials: 'same-origin'
         });
         
         if (response.ok) {
@@ -253,6 +256,7 @@ async function updateTheme(theme) {
     try {
         const response = await fetch('/api/user/theme', {
             method: 'PUT',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -315,6 +319,7 @@ async function sendMessage() {
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -353,6 +358,10 @@ async function sendMessage() {
                         if (data.content) {
                             fullResponse += data.content;
                             updateMessage(assistantMessageId, fullResponse);
+                        }
+                        
+                        if (data.thinking) {
+                            updateThinking(assistantMessageId, data.thinking);
                         }
                         
                         if (data.done) {
@@ -428,6 +437,46 @@ function removeTypingIndicator(messageId) {
     }
 }
 
+// 更新思考过程
+function updateThinking(messageId, thinking) {
+    const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (!messageDiv) return;
+    
+    let thinkingDiv = messageDiv.querySelector('.thinking-process');
+    if (!thinkingDiv) {
+        thinkingDiv = document.createElement('div');
+        thinkingDiv.className = 'thinking-process';
+        messageDiv.insertBefore(thinkingDiv, messageDiv.querySelector('.message-content'));
+        messageDiv.classList.add('has-thinking');
+    }
+    
+    if (thinking.type === 'calling_function') {
+        const functionItem = document.createElement('div');
+        functionItem.className = 'thinking-item calling';
+        functionItem.innerHTML = `
+            <div class="thinking-header">
+                <i class="fas fa-cog fa-spin"></i>
+                <span>调用函数: ${escapeHtml(thinking.function)}</span>
+            </div>
+            <div class="thinking-args">${escapeHtml(JSON.stringify(thinking.args, null, 2))}</div>
+        `;
+        thinkingDiv.appendChild(functionItem);
+    } else if (thinking.type === 'function_result') {
+        const functionItem = document.createElement('div');
+        functionItem.className = 'thinking-item result';
+        functionItem.innerHTML = `
+            <div class="thinking-header">
+                <i class="fas fa-check-circle"></i>
+                <span>函数结果: ${escapeHtml(thinking.function)}</span>
+            </div>
+            <div class="thinking-result">${escapeHtml(JSON.stringify(thinking.result, null, 2))}</div>
+        `;
+        thinkingDiv.appendChild(functionItem);
+    }
+    
+    scrollToBottom();
+}
+
 // 移除消息
 function removeMessage(messageId) {
     const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
@@ -462,7 +511,9 @@ function formatMessage(content) {
 // 加载对话列表
 async function loadConversations() {
     try {
-        const response = await fetch('/api/conversations');
+        const response = await fetch('/api/conversations', {
+            credentials: 'same-origin'
+        });
         const data = await response.json();
         
         elements.conversationsList.innerHTML = '';
@@ -495,7 +546,9 @@ async function loadConversations() {
 // 加载特定对话
 async function loadConversation(conversationId) {
     try {
-        const response = await fetch(`/api/conversations/${conversationId}`);
+        const response = await fetch(`/api/conversations/${conversationId}`, {
+            credentials: 'same-origin'
+        });
         const data = await response.json();
         
         currentConversationId = conversationId;
@@ -535,7 +588,8 @@ async function deleteConversation(conversationId, event) {
     
     try {
         const response = await fetch(`/api/conversations/${conversationId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'same-origin'
         });
         
         if (response.ok) {

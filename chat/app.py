@@ -28,6 +28,9 @@ from contextlib import contextmanager
 # 导入 skills 模块
 from skills import register_all_skills
 
+# 导入调度器模块
+from scheduler import scheduler
+
 # 加载 .env 文件中的环境变量
 load_dotenv()
 
@@ -1733,40 +1736,102 @@ def chat():
                 tool_calls = response_message.tool_calls
                 full_response = ''
                 
+                # 如果有中间 content，先发送给前端
+                if response_message.content:
+                    yield f"data: {json.dumps({'content': response_message.content})}\n\n"
+                    full_response += response_message.content
+                
                 if tool_calls:
+                    # 保存带 tool_calls 的助手消息到数据库
+                    messages.append({
+                        'role': 'assistant',
+                        'content': full_response,
+                        'tool_calls': [{
+                            'id': tc.id,
+                            'function': {
+                                'name': tc.function.name,
+                                'arguments': tc.function.arguments
+                            }
+                        } for tc in (tool_calls if isinstance(tool_calls, list) else [tool_calls])]
+                    })
+                    
                     # AI 决定调用技能
                     api_messages.append(response_message)
                     
-                    # 执行所有被调用的技能
-                    for tool_call in tool_calls:
-                        function_name = tool_call.function.name
-                        function_args = json.loads(tool_call.function.arguments)
+                    # 循环处理多轮 tool_calls
+                    needs_stream = False
+                    while tool_calls:
+                        # 执行所有被调用的技能
+                        for tool_call in tool_calls:
+                            function_name = tool_call.function.name
+                            function_args = json.loads(tool_call.function.arguments)
+                            
+                            # 发送思考过程：正在调用函数
+                            yield f"data: {json.dumps({'thinking': {'type': 'calling_function', 'function': function_name, 'args': function_args}})}\n\n"
+                            
+                            # 执行技能
+                            result = skill_registry.execute_skill(function_name, **function_args)
+                            
+                            # 发送思考过程：函数执行结果
+                            yield f"data: {json.dumps({'thinking': {'type': 'function_result', 'function': function_name, 'result': result}})}\n\n"
+                            
+                            # 将技能执行结果添加到消息中
+                            tool_result_msg = {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": function_name,
+                                "content": json.dumps(result, ensure_ascii=False)
+                            }
+                            api_messages.append(tool_result_msg)
+                            messages.append(tool_result_msg)
                         
-                        # 执行技能
-                        result = skill_registry.execute_skill(function_name, **function_args)
+                        # 再次调用 API 获取回复（可能还有更多 tool_calls）
+                        response = client.chat.completions.create(
+                            model=model,
+                            messages=api_messages,
+                            tools=tools if tools else None,
+                            tool_choice="auto" if tools else None,
+                            temperature=0.7,
+                            max_tokens=2000
+                        )
                         
-                        # 将技能执行结果添加到消息中
-                        api_messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": function_name,
-                            "content": json.dumps(result, ensure_ascii=False)
+                        response_message = response.choices[0].message
+                        tool_calls = response_message.tool_calls
+                        
+                        # 如果没有更多 tool_calls 了，准备使用流式获取最终回复
+                        if not tool_calls:
+                            needs_stream = True
+                            break
+                        
+                        # 还有更多 tool_calls
+                        api_messages.append(response_message)
+                        messages.append({
+                            'role': 'assistant',
+                            'content': response_message.content or '',
+                            'tool_calls': [{
+                                'id': tc.id,
+                                'function': {
+                                    'name': tc.function.name,
+                                    'arguments': tc.function.arguments
+                                }
+                            } for tc in (tool_calls if isinstance(tool_calls, list) else [tool_calls])]
                         })
                     
-                    # 再次调用 API 获取最终回复（流式）
-                    stream = client.chat.completions.create(
-                        model=model,
-                        messages=api_messages,
-                        stream=True,
-                        temperature=0.7,
-                        max_tokens=2000
-                    )
-                    
-                    for chunk in stream:
-                        if chunk.choices[0].delta.content:
-                            content = chunk.choices[0].delta.content
-                            full_response += content
-                            yield f"data: {json.dumps({'content': content})}\n\n"
+                    # 使用流式 API 获取最终回复
+                    if needs_stream:
+                        stream = client.chat.completions.create(
+                            model=model,
+                            messages=api_messages,
+                            stream=True,
+                            temperature=0.7,
+                            max_tokens=2000
+                        )
+                        
+                        for chunk in stream:
+                            if chunk.choices[0].delta.content:
+                                content = chunk.choices[0].delta.content
+                                full_response += content
+                                yield f"data: {json.dumps({'content': content})}\n\n"
                 else:
                     # 没有调用技能，直接流式返回
                     stream = client.chat.completions.create(
@@ -2804,11 +2869,24 @@ def create_schedule():
             return jsonify({'error': f'缺少必要字段: {field}'}), 400
     
     try:
+        from croniter import croniter
+        from datetime import datetime
+        
+        cron_str = data['cron']
+        next_run = None
+        
+        if data.get('status', 'active') == 'active':
+            try:
+                cron = croniter(cron_str, datetime.now())
+                next_run = cron.get_next(datetime)
+            except Exception as e:
+                print(f"Cron 解析错误: {e}")
+        
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    "INSERT INTO schedules (name, description, username, cron, preset, command, status) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO schedules (name, description, username, cron, preset, command, status, next_run_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                     (
                         data['name'],
                         data.get('description', ''),
@@ -2816,7 +2894,8 @@ def create_schedule():
                         data['cron'],
                         data.get('preset', ''),
                         data['command'],
-                        data.get('status', 'active')
+                        data.get('status', 'active'),
+                        next_run
                     )
                 )
                 schedule_id = cursor.lastrowid
@@ -2893,6 +2972,26 @@ def update_schedule(schedule_id):
                     tuple(update_values)
                 )
                 conn.commit()
+                
+                if 'cron' in data or 'status' in data:
+                    cursor.execute(
+                        "SELECT cron, status FROM schedules WHERE id = %s",
+                        (schedule_id,)
+                    )
+                    schedule = cursor.fetchone()
+                    if schedule and schedule['status'] == 'active':
+                        from croniter import croniter
+                        from datetime import datetime
+                        try:
+                            cron = croniter(schedule['cron'], datetime.now())
+                            next_run = cron.get_next(datetime)
+                            cursor.execute(
+                                "UPDATE schedules SET next_run_at = %s WHERE id = %s",
+                                (next_run, schedule_id)
+                            )
+                            conn.commit()
+                        except Exception as e:
+                            print(f"更新下次执行时间失败: {e}")
                 
                 # 返回更新后的定时任务
                 cursor.execute(
@@ -4091,7 +4190,14 @@ if __name__ == '__main__':
         skill = skill_registry.get_skill(skill_name)
         print(f"   - {skill_name}: {skill.description[:50]}...")
     
-    print(f"📝 访问地址: http://localhost:5000")
+    # 启动定时任务调度器
+    try:
+        scheduler.initialize_schedules()
+        scheduler.start()
+    except Exception as e:
+        print(f"⚠️  定时任务调度器启动失败: {e}")
+    
+    print(f"📝 访问地址: http://localhost:8000")
     print("="*50 + "\n")
     
     app.run(host='0.0.0.0', port=8000, debug=True)

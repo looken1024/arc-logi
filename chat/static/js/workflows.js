@@ -39,7 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // 加载用户信息
 async function loadUserInfo() {
     try {
-        const response = await fetch('/api/user');
+        const response = await fetch('/api/user', {
+            credentials: 'same-origin'
+        });
         if (response.ok) {
             const user = await response.json();
             currentUser = user;
@@ -98,7 +100,9 @@ async function loadWorkflows() {
     try {
         elements.workflowsList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><span>加载中...</span></div>';
         
-        const response = await fetch('/api/workflows');
+        const response = await fetch('/api/workflows', {
+            credentials: 'same-origin'
+        });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -282,6 +286,7 @@ async function saveWorkflow() {
             // 更新现有工作流
             response = await fetch(`/api/workflows/${workflowId}`, {
                 method: 'PUT',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -291,6 +296,7 @@ async function saveWorkflow() {
             // 创建新工作流
             response = await fetch('/api/workflows', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -319,7 +325,9 @@ async function saveWorkflow() {
 // 编辑工作流
 async function editWorkflow(workflowId) {
     try {
-        const response = await fetch(`/api/workflows/${workflowId}`);
+        const response = await fetch(`/api/workflows/${workflowId}`, {
+            credentials: 'same-origin'
+        });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -354,7 +362,8 @@ async function confirmDeleteWorkflow() {
         elements.confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 删除中...';
         
         const response = await fetch(`/api/workflows/${workflowToDelete}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'same-origin'
         });
         
         if (!response.ok) {
@@ -379,7 +388,8 @@ async function confirmDeleteWorkflow() {
 async function startWorkflow(workflowId) {
     try {
         const response = await fetch(`/api/workflows/${workflowId}/start`, {
-            method: 'POST'
+            method: 'POST',
+            credentials: 'same-origin'
         });
         
         if (!response.ok) {
@@ -400,7 +410,8 @@ async function startWorkflow(workflowId) {
 async function pauseWorkflow(workflowId) {
     try {
         const response = await fetch(`/api/workflows/${workflowId}/pause`, {
-            method: 'POST'
+            method: 'POST',
+            credentials: 'same-origin'
         });
         
         if (!response.ok) {
@@ -422,6 +433,7 @@ async function executeWorkflow(workflowId) {
     try {
         const response = await fetch(`/api/workflows/${workflowId}/execute`, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
             },

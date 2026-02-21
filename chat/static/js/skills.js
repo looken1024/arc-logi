@@ -6,7 +6,9 @@ async function loadSkills() {
     const skillsGrid = document.getElementById('skillsGrid');
     
     try {
-        const response = await fetch('/api/skills/scan');
+        const response = await fetch('/api/skills/scan', {
+            credentials: 'same-origin'
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -60,6 +62,7 @@ async function updateSkillStatus(skillName, enabled) {
     try {
         const response = await fetch(`/api/user/skills/${encodeURIComponent(skillName)}`, {
             method: 'PUT',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
             },
