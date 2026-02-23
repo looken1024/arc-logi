@@ -325,15 +325,14 @@ async function loadNodes() {
             nodes = {};
             
             nodesData.forEach(nodeData => {
+                // 使用 node_id 字段作为节点ID（后端返回的是 node_id，不是 id）
+                if (nodeData.node_id) {
+                    nodeData.id = nodeData.node_id;
+                }
                 createNodeFromData(nodeData);
             });
             
-            // 重新绘制连接
-            setTimeout(() => {
-                Object.values(edges).forEach(edge => {
-                    connectNodes(edge.source_node_id, edge.target_node_id);
-                });
-            }, 100);
+            // 连接将在 loadEdges 中绘制
         }
     } catch (error) {
         console.error('加载节点失败:', error);
@@ -355,6 +354,12 @@ async function loadEdges() {
             edgesData.forEach(edgeData => {
                 edges[edgeData.id] = edgeData;
             });
+            
+            setTimeout(() => {
+                Object.values(edges).forEach(edge => {
+                    connectNodes(edge.source_node_id, edge.target_node_id);
+                });
+            }, 300);
         }
     } catch (error) {
         console.error('加载边失败:', error);
@@ -507,11 +512,13 @@ async function createEdge(sourceNodeId, targetNodeId) {
         });
         
         if (response.ok) {
-            const edge = await response.json();
+            const responseData = await response.json();
+            console.log('边创建响应:', responseData);
+            const edge = responseData.edge || responseData;
             edges[edge.id] = edge;
-            console.log('边创建成功:', edge);
+            console.log('边创建成功，存储的边:', edge);
         } else {
-            console.error('创建边失败');
+            console.error('创建边失败，状态:', response.status);
         }
     } catch (error) {
         console.error('创建边失败:', error);
@@ -525,20 +532,29 @@ async function deleteEdgeByNodes(sourceNodeId, targetNodeId) {
         return;
     }
     // 找到匹配的边
-    const edge = Object.values(edges).find(e => 
-        e.source_node_id === sourceNodeId && e.target_node_id === targetNodeId
-    );
+    const edge = Object.values(edges).find(e => {
+        const edgeObj = e.edge || e;
+        return edgeObj.source_node_id === sourceNodeId && edgeObj.target_node_id === targetNodeId;
+    });
     
-    if (!edge) return;
+    if (!edge) {
+        console.log('未找到匹配的边，source:', sourceNodeId, 'target:', targetNodeId, '现有边:', Object.values(edges).map(e => {
+            const obj = e.edge || e;
+            return { id: obj.id, source: obj.source_node_id, target: obj.target_node_id };
+        }));
+        return;
+    }
     
+    const edgeObj = edge.edge || edge;
+    console.log('找到边:', edgeObj);
     try {
-        const response = await fetch(`/api/workflows/${workflowId}/edges/${edge.id}`, {
+        const response = await fetch(`/api/workflows/${workflowId}/edges/${edgeObj.id}`, {
             method: 'DELETE'
         });
         
         if (response.ok) {
-            delete edges[edge.id];
-            console.log('边删除成功:', edge.id);
+            delete edges[edgeObj.id];
+            console.log('边删除成功:', edgeObj.id);
         } else {
             console.error('删除边失败');
         }
@@ -552,27 +568,29 @@ async function deleteEdgesForNode(nodeId) {
         console.error('无效的工作流ID，无法删除节点相关的边:', workflowId);
         return;
     }
-    const edgesToDelete = Object.values(edges).filter(e => 
-        e.source_node_id === nodeId || e.target_node_id === nodeId
-    );
+    const edgesToDelete = Object.values(edges).filter(e => {
+        const edgeObj = e.edge || e;
+        return edgeObj.source_node_id === nodeId || edgeObj.target_node_id === nodeId;
+    });
     
     for (const edge of edgesToDelete) {
+        const edgeObj = edge.edge || edge;
         try {
-            const response = await fetch(`/api/workflows/${workflowId}/edges/${edge.id}`, {
+            const response = await fetch(`/api/workflows/${workflowId}/edges/${edgeObj.id}`, {
                 method: 'DELETE'
             });
             
             if (response.ok) {
-                delete edges[edge.id];
+                delete edges[edgeObj.id];
                 // 从 jsPlumb 移除连接
                 if (jsPlumbInstance) {
                     try {
                         const connections = jsPlumbInstance.getConnections({
-                            source: edge.source_node_id,
-                            target: edge.target_node_id
+                            source: edgeObj.source_node_id,
+                            target: edgeObj.target_node_id
                         });
                         connections.forEach(conn => jsPlumbInstance.deleteConnection(conn));
-                        console.log('边删除成功:', edge.id);
+                        console.log('边删除成功:', edgeObj.id);
                     } catch (error) {
                         console.error('Error removing connections:', error);
                     }
