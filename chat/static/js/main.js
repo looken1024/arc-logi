@@ -12,7 +12,7 @@ let currentTheme = 'dark';
 const elements = {
     sidebar: document.getElementById('sidebar'),
     sidebarToggle: document.getElementById('sidebarToggle'),
-    mainContent: document.getElementById('mainContent'),
+    mainContent: document.querySelector('.main-content'),
     newChatBtn: document.getElementById('newChatBtn'),
     conversationsList: document.getElementById('conversationsList'),
     chatContainer: document.getElementById('chatContainer'),

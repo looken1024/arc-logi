@@ -368,9 +368,20 @@ async function loadEdges() {
 
 // 初始化事件监听器
 function initializeEventListeners() {
+    const mainContent = document.querySelector('.main-content');
+
     // 侧边栏切换
     elements.sidebarToggle?.addEventListener('click', () => {
         elements.sidebar.classList.toggle('collapsed');
+    });
+
+    // 移动端点击主内容区关闭侧边栏
+    mainContent?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 &&
+            e.target.closest('.sidebar-toggle') === null &&
+            elements.sidebar?.classList.contains('collapsed')) {
+            elements.sidebar.classList.remove('collapsed');
+        }
     });
     
     // 保存工作流

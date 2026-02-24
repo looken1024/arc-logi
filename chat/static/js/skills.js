@@ -29,9 +29,18 @@ function applyTheme(theme) {
 function initializeEventListeners() {
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    const mainContent = document.querySelector('.main-content');
     
     sidebarToggle?.addEventListener('click', () => {
         sidebar.classList.toggle('active');
+    });
+
+    mainContent?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 &&
+            e.target.closest('.sidebar-toggle') === null &&
+            sidebar?.classList.contains('active')) {
+            sidebar.classList.remove('active');
+        }
     });
 
     let touchStartX = 0;

@@ -71,8 +71,18 @@ function applyTheme(theme) {
 }
 
 function initializeEventListeners() {
+    const mainContent = document.querySelector('.main-content');
+
     elements.sidebarToggle?.addEventListener('click', () => {
         elements.sidebar.classList.toggle('active');
+    });
+
+    mainContent?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 &&
+            e.target.closest('.sidebar-toggle') === null &&
+            elements.sidebar?.classList.contains('active')) {
+            elements.sidebar.classList.remove('active');
+        }
     });
 
     elements.createPromptBtn?.addEventListener('click', () => {

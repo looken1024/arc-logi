@@ -66,9 +66,20 @@ function applyTheme(theme) {
 
 // 初始化事件监听器
 function initializeEventListeners() {
+    const mainContent = document.querySelector('.main-content');
+
     // 侧边栏切换
     elements.sidebarToggle?.addEventListener('click', () => {
         elements.sidebar.classList.toggle('active');
+    });
+
+    // 移动端点击主内容区关闭侧边栏
+    mainContent?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 &&
+            e.target.closest('.sidebar-toggle') === null &&
+            elements.sidebar?.classList.contains('active')) {
+            elements.sidebar.classList.remove('active');
+        }
     });
 
     // 移动端左滑关闭侧边栏
