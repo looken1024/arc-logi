@@ -276,6 +276,27 @@ def init_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
             
+            # 创建Agent表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS agents (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    system_prompt TEXT,
+                    prompt_id INT,
+                    model VARCHAR(50) DEFAULT 'gpt-4',
+                    temperature FLOAT DEFAULT 0.7,
+                    max_tokens INT DEFAULT 2000,
+                    username VARCHAR(50) NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_name (name),
+                    INDEX idx_prompt_id (prompt_id),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
             conn.commit()
             print("✅ 数据库表初始化完成")
 
@@ -1488,6 +1509,13 @@ def prompts_page():
         return redirect(url_for('login'))
     return render_template('prompts.html')
 
+@app.route('/agents')
+def agents_page():
+    """Agent管理页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('agents.html')
+
 @app.route('/workflows/editor/<int:workflow_id>')
 def workflow_editor(workflow_id):
     """工作流编辑器页面"""
@@ -1671,13 +1699,49 @@ def chat():
         message = data.get('message', '')
         conversation_id = data.get('conversation_id', 'default')
         model = data.get('model', 'deepseek-chat')
+        agent_id = data.get('agent_id')
+        system_prompt = data.get('system_prompt', '')
         username = session['username']
         
         if not message:
             return jsonify({'error': '消息不能为空'}), 400
         
+        # 如果有agent_id，获取Agent信息
+        print(f'[Chat] agent_id={agent_id}, 前端system_prompt长度={len(system_prompt)}')
+        if agent_id:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT * FROM agents WHERE id = %s AND username = %s",
+                        (agent_id, username)
+                    )
+                    agent = cursor.fetchone()
+                    if agent:
+                        model = agent.get('model', model)
+                        print(f'[Chat] agent.system_prompt长度={len(agent.get("system_prompt", ""))}, prompt_id={agent.get("prompt_id")}')
+                        if agent.get('system_prompt'):
+                            system_prompt = agent['system_prompt']
+                            print(f'[Chat] 使用agent.system_prompt')
+                        elif agent.get('prompt_id'):
+                            cursor.execute(
+                                "SELECT content FROM prompts WHERE id = %s AND username = %s",
+                                (agent['prompt_id'], username)
+                            )
+                            prompt = cursor.fetchone()
+                            if prompt:
+                                system_prompt = prompt['content']
+                                print(f'[Chat] 通过prompt_id={agent.get("prompt_id")}获取提示词')
+        
         # 获取对话历史
         messages = get_conversation_from_db(conversation_id, username)
+        
+        # 如果有system_prompt，添加到消息开头
+        if system_prompt:
+            messages.insert(0, {
+                'role': 'system',
+                'content': system_prompt,
+                'timestamp': datetime.now().isoformat()
+            })
         
         # 添加用户消息
         messages.append({
@@ -1707,7 +1771,7 @@ def chat():
                 api_messages = [
                     {'role': msg['role'], 'content': msg['content']}
                     for msg in messages
-                    if msg['role'] in ['user', 'assistant']
+                    if msg['role'] in ['system', 'user', 'assistant']
                 ]
                 
                 # 获取用户启用的技能函数定义
@@ -3424,6 +3488,181 @@ def delete_prompt(prompt_id):
                 
                 if cursor.rowcount == 0:
                     return jsonify({'error': '提示词不存在'}), 404
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Agent管理 API ====================
+
+@app.route('/api/agents', methods=['GET'])
+def get_agents():
+    """获取Agent列表"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    search = request.args.get('search', '')
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                if search:
+                    cursor.execute(
+                        """SELECT a.*, p.name as prompt_name 
+                           FROM agents a 
+                           LEFT JOIN prompts p ON a.prompt_id = p.id 
+                           WHERE a.username = %s AND (a.name LIKE %s OR a.description LIKE %s) 
+                           ORDER BY a.updated_at DESC""",
+                        (username, f'%{search}%', f'%{search}%')
+                    )
+                else:
+                    cursor.execute(
+                        """SELECT a.*, p.name as prompt_name 
+                           FROM agents a 
+                           LEFT JOIN prompts p ON a.prompt_id = p.id 
+                           WHERE a.username = %s 
+                           ORDER BY a.updated_at DESC""",
+                        (username,)
+                    )
+                agents = cursor.fetchall()
+                return jsonify({'agents': agents})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/agents', methods=['POST'])
+def create_agent():
+    """创建Agent"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    system_prompt = data.get('system_prompt', '').strip()
+    prompt_id = data.get('prompt_id')
+    model = data.get('model', 'gpt-4')
+    temperature = data.get('temperature', 0.7)
+    max_tokens = data.get('max_tokens', 2000)
+    
+    if not name:
+        return jsonify({'error': 'Agent名称不能为空'}), 400
+    
+    if not system_prompt and not prompt_id:
+        return jsonify({'error': '请设置系统提示词或选择提示词模板'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO agents (name, description, system_prompt, prompt_id, model, temperature, max_tokens, username) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (name, description, system_prompt, prompt_id, model, temperature, max_tokens, username)
+                )
+                conn.commit()
+                agent_id = cursor.lastrowid
+                
+                return jsonify({
+                    'success': True,
+                    'agent': {
+                        'id': agent_id,
+                        'name': name,
+                        'description': description,
+                        'prompt_id': prompt_id
+                    }
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/agents/<int:agent_id>', methods=['GET'])
+def get_agent(agent_id):
+    """获取单个Agent"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT a.*, p.name as prompt_name, p.content as prompt_content 
+                       FROM agents a 
+                       LEFT JOIN prompts p ON a.prompt_id = p.id 
+                       WHERE a.id = %s AND a.username = %s""",
+                    (agent_id, username)
+                )
+                agent = cursor.fetchone()
+                
+                if not agent:
+                    return jsonify({'error': 'Agent不存在'}), 404
+                
+                return jsonify({'agent': agent})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/agents/<int:agent_id>', methods=['PUT'])
+def update_agent(agent_id):
+    """更新Agent"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    system_prompt = data.get('system_prompt', '').strip()
+    prompt_id = data.get('prompt_id')
+    model = data.get('model', 'gpt-4')
+    temperature = data.get('temperature', 0.7)
+    max_tokens = data.get('max_tokens', 2000)
+    
+    if not name:
+        return jsonify({'error': 'Agent名称不能为空'}), 400
+    
+    if not system_prompt and not prompt_id:
+        return jsonify({'error': '请设置系统提示词或选择提示词模板'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """UPDATE agents SET name = %s, description = %s, system_prompt = %s, prompt_id = %s, 
+                       model = %s, temperature = %s, max_tokens = %s, updated_at = CURRENT_TIMESTAMP 
+                       WHERE id = %s AND username = %s""",
+                    (name, description, system_prompt, prompt_id, model, temperature, max_tokens, agent_id, username)
+                )
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Agent不存在'}), 404
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/agents/<int:agent_id>', methods=['DELETE'])
+def delete_agent(agent_id):
+    """删除Agent"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM agents WHERE id = %s AND username = %s",
+                    (agent_id, username)
+                )
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Agent不存在'}), 404
                 
                 return jsonify({'success': True})
     except Exception as e:

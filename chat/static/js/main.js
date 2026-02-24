@@ -1,7 +1,10 @@
 // 全局状态
 let currentConversationId = generateUUID();
 let isGenerating = false;
+let currentAgent = null;
 let currentModel = 'deepseek-chat';
+let currentSystemPrompt = '';
+let agents = [];
 let currentUser = null;
 let currentTheme = 'dark';
 
@@ -17,7 +20,7 @@ const elements = {
     messagesContainer: document.getElementById('messagesContainer'),
     messageInput: document.getElementById('messageInput'),
     sendBtn: document.getElementById('sendBtn'),
-    modelSelect: document.getElementById('modelSelect'),
+    agentSelect: document.getElementById('agentSelect'),
     clearBtn: document.getElementById('clearBtn'),
     settingsBtn: document.getElementById('settingsBtn'),
     username: document.getElementById('username'),
@@ -33,6 +36,7 @@ const elements = {
 document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
+    loadAgentsForSelect();
     if (document.getElementById('conversationsList')) {
         loadConversations();
     }
@@ -83,6 +87,30 @@ function applyTheme(theme) {
             option.classList.remove('active');
         }
     });
+}
+
+// 加载Agent列表
+async function loadAgentsForSelect() {
+    try {
+        const response = await fetch('/api/agents', {
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            agents = data.agents || [];
+            
+            const optionsHtml = agents.map(agent => 
+                `<option value="${agent.id}">${escapeHtml(agent.name)}</option>`
+            ).join('');
+            
+            if (elements.agentSelect) {
+                elements.agentSelect.innerHTML = `<option value="">默认模式</option>${optionsHtml}`;
+            }
+        }
+    } catch (error) {
+        console.error('加载Agent列表失败:', error);
+    }
 }
 
 // 初始化事件监听器
@@ -149,9 +177,23 @@ function initializeEventListeners() {
         }
     });
 
-    // 模型选择
-    elements.modelSelect?.addEventListener('change', (e) => {
-        currentModel = e.target.value;
+    // Agent选择
+    elements.agentSelect?.addEventListener('change', async (e) => {
+        const agentId = e.target.value;
+        if (agentId) {
+            const agent = agents.find(a => a.id === parseInt(agentId));
+            if (agent) {
+                currentAgent = agent;
+                currentModel = agent.model || 'deepseek-chat';
+                currentSystemPrompt = agent.system_prompt || '';
+                console.log('[Agent选择] agent:', agent.name, 'system_prompt长度:', agent.system_prompt ? agent.system_prompt.length : 0, 'prompt_id:', agent.prompt_id);
+            }
+        } else {
+            currentAgent = null;
+            currentModel = 'deepseek-chat';
+            currentSystemPrompt = '';
+            console.log('[Agent选择] 切换到默认模式，无agent');
+        }
     });
 
     // 清空对话
@@ -206,6 +248,11 @@ function initializeEventListeners() {
     // 打开提示词管理
     document.getElementById('openPrompts')?.addEventListener('click', () => {
         window.location.href = '/prompts';
+    });
+
+    // 打开Agent管理
+    document.getElementById('openAgents')?.addEventListener('click', () => {
+        window.location.href = '/agents';
     });
 
     // 点击其他地方关闭下拉菜单
@@ -321,17 +368,25 @@ async function sendMessage() {
     elements.sendBtn.innerHTML = '<i class="fas fa-stop"></i>';
 
     try {
+        const requestBody = {
+            message: message,
+            conversation_id: currentConversationId,
+            model: currentModel
+        };
+        
+        if (currentAgent) {
+            requestBody.agent_id = currentAgent.id;
+            requestBody.system_prompt = currentSystemPrompt;
+            console.log('[发送消息] 使用agent:', currentAgent.name, 'system_prompt长度:', currentSystemPrompt.length);
+        }
+        
         const response = await fetch('/api/chat', {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                message: message,
-                conversation_id: currentConversationId,
-                model: currentModel
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent管理 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-secondary: var(--bg-color);
+            --text-primary: var(--text-color);
+            --bg-tertiary: var(--hover-bg);
+        }
+        body[data-theme="light"] {
+            --bg-secondary: #f0f0f0;
+            --text-primary: #1a1a1a;
+            --bg-tertiary: #e5e5e5;
+        }
+        body[data-theme="blue"] {
+            --bg-secondary: #1e293b;
+            --text-primary: #ececec;
+            --bg-tertiary: #334155;
+        }
+        body[data-theme="green"] {
+            --bg-secondary: #1a2e1a;
+            --text-primary: #ececec;
+            --bg-tertiary: #2d4d2d;
+        }
+        body[data-theme="purple"] {
+            --bg-secondary: #2a1a3a;
+            --text-primary: #ececec;
+            --bg-tertiary: #4d2d6d;
+        }
+        .agents-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .agents-header .btn-primary {
+            padding: 8px 16px;
+            height: auto;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-secondary, #2a2a2a);
+            border: 1px solid var(--border-color, #404040);
+            border-radius: 8px;
+            padding: 8px 12px;
+            flex: 1;
+            max-width: 400px;
+        }
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary, #e0e0e0);
+            flex: 1;
+            outline: none;
+            font-size: 14px;
+        }
+        .search-box input::placeholder {
+            color: var(--text-muted, #888);
+        }
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 16px;
+        }
+        .agent-card {
+            background: var(--bg-secondary, #2a2a2a);
+            border: 1px solid var(--border-color, #404040);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .agent-card:hover {
+            border-color: var(--primary-color, #10a37f);
+            transform: translateY(-2px);
+        }
+        .agent-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .agent-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary, #e0e0e0);
+            margin: 0;
+            word-break: break-word;
+        }
+        .agent-card-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .agent-card-actions button {
+            background: transparent;
+            border: none;
+            color: var(--text-muted, #888);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .agent-card-actions button:hover {
+            background: var(--bg-tertiary, #333);
+            color: var(--text-primary, #e0e0e0);
+        }
+        .agent-card-actions .delete-btn:hover {
+            color: #e74c3c;
+        }
+        .agent-card-description {
+            font-size: 13px;
+            color: var(--text-muted, #888);
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .agent-card-preview {
+            background: var(--bg-tertiary, #333);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: var(--text-secondary, #aaa);
+            max-height: 80px;
+            overflow: hidden;
+            position: relative;
+        }
+        .agent-card-preview::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(transparent, var(--bg-tertiary, #333));
+        }
+        .agent-card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color, #404040);
+            font-size: 12px;
+            color: var(--text-muted, #888);
+        }
+        .agent-model-badge {
+            background: var(--primary-color, #10a37f);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .agent-prompt-badge {
+            background: var(--secondary-color, #19c37d);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted, #888);
+        }
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        .empty-state h3 {
+            margin: 0 0 8px;
+            color: var(--text-secondary, #aaa);
+        }
+        .empty-state p {
+            margin: 0;
+        }
+        .modal-body .form-group {
+            margin-bottom: 16px;
+        }
+        .modal-body label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: var(--text-primary, #e0e0e0);
+        }
+        .modal-body input,
+        .modal-body textarea,
+        .modal-body select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color, #404040);
+            border-radius: 6px;
+            background: var(--bg-tertiary, #333);
+            color: var(--text-primary, #e0e0e0);
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .modal-body textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: monospace;
+        }
+        .modal-body input:focus,
+        .modal-body textarea:focus,
+        .modal-body select:focus {
+            outline: none;
+            border-color: var(--primary-color, #10a37f);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .prompt-select-container {
+            position: relative;
+        }
+        .prompt-select-container select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <a href="/prompts" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>提示词管理</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-robot"></i>
+                    <span>Agent 管理</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>Agent 管理</h1>
+                <div class="header-actions agents-header">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="搜索Agent...">
+                    </div>
+                    <button class="btn btn-primary" id="createAgentBtn">
+                        <i class="fas fa-plus"></i>
+                        新建 Agent
+                    </button>
+                </div>
+            </header>
+
+            <div class="tools-container">
+                <div class="agents-grid" id="agentsList">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创建/编辑Agent模态框 -->
+    <div class="modal" id="agentModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="agentModalTitle">新建 Agent</h2>
+                <button class="modal-close" id="closeAgentModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="agentForm">
+                    <div class="form-group">
+                        <label for="agentName">Agent 名称</label>
+                        <input type="text" id="agentName" name="name" required placeholder="请输入Agent名称">
+                    </div>
+                    <div class="form-group">
+                        <label for="agentDescription">描述</label>
+                        <textarea id="agentDescription" name="description" rows="2" placeholder="请输入Agent描述"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="agentSystemPrompt">系统提示词</label>
+                        <textarea id="agentSystemPrompt" name="system_prompt" rows="5" placeholder="请输入系统提示词内容"></textarea>
+                    </div>
+                    <div class="form-group prompt-select-container">
+                        <label for="agentPromptId">关联提示词模板（可选）</label>
+                        <select id="agentPromptId" name="prompt_id">
+                            <option value="">-- 不使用提示词模板 --</option>
+                        </select>
+                        <p style="font-size: 12px; color: var(--text-muted, #888); margin-top: 4px;">选择提示词模板后，系统提示词将从模板中自动获取</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="agentModel">模型</label>
+                            <select id="agentModel" name="model">
+                                <option value="deepseek-chat">DeepSeek Chat</option>
+                                <option value="deepseek-coder">DeepSeek Coder</option>
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="agentTemperature">Temperature</label>
+                            <input type="number" id="agentTemperature" name="temperature" min="0" max="2" step="0.1" value="0.7" placeholder="0.7">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="agentMaxTokens">最大 Token 数</label>
+                        <input type="number" id="agentMaxTokens" name="max_tokens" min="100" max="32000" value="2000" placeholder="2000">
+                    </div>
+                    <input type="hidden" id="agentId" name="id" value="">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelAgentBtn">取消</button>
+                <button class="btn btn-primary" id="saveAgentBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认删除模态框 -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>确认删除</h2>
+                <button class="modal-close" id="closeDeleteModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteMessage">确定要删除这个Agent吗？此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeleteBtn">取消</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent详情模态框 -->
+    <div class="modal" id="agentDetailModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="agentDetailTitle">Agent 详情</h2>
+                <button class="modal-close" id="closeDetailModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="agent-detail-content" id="agentDetailContent">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeDetailBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/agents.js') }}"></script>
+</body>
+</html>
