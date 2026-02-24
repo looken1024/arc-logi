@@ -9,12 +9,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-card: #fff;
-            --text-primary: #333;
-            --text-secondary: #666;
-            --border-color: #e0e0e0;
-            --bg-light: #f5f5f5;
-            --primary-color: #6366f1;
+            --bg-card: #1e1e1e;
+            --text-primary: #ececec;
+            --text-secondary: #8e8e8e;
+            --border-color: #2d2d2d;
+            --bg-light: #2a2a2a;
+            --bg-hover: #333;
+            --sidebar-bg: #171717;
+            --primary-color: #10a37f;
         }
         body[data-theme="light"] {
             --bg-card: #fff;
@@ -22,13 +24,17 @@
             --text-secondary: #666;
             --border-color: #e0e0e0;
             --bg-light: #f5f5f5;
+            --bg-hover: #f0f0f0;
+            --sidebar-bg: #ffffff;
         }
         body[data-theme="dark"] {
-            --bg-card: #1e293b;
+            --bg-card: #1e1e1e;
             --text-primary: #ececec;
-            --text-secondary: #94a3b8;
-            --border-color: #334155;
-            --bg-light: #0f172a;
+            --text-secondary: #8e8e8e;
+            --border-color: #2d2d2d;
+            --bg-light: #2a2a2a;
+            --bg-hover: #333;
+            --sidebar-bg: #171717;
         }
         body[data-theme="blue"] {
             --bg-card: #1e293b;
@@ -36,6 +42,8 @@
             --text-secondary: #94a3b8;
             --border-color: #334155;
             --bg-light: #0f172a;
+            --bg-hover: #1e293b;
+            --sidebar-bg: #1e293b;
         }
         body[data-theme="green"] {
             --bg-card: #1a2e1a;
@@ -43,6 +51,8 @@
             --text-secondary: #94a3b8;
             --border-color: #2d4d2d;
             --bg-light: #0a0f0a;
+            --bg-hover: #1a2e1a;
+            --sidebar-bg: #0f1f0f;
         }
         body[data-theme="purple"] {
             --bg-card: #2a1a3a;
@@ -50,6 +60,8 @@
             --text-secondary: #94a3b8;
             --border-color: #4d2d6d;
             --bg-light: #0f0a1a;
+            --bg-hover: #2a1a3a;
+            --sidebar-bg: #1f0f2f;
         }
         .execution-item {
             border: 1px solid var(--border-color);
