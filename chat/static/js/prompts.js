@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPrompts();
 });
 
+let currentTheme = 'dark';
+
 async function loadUserInfo() {
     try {
         const response = await fetch('/api/user', {
@@ -53,6 +55,8 @@ async function loadUserInfo() {
             const user = await response.json();
             currentUser = user;
             elements.username.textContent = user.username;
+            currentTheme = user.theme || 'dark';
+            applyTheme(currentTheme);
         } else {
             window.location.href = '/login';
         }
@@ -61,9 +65,14 @@ async function loadUserInfo() {
     }
 }
 
+function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    currentTheme = theme;
+}
+
 function initializeEventListeners() {
     elements.sidebarToggle?.addEventListener('click', () => {
-        elements.sidebar.classList.toggle('collapsed');
+        elements.sidebar.classList.toggle('active');
     });
 
     elements.createPromptBtn?.addEventListener('click', () => {
@@ -141,9 +150,23 @@ async function loadPrompts(search = '') {
             renderPrompts();
         } else {
             console.error('加载提示词失败');
+            elements.promptsList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <h3>加载失败</h3>
+                    <p>请刷新页面重试</p>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('加载提示词失败:', error);
+        elements.promptsList.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-circle"></i>
+                <h3>加载失败</h3>
+                <p>请刷新页面重试</p>
+            </div>
+        `;
     }
 }
 

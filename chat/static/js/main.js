@@ -33,7 +33,9 @@ const elements = {
 document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
-    loadConversations();
+    if (document.getElementById('conversationsList')) {
+        loadConversations();
+    }
     autoResizeTextarea();
     initSidebar();
 });
@@ -55,7 +57,9 @@ async function loadUserInfo() {
         if (response.ok) {
             const user = await response.json();
             currentUser = user;
-            elements.username.textContent = user.username;
+            if (elements.username) {
+                elements.username.textContent = user.username;
+            }
             currentTheme = user.theme || 'dark';
             applyTheme(currentTheme);
         } else {

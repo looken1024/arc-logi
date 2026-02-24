@@ -7,6 +7,33 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/workflows.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-secondary: var(--bg-color);
+            --text-primary: var(--text-color);
+            --bg-tertiary: var(--hover-bg);
+        }
+        body[data-theme="light"] {
+            --bg-secondary: #f0f0f0;
+            --text-primary: #1a1a1a;
+            --bg-tertiary: #e5e5e5;
+        }
+        body[data-theme="blue"] {
+            --bg-secondary: #1e293b;
+            --text-primary: #ececec;
+            --bg-tertiary: #334155;
+        }
+        body[data-theme="green"] {
+            --bg-secondary: #1a2e1a;
+            --text-primary: #ececec;
+            --bg-tertiary: #2d4d2d;
+        }
+        body[data-theme="purple"] {
+            --bg-secondary: #2a1a3a;
+            --text-primary: #ececec;
+            --bg-tertiary: #4d2d6d;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">

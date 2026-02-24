@@ -1,6 +1,59 @@
+let currentTheme = 'dark';
+
 document.addEventListener('DOMContentLoaded', async () => {
+    await loadUserInfo();
+    initializeEventListeners();
     await loadSkills();
 });
+
+async function loadUserInfo() {
+    try {
+        const response = await fetch('/api/user', {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const user = await response.json();
+            currentTheme = user.theme || 'dark';
+            applyTheme(currentTheme);
+        }
+    } catch (error) {
+        console.error('加载用户信息失败:', error);
+    }
+}
+
+function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    currentTheme = theme;
+}
+
+function initializeEventListeners() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    sidebarToggle?.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+    document.addEventListener('touchend', (e) => {
+        if (window.innerWidth <= 768) {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchStartX - touchEndX > 50 && sidebar?.classList.contains('active')) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768 && sidebar) {
+            sidebar.classList.add('active');
+        }
+    });
+}
 
 async function loadSkills() {
     const skillsGrid = document.getElementById('skillsGrid');

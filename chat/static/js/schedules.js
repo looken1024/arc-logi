@@ -5,6 +5,7 @@ let currentUser = null;
 let schedules = [];
 let scheduleToDelete = null;
 let currentScheduleId = null;
+let currentTheme = 'dark';
 
 // DOM 元素
 const elements = {
@@ -57,6 +58,8 @@ async function loadUserInfo() {
             const user = await response.json();
             currentUser = user;
             elements.username.textContent = user.username;
+            currentTheme = user.theme || 'dark';
+            applyTheme(currentTheme);
         } else {
             // 未登录,重定向到登录页
             window.location.href = '/login';
@@ -66,11 +69,38 @@ async function loadUserInfo() {
     }
 }
 
+function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    currentTheme = theme;
+}
+
 // 初始化事件监听器
 function initializeEventListeners() {
     // 侧边栏切换
     elements.sidebarToggle?.addEventListener('click', () => {
-        elements.sidebar.classList.toggle('collapsed');
+        elements.sidebar.classList.toggle('active');
+    });
+
+    // 移动端左滑关闭侧边栏
+    let touchStartX = 0;
+    let touchEndX = 0;
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+    document.addEventListener('touchend', (e) => {
+        if (window.innerWidth <= 768) {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchStartX - touchEndX > 50 && elements.sidebar?.classList.contains('active')) {
+                elements.sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    // 窗口大小变化时更新侧边栏状态
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768 && elements.sidebar) {
+            elements.sidebar.classList.add('active');
+        }
     });
 
     // 新建定时任务按钮

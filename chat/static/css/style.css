@@ -19,6 +19,8 @@
     --input-bg: #1f1f1f;
     --scrollbar-bg: #2d2d2d;
     --scrollbar-thumb: #4d4d4d;
+    --card-bg: #1e1e1e;
+    --bg-hover: #333;
 }
 
 body {
@@ -1332,6 +1334,8 @@ body[data-theme="light"] {
     --input-bg: #ffffff;
     --scrollbar-bg: #d0d0d0;
     --scrollbar-thumb: #a0a0a0;
+    --card-bg: #ffffff;
+    --bg-hover: #f0f0f0;
 }
 
 body[data-theme="blue"] {
@@ -1341,6 +1345,8 @@ body[data-theme="blue"] {
     --sidebar-bg: #1e293b;
     --message-bg: #1e293b;
     --border-color: #334155;
+    --card-bg: #1e293b;
+    --bg-hover: #334155;
 }
 
 body[data-theme="green"] {
@@ -1350,6 +1356,8 @@ body[data-theme="green"] {
     --sidebar-bg: #0f1f0f;
     --message-bg: #1a2e1a;
     --border-color: #2d4d2d;
+    --card-bg: #1a2e1a;
+    --bg-hover: #2d4d2d;
 }
 
 body[data-theme="purple"] {
@@ -1359,6 +1367,8 @@ body[data-theme="purple"] {
     --sidebar-bg: #1f0f2f;
     --message-bg: #2a1a3a;
     --border-color: #4d2d6d;
+    --card-bg: #2a1a3a;
+    --bg-hover: #4d2d6d;
 }
 
 /* Skills 管理样式 */

@@ -8,12 +8,56 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --bg-card: #fff;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #e0e0e0;
+            --bg-light: #f5f5f5;
+            --primary-color: #6366f1;
+        }
+        body[data-theme="light"] {
+            --bg-card: #fff;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #e0e0e0;
+            --bg-light: #f5f5f5;
+        }
+        body[data-theme="dark"] {
+            --bg-card: #1e293b;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --bg-light: #0f172a;
+        }
+        body[data-theme="blue"] {
+            --bg-card: #1e293b;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --bg-light: #0f172a;
+        }
+        body[data-theme="green"] {
+            --bg-card: #1a2e1a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #2d4d2d;
+            --bg-light: #0a0f0a;
+        }
+        body[data-theme="purple"] {
+            --bg-card: #2a1a3a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #4d2d6d;
+            --bg-light: #0f0a1a;
+        }
         .execution-item {
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 12px;
-            background: #fff;
+            background: var(--bg-card);
+            color: var(--text-primary);
         }
         .execution-header {
             display: flex;
@@ -37,8 +81,8 @@
             font-weight: bold;
         }
         .status-pending {
-            background: #f0f0f0;
-            color: #666;
+            background: var(--bg-light);
+            color: var(--text-secondary);
         }
         .status-running {
             background: #e3f2fd;
@@ -53,13 +97,13 @@
             color: #d32f2f;
         }
         .execution-time {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 13px;
         }
         .execution-details {
             margin-top: 12px;
             padding-top: 12px;
-            border-top: 1px solid #f0f0f0;
+            border-top: 1px solid var(--border-color);
         }
         .detail-row {
             display: flex;
@@ -68,11 +112,11 @@
         .detail-label {
             flex: 0 0 100px;
             font-weight: bold;
-            color: #666;
+            color: var(--text-secondary);
         }
         .detail-value {
             flex: 1;
-            color: #333;
+            color: var(--text-primary);
         }
         .error-text {
             color: #d32f2f;
@@ -80,7 +124,7 @@
             word-break: break-word;
         }
         .output-text {
-            background: #f5f5f5;
+            background: var(--bg-light);
             padding: 8px;
             border-radius: 4px;
             max-height: 200px;
@@ -93,12 +137,12 @@
         .toggle-details-btn {
             background: none;
             border: none;
-            color: #666;
+            color: var(--text-secondary);
             cursor: pointer;
             padding: 4px;
         }
         .toggle-details-btn:hover {
-            color: #333;
+            color: var(--text-primary);
         }
 
         /* 定时任务卡片样式 */
@@ -110,13 +154,13 @@
         }
 
         .schedule-card {
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 0;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
         .schedule-card:hover {
@@ -130,13 +174,13 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .schedule-name {
             font-size: 18px;
             font-weight: 600;
-            color: #1e293b;
+            color: var(--text-primary);
             margin: 0;
             line-height: 1.4;
         }
@@ -166,7 +210,7 @@
         }
 
         .schedule-description {
-            color: #64748b;
+            color: var(--text-secondary);
             font-size: 14px;
             margin: 0 0 16px;
             line-height: 1.5;
@@ -185,7 +229,7 @@
         }
 
         .detail-item i {
-            color: #6366f1;
+            color: var(--primary-color);
             font-size: 14px;
             margin-top: 3px;
             width: 16px;
@@ -194,14 +238,14 @@
 
         .detail-label {
             font-size: 12px;
-            color: #94a3b8;
+            color: var(--text-secondary);
             font-weight: 500;
             min-width: 50px;
         }
 
         .cron-expression {
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            color: #475569;
+            background: var(--bg-light);
+            color: var(--text-primary);
             padding: 4px 10px;
             border-radius: 6px;
             font-family: 'Monaco', 'Menlo', monospace;
@@ -210,7 +254,7 @@
         }
 
         .schedule-command {
-            color: #334155;
+            color: var(--text-primary);
             font-size: 13px;
             word-break: break-all;
             flex: 1;
@@ -221,26 +265,29 @@
             gap: 16px;
             margin-top: 12px;
             padding-top: 12px;
-            border-top: 1px dashed #e2e8f0;
+            border-top: 1px dashed var(--border-color);
         }
 
         .meta-item {
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 12px;
-            color: #94a3b8;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .meta-item i {
+            color: var(--primary-color);
         }
 
         .meta-item i {
             font-size: 12px;
-            color: #cbd5e1;
+            color: var(--text-secondary);
         }
 
         .schedule-card-footer {
             padding: 16px 20px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
+            background: var(--bg-light);
+            border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: flex-end;
             gap: 8px;
@@ -254,9 +301,9 @@
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
-            border: 1px solid #e2e8f0;
-            background: #fff;
-            color: #64748b;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-secondary);
         }
 
         .schedule-card-footer .btn-icon:hover {
@@ -387,11 +434,11 @@
         .schedule-modal .form-group select {
             width: 100%;
             padding: 14px 16px;
-            background: #fff;
-            border: 2px solid #e5e7eb;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
             border-radius: 12px;
             font-size: 14px;
-            color: #1f2937;
+            color: var(--text-primary);
             transition: all 0.2s ease;
             box-sizing: border-box;
         }
@@ -400,7 +447,7 @@
         .schedule-modal .form-group textarea:focus,
         .schedule-modal .form-group select:focus {
             outline: none;
-            border-color: #6366f1;
+            border-color: var(--primary-color);
             box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         }
 
@@ -431,8 +478,8 @@
 
         .schedule-modal .modal-footer {
             padding: 16px 24px;
-            background: #fff;
-            border-top: 1px solid #e5e7eb;
+            background: var(--bg-light);
+            border-top: 1px solid var(--border-color);
             border-radius: 0 0 20px 20px;
         }
 
@@ -593,11 +640,11 @@
 
         .executions-modal .modal-body {
             padding: 20px 24px;
-            background: #fafbfc;
+            background: var(--bg-light);
         }
 
         .executions-modal .modal-footer {
-            background: #fff;
+            background: var(--bg-light);
         }
     </style>
 </head>
