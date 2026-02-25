@@ -94,7 +94,7 @@
         </main>
     </div>
 
-    <script src="{{ url_for('static', filename='js/md5.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         function encryptMD5() {
@@ -103,7 +103,7 @@
                 document.getElementById('outputText').value = '请输入要加密的字符串';
                 return;
             }
-            const result = MD5(input);
+            const result = md5(input);
             document.getElementById('outputText').value = result;
         }
 
@@ -129,7 +129,7 @@
             const lines = input.split('\n');
             const results = lines.map(line => {
                 if (line.trim()) {
-                    return MD5(line.trim());
+                    return md5(line.trim());
                 }
                 return '';
             }).filter(r => r !== '');
