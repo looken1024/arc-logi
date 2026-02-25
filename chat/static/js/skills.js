@@ -1,9 +1,11 @@
 let currentTheme = 'dark';
+let allSkills = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadUserInfo();
     initializeEventListeners();
     await loadSkills();
+    initializeSearch();
 });
 
 async function loadUserInfo() {
@@ -104,6 +106,7 @@ async function loadSkills() {
             `;
 
             skillsGrid.appendChild(skillItem);
+            allSkills.push(skill);
         });
 
         document.querySelectorAll('.skill-toggle').forEach(toggle => {
@@ -154,4 +157,42 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function initializeSearch() {
+    const searchInput = document.getElementById('skillSearch');
+    searchInput?.addEventListener('input', (e) => {
+        filterSkills(e.target.value);
+    });
+}
+
+function filterSkills(keyword) {
+    const skillsGrid = document.getElementById('skillsGrid');
+    const skillCards = skillsGrid.querySelectorAll('.skill-card');
+    const lowerKeyword = keyword.toLowerCase().trim();
+
+    skillCards.forEach(card => {
+        const name = card.dataset.skillName.toLowerCase();
+        const description = card.querySelector('.skill-info p').textContent.toLowerCase();
+
+        if (!lowerKeyword || name.includes(lowerKeyword) || description.includes(lowerKeyword)) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    const visibleCards = Array.from(skillCards).filter(card => card.style.display !== 'none');
+    if (visibleCards.length === 0) {
+        const existingEmpty = skillsGrid.querySelector('.search-empty');
+        if (!existingEmpty) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty-state search-empty';
+            emptyDiv.innerHTML = '<i class="fas fa-search"></i><span>没有找到匹配的技能</span>';
+            skillsGrid.appendChild(emptyDiv);
+        }
+    } else {
+        const emptyDiv = skillsGrid.querySelector('.search-empty');
+        emptyDiv?.remove();
+    }
 }
