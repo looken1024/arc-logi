@@ -1,0 +1,98 @@
+[
+  {
+    "command": "opencode run \"你好\"",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "你好！有什么我可以帮你的吗？\n",
+    "error": "\u001b[0m\n> build · minimax-m2.5-free\n\u001b[0m\n",
+    "returncode": 0,
+    "timestamp": "2026-03-01 00:35:58"
+  },
+  {
+    "command": "opencode run \"你好\"",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "你好！有什么我可以帮你的吗？\n",
+    "error": "\u001b[0m\n> build · minimax-m2.5-free\n\u001b[0m\n",
+    "returncode": 0,
+    "timestamp": "2026-03-01 00:35:34"
+  },
+  {
+    "command": "ls -lrt",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "总计 56\ndrwxr-xr-x 4 yangkai yangkai    27  2月28日 20:57 static\ndrwxr-xr-x 2 yangkai yangkai    40  2月28日 21:00 templates\n-rwxr-xr-x 1 yangkai yangkai  1005  2月28日 23:38 supervisor.sh\n-rw-r--r-- 1 yangkai yangkai 12674  2月28日 23:42 nohup.out\n-rwxr-xr-x 1 yangkai yangkai  3361  2月28日 23:54 ctl.sh\n-rw-r--r-- 1 yangkai yangkai   271  3月 1日 00:04 cookies.txt\n-rw-r--r-- 1 yangkai yangkai  8382  3月 1日 00:05 app.py\n-rw-r--r-- 1 yangkai yangkai  2636  3月 1日 00:34 command_history.json\n-rw-r--r-- 1 yangkai yangkai  9603  3月 1日 00:34 admin.log\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-03-01 00:34:56"
+  },
+  {
+    "command": "dir",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "admin.log  command_history.json  ctl.sh     static\t   templates\napp.py\t   cookies.txt\t\t nohup.out  supervisor.sh\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-03-01 00:34:54"
+  },
+  {
+    "command": "ls",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "admin.log\napp.py\ncommand_history.json\ncookies.txt\nctl.sh\nnohup.out\nstatic\nsupervisor.sh\ntemplates\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-03-01 00:34:52"
+  },
+  {
+    "command": "ls",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "admin.log\napp.py\ncommand_history.json\ncookies.txt\nctl.sh\nnohup.out\nstatic\nsupervisor.sh\ntemplates\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-03-01 00:34:08"
+  },
+  {
+    "command": "ls",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "admin.log\napp.py\ncommand_history.json\ncookies.txt\nctl.sh\nnohup.out\nstatic\nsupervisor.sh\ntemplates\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-03-01 00:33:06"
+  },
+  {
+    "command": "opencode run \"你好\"",
+    "workdir": "/home/yangkai/github/arc-logi/chat",
+    "output": "你好！有什么我可以帮助你的吗？\n",
+    "error": "\u001b[0m\n> build · minimax-m2.5-free\n\u001b[0m\n",
+    "returncode": 0,
+    "timestamp": "2026-02-28 23:30:22"
+  },
+  {
+    "command": "openchat",
+    "workdir": "/home/yangkai/github/arc-logi/chat",
+    "output": "/bin/sh: 行 1: openchat: 未找到命令\n",
+    "error": "/bin/sh: 行 1: openchat: 未找到命令\n",
+    "returncode": 127,
+    "timestamp": "2026-02-28 23:29:20"
+  },
+  {
+    "command": "ls",
+    "workdir": "/home/yangkai/github/arc-logi/chat",
+    "output": "app.py\nchat.db\nchat.log\nctl.sh\nFEATURES.md\nfix_dependencies.bat\nnohup.out\n__pycache__\nQUICKSTART.md\nREADME.md\nrequirements.txt\nscheduler.py\nschema.sql\nskills\nstatic\nsupervisor.sh\ntemplates\nTEST_CHECKLIST.md\ntest_skills.py\nuser_skills\nvenv\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-02-28 23:29:13"
+  },
+  {
+    "command": "ls",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "app.py\ncommand_history.json\ncookies.txt\nnohup.out\nstatic\ntemplates\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-02-28 23:28:55"
+  },
+  {
+    "command": "pwd",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "/home/yangkai/github/arc-logi/admin\n",
+    "error": "",
+    "returncode": 0,
+    "timestamp": "2026-02-28 21:03:30"
+  }
+]

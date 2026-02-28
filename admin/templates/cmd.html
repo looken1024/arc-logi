@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>远程命令执行 - Terminal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+
+        .login-box {
+            background: #2a2a2a;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4ade80;
+            font-size: 24px;
+        }
+
+        .login-box h2 i {
+            margin-right: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4ade80;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: #4ade80;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .login-btn:hover {
+            background: #22c55e;
+        }
+
+        .login-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .error-msg {
+            color: #f87171;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #4ade80;
+        }
+
+        .logo i {
+            font-size: 24px;
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #aaa;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: #2a2a2a;
+            color: #e0e0e0;
+        }
+
+        .nav-item.active {
+            background: #2a2a2a;
+            color: #4ade80;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px;
+            border-top: 1px solid #333;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+
+        .user-info i {
+            font-size: 20px;
+            color: #4ade80;
+        }
+
+        .user-info span {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #f87171;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .page-header {
+            padding: 16px 24px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            gap: 16px;
+            overflow: hidden;
+        }
+
+        .command-panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .command-input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .workdir-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .workdir-wrapper label {
+            color: #888;
+            font-size: 13px;
+        }
+
+        .workdir-wrapper input {
+            flex: 1;
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .workdir-wrapper input:focus {
+            outline: none;
+            border-color: #4ade80;
+        }
+
+        .command-textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 80px;
+            padding: 12px 16px;
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #22c55e;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .command-textarea:focus {
+            outline: none;
+            border-color: #4ade80;
+        }
+
+        .command-textarea::placeholder {
+            color: #666;
+        }
+
+        .execute-btn {
+            padding: 12px 24px;
+            background: #4ade80;
+            color: #0d0d0d;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            height: fit-content;
+        }
+
+        .execute-btn:hover {
+            background: #22c55e;
+        }
+
+        .execute-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        .execute-btn.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .execute-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .output-panel {
+            flex: 1;
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+
+        .output-header {
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .output-header h3 {
+            font-size: 14px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .output-header h3 i {
+            color: #4ade80;
+        }
+
+        .output-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .output-actions button {
+            padding: 6px 12px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #aaa;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .output-actions button:hover {
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        .output-content {
+            flex: 1;
+            padding: 16px;
+            overflow: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .output-content.success {
+            color: #22c55e;
+        }
+
+        .output-content.error {
+            color: #f87171;
+        }
+
+        .output-content .return-code {
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .output-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            gap: 12px;
+        }
+
+        .output-placeholder i {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+
+        .quick-commands {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #333;
+        }
+
+        .quick-commands span {
+            font-size: 12px;
+            color: #888;
+            margin-right: 4px;
+        }
+
+        .cmd-tag {
+            padding: 4px 10px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cmd-tag:hover {
+            background: #4ade80;
+            color: #0d0d0d;
+            border-color: #4ade80;
+        }
+
+        .history-panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            max-height: 300px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-header {
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .history-header h3 {
+            font-size: 14px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .history-header h3 i {
+            color: #fbbf24;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .history-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .history-item:hover {
+            background: #2a2a2a;
+        }
+
+        .history-item .cmd {
+            font-family: monospace;
+            font-size: 13px;
+            color: #22c55e;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-item .time {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .history-item .return-code {
+            font-size: 11px;
+            color: #888;
+            margin-left: 8px;
+        }
+
+        .history-item .return-code.success {
+            color: #22c55e;
+        }
+
+        .history-item .return-code.fail {
+            color: #f87171;
+        }
+
+        .empty-history {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="loginPage" class="login-container">
+        <div class="login-box">
+            <h2><i class="fas fa-terminal"></i> 命令执行</h2>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" placeholder="请输入密码" onkeypress="handleLoginKey(event)">
+            </div>
+            <button class="login-btn" id="loginBtn" onclick="login()">登录</button>
+            <div class="error-msg" id="loginError"></div>
+        </div>
+    </div>
+
+    <div id="appPage" class="app-container" style="display: none;">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-terminal"></i>
+                    <span>Remote CMD</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-item active">
+                    <i class="fas fa-terminal"></i>
+                    <span>命令执行</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="displayUsername">admin</span>
+                    <button class="logout-btn" onclick="logout()" title="退出登录">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <h1><i class="fas fa-terminal"></i> 远程命令执行</h1>
+            </header>
+
+            <div class="terminal-container">
+                <div class="command-panel">
+                    <div class="command-input-wrapper">
+                        <div style="flex: 1; width: 100%;">
+                            <div class="workdir-wrapper">
+                                <label><i class="fas fa-folder"></i> 工作目录:</label>
+                                <input type="text" id="workdir" placeholder="/home/user" onkeydown="handleCommandKey(event)">
+                            </div>
+                            <textarea class="command-textarea" id="commandInput" placeholder="输入要执行的命令，如: ls -la, ps aux, git status..." onkeydown="handleCommandKey(event)"></textarea>
+                        </div>
+                    </div>
+                    <div class="quick-commands">
+                        <span>快速命令:</span>
+                        <span class="cmd-tag" onclick="quickCommand('ls -la')">ls -la</span>
+                        <span class="cmd-tag" onclick="quickCommand('ps aux')">ps aux</span>
+                        <span class="cmd-tag" onclick="quickCommand('pwd')">pwd</span>
+                        <span class="cmd-tag" onclick="quickCommand('df -h')">df -h</span>
+                        <span class="cmd-tag" onclick="quickCommand('free -h')">free -h</span>
+                        <span class="cmd-tag" onclick="quickCommand('top -bn1 | head -20')">top</span>
+                        <span class="cmd-tag" onclick="quickCommand('netstat -tuln')">netstat</span>
+                        <span class="cmd-tag" onclick="quickCommand('cat /etc/os-release')">系统信息</span>
+                    </div>
+                </div>
+
+                <div class="output-panel">
+                    <div class="output-header">
+                        <h3><i class="fas fa-terminal"></i> 输出结果</h3>
+                        <div class="output-actions">
+                            <button onclick="copyOutput()"><i class="fas fa-copy"></i> 复制</button>
+                            <button onclick="clearOutput()"><i class="fas fa-trash"></i> 清空</button>
+                        </div>
+                    </div>
+                    <div class="output-content" id="outputContent">
+                        <div class="output-placeholder">
+                            <i class="fas fa-terminal"></i>
+                            <p>输入命令并点击执行按钮</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="history-panel">
+                    <div class="history-header">
+                        <h3><i class="fas fa-history"></i> 执行历史</h3>
+                        <button onclick="clearHistory()" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px;">
+                            <i class="fas fa-trash"></i> 清空
+                        </button>
+                    </div>
+                    <div class="history-list" id="historyList">
+                        <div class="empty-history">暂无执行历史</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let eventSource = null;
+
+        async function checkLogin() {
+            try {
+                const response = await fetch('/api/check_login');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('appPage').style.display = 'flex';
+                    document.getElementById('displayUsername').textContent = data.username;
+                    loadHistory();
+                } else {
+                    document.getElementById('loginPage').style.display = 'flex';
+                    document.getElementById('appPage').style.display = 'none';
+                }
+            } catch (e) {
+                document.getElementById('loginPage').style.display = 'flex';
+                document.getElementById('appPage').style.display = 'none';
+            }
+        }
+
+        function handleLoginKey(event) {
+            if (event.key === 'Enter') {
+                login();
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const btn = document.getElementById('loginBtn');
+            const error = document.getElementById('loginError');
+
+            if (!username || !password) {
+                error.textContent = '请输入用户名和密码';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+            error.textContent = '';
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    error.textContent = data.error;
+                }
+            } catch (e) {
+                error.textContent = '登录失败，请稍后重试';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                location.reload();
+            } catch (e) {
+                location.reload();
+            }
+        }
+
+        function handleCommandKey(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                executeCommand();
+            }
+        }
+
+        function quickCommand(cmd) {
+            document.getElementById('commandInput').value = cmd;
+            executeCommand();
+        }
+
+        async function executeCommand() {
+
+            const command = document.getElementById('commandInput').value.trim();
+            document.getElementById('commandInput').value = '';
+            const workdir = document.getElementById('workdir').value.trim();
+            const output = document.getElementById('outputContent');
+
+            if (!command) {
+                output.innerHTML = '<div class="output-placeholder"><i class="fas fa-exclamation-circle"></i><p>请输入命令</p></div>';
+                return;
+            }
+
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            output.innerHTML = '<div class="output-content"></div>';
+            const outputContent = output.querySelector('.output-content');
+            outputContent.className = 'output-content';
+
+            try {
+                eventSource = new EventSource('/api/execute_stream', {
+                    method: 'POST',
+                    body: JSON.stringify({ command, workdir })
+                });
+                
+                fetch('/api/execute_stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command, workdir })
+                }).then(response => {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    function read() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                if (buffer) {
+                                    processStreamData(buffer);
+                                }
+                                loadHistory();
+                                return;
+                            }
+                            
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n\n');
+                            buffer = lines.pop() || '';
+                            
+                            lines.forEach(line => {
+                                if (line.startsWith('data: ')) {
+                                    processStreamData(line.slice(6));
+                                }
+                            });
+                            
+                            read();
+                        });
+                    }
+                    
+                    function processStreamData(dataStr) {
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.type === 'output') {
+                                outputContent.textContent += data.data;
+                                outputContent.className = 'output-content success';
+                            } else if (data.type === 'error') {
+                                outputContent.textContent += data.data;
+                                outputContent.className = 'output-content error';
+                            } else if (data.type === 'done') {
+                                outputContent.innerHTML += `\n\n<div class="return-code">退出码: ${data.returncode}</div>`;
+                            } else if (data.error) {
+                                outputContent.innerHTML = `<div class="output-content error">${escapeHtml(data.error)}</div>`;
+                            }
+                        } catch (e) {
+                            console.error('Parse error:', e);
+                        }
+                    }
+                    
+                    read();
+                });
+                
+            } catch (e) {
+                output.innerHTML = `<div class="output-content error">执行失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function copyOutput() {
+            const content = document.getElementById('outputContent').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                alert('已复制到剪贴板');
+            });
+        }
+
+        function clearOutput() {
+            document.getElementById('outputContent').innerHTML = '<div class="output-placeholder"><i class="fas fa-terminal"></i><p>输入命令并点击执行按钮</p></div>';
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history');
+                const data = await response.json();
+                const list = document.getElementById('historyList');
+                
+                if (data.success && data.history.length > 0) {
+                    list.innerHTML = data.history.map(item => `
+                        <div class="history-item" onclick="loadHistoryItem('${escapeHtml(item.command).replace(/'/g, "\\'")}', '${escapeHtml(item.workdir || '').replace(/'/g, "\\'")}')">
+                            <div class="cmd">${escapeHtml(item.command)}</div>
+                            <div>
+                                <span class="time">${item.timestamp}</span>
+                                <span class="return-code ${item.returncode === 0 ? 'success' : 'fail'}">[${item.returncode}]</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<div class="empty-history">暂无执行历史</div>';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function loadHistoryItem(command, workdir) {
+            document.getElementById('commandInput').value = command;
+            document.getElementById('workdir').value = workdir;
+        }
+
+        async function clearHistory() {
+            if (!confirm('确定要清空执行历史吗？')) return;
+            try {
+                await fetch('/api/clear_history', { method: 'POST' });
+                loadHistory();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        checkLogin();
+    </script>
+</body>
+</html>
