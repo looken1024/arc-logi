@@ -1980,17 +1980,26 @@ def delete_conversation(conversation_id):
 
 @app.route('/api/conversations', methods=['GET'])
 def list_conversations():
-    """列出所有对话"""
+    """列出对话，支持分页"""
     if 'username' not in session:
         return jsonify({'error': '未登录'}), 401
     
     username = session['username']
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    offset = (page - 1) * limit
     
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT conversation_id, messages, updated_at FROM conversations WHERE username = %s ORDER BY updated_at DESC",
+                "SELECT COUNT(*) as total FROM conversations WHERE username = %s",
                 (username,)
+            )
+            total = cursor.fetchone()['total']
+            
+            cursor.execute(
+                "SELECT conversation_id, messages, updated_at FROM conversations WHERE username = %s ORDER BY updated_at DESC LIMIT %s OFFSET %s",
+                (username, limit, offset)
             )
             results = cursor.fetchall()
     
@@ -2006,7 +2015,15 @@ def list_conversations():
                 'message_count': len(messages)
             })
     
-    return jsonify({'conversations': conversation_list})
+    has_more = (offset + len(results)) < total
+    
+    return jsonify({
+        'conversations': conversation_list,
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'has_more': has_more
+    })
 
 @app.route('/api/models', methods=['GET'])
 def get_models():

@@ -7,6 +7,8 @@ let currentSystemPrompt = '';
 let agents = [];
 let currentUser = null;
 let currentTheme = 'dark';
+let currentPage = 1;
+let hasMoreConversations = false;
 
 // DOM 元素
 const elements = {
@@ -29,7 +31,10 @@ const elements = {
     closeSettings: document.getElementById('closeSettings'),
     moreActionsBtn: document.getElementById('moreActionsBtn'),
     moreActionsMenu: document.getElementById('moreActionsMenu'),
-    dropdown: document.getElementById('moreActionsDropdown')
+    dropdown: document.getElementById('moreActionsDropdown'),
+    loadMoreBtn: document.getElementById('loadMoreBtn'),
+    loadMoreContainer: document.getElementById('loadMoreContainer'),
+    loadingSpinner: document.getElementById('loadingSpinner')
 };
 
 // 初始化
@@ -568,14 +573,23 @@ function formatMessage(content) {
 }
 
 // 加载对话列表
-async function loadConversations() {
+async function loadConversations(reset = true) {
     try {
-        const response = await fetch('/api/conversations', {
+        if (reset) {
+            currentPage = 1;
+            elements.conversationsList.innerHTML = '';
+        }
+        
+        const response = await fetch(`/api/conversations?page=${currentPage}&limit=10`, {
             credentials: 'same-origin'
         });
         const data = await response.json();
         
-        elements.conversationsList.innerHTML = '';
+        hasMoreConversations = data.has_more;
+        
+        if (elements.loadMoreContainer) {
+            elements.loadMoreContainer.style.display = hasMoreConversations ? 'block' : 'none';
+        }
         
         data.conversations.forEach(conv => {
             const item = document.createElement('div');
@@ -599,6 +613,69 @@ async function loadConversations() {
         });
     } catch (error) {
         console.error('加载对话列表失败:', error);
+    }
+}
+
+// 加载更多对话
+async function loadMoreConversations() {
+    if (!hasMoreConversations) return;
+    
+    if (elements.loadMoreBtn) {
+        elements.loadMoreBtn.style.display = 'none';
+    }
+    if (elements.loadingSpinner) {
+        elements.loadingSpinner.style.display = 'block';
+    }
+    
+    try {
+        currentPage++;
+        const response = await fetch(`/api/conversations?page=${currentPage}&limit=10`, {
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        
+        hasMoreConversations = data.has_more;
+        
+        if (elements.loadMoreContainer) {
+            elements.loadMoreContainer.style.display = hasMoreConversations ? 'block' : 'none';
+        }
+        
+        if (elements.loadMoreBtn) {
+            elements.loadMoreBtn.style.display = 'block';
+        }
+        if (elements.loadingSpinner) {
+            elements.loadingSpinner.style.display = 'none';
+        }
+        
+        data.conversations.forEach(conv => {
+            const item = document.createElement('div');
+            item.className = 'conversation-item';
+            if (conv.id === currentConversationId) {
+                item.classList.add('active');
+            }
+            
+            item.innerHTML = `
+                <div class="conversation-item-content">
+                    <div class="conversation-title">${escapeHtml(conv.title)}</div>
+                    <div class="conversation-time">${formatTime(conv.updated_at)}</div>
+                </div>
+                <button class="conversation-delete" onclick="deleteConversation('${conv.id}', event)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            
+            item.addEventListener('click', () => loadConversation(conv.id));
+            elements.conversationsList.appendChild(item);
+        });
+    } catch (error) {
+        console.error('加载更多对话失败:', error);
+        currentPage--;
+        if (elements.loadMoreBtn) {
+            elements.loadMoreBtn.style.display = 'block';
+        }
+        if (elements.loadingSpinner) {
+            elements.loadingSpinner.style.display = 'none';
+        }
     }
 }
 
