@@ -135,31 +135,39 @@
             const startTime = Date.now();
 
             try {
-                const options = {
-                    method: method,
-                    headers: headers
-                };
-
-                if (body && ['POST', 'PUT', 'PATCH'].includes(method)) {
-                    options.body = body;
-                }
-
-                const response = await fetch(url, options);
+                const response = await fetch('/api/http-request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        method: method,
+                        headers: headers,
+                        body: body
+                    })
+                });
+                
+                const result = await response.json();
                 const endTime = Date.now();
                 const duration = endTime - startTime;
 
-                const responseData = await response.text();
+                if (!result.success) {
+                    responseInfo.innerHTML = `<span class="status-code error">请求失败</span>`;
+                    responseText.value = '错误: ' + result.error;
+                    return;
+                }
 
                 responseInfo.innerHTML = `
-                    <span class="status-code ${response.ok ? 'success' : 'error'}">${response.status} ${response.statusText}</span>
+                    <span class="status-code ${result.status >= 200 && result.status < 300 ? 'success' : 'error'}">${result.status} ${result.statusText}</span>
                     <span class="response-time"><i class="fas fa-clock"></i> ${duration}ms</span>
                 `;
 
                 try {
-                    const jsonData = JSON.parse(responseData);
+                    const jsonData = JSON.parse(result.data);
                     responseText.value = JSON.stringify(jsonData, null, 2);
                 } catch {
-                    responseText.value = responseData;
+                    responseText.value = result.data;
                 }
             } catch (error) {
                 responseInfo.innerHTML = `<span class="status-code error">请求失败</span>`;

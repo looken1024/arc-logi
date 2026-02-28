@@ -1395,6 +1395,64 @@ def tools():
         return redirect(url_for('login'))
     return render_template('tools.html')
 
+@app.route('/api/http-request', methods=['POST'])
+def http_request_proxy():
+    """HTTP请求代理API，解决前端CORS问题"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '未登录'}), 401
+    
+    data = request.get_json()
+    url = data.get('url', '')
+    method = data.get('method', 'GET')
+    headers = data.get('headers', {})
+    body = data.get('body', None)
+    
+    if not url:
+        return jsonify({'success': False, 'error': 'URL不能为空'}), 400
+    
+    try:
+        request_kwargs = {
+            'url': url,
+            'method': method,
+            'headers': headers,
+            'timeout': 30
+        }
+        
+        if body and method in ['POST', 'PUT', 'PATCH']:
+            request_kwargs['data'] = body
+            
+        response = requests.request(**request_kwargs)
+        
+        content_type = response.headers.get('Content-Type', '')
+        encoding = 'utf-8'
+        if 'charset=' in content_type:
+            charset = content_type.split('charset=')[-1].split(';')[0].strip()
+            encoding = charset
+        
+        try:
+            data = response.content.decode(encoding)
+        except:
+            for enc in ['gbk', 'gb2312', 'gb18030', 'utf-8']:
+                try:
+                    data = response.content.decode(enc)
+                    break
+                except:
+                    continue
+            else:
+                data = response.content.decode('utf-8', errors='replace')
+        
+        return jsonify({
+            'success': True,
+            'status': response.status_code,
+            'statusText': response.reason,
+            'headers': dict(response.headers),
+            'data': data
+        })
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'error': '请求超时'}), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 CLASSIC_SYSTEM_PROMPT = """你是一个中国传统文化专家，擅长解读经典古籍。你的任务是用通俗易懂的语言解读三字经、千字文等传统启蒙经典，帮助用户理解其含义、教育思想和历史价值。
 
 输出格式请使用Markdown，方便前端渲染显示。"""
