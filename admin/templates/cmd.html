@@ -224,10 +224,25 @@
         .terminal-container {
             flex: 1;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             padding: 24px;
             gap: 16px;
             overflow: hidden;
+        }
+
+        .left-panel {
+            width: 45%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 400px;
+        }
+
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
 
         .command-panel {
@@ -235,6 +250,12 @@
             border: 1px solid #333;
             border-radius: 12px;
             padding: 20px;
+        }
+
+        .quick-commands {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #333;
         }
 
         .command-input-wrapper {
@@ -264,6 +285,47 @@
             color: #e0e0e0;
             font-size: 13px;
             font-family: monospace;
+        }
+
+        .workdir-select-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .workdir-select-wrapper input {
+            width: 100%;
+        }
+
+        .workdir-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #1a1a1a;
+            border: 1px solid #4ade80;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .workdir-dropdown.show {
+            display: block;
+        }
+
+        .workdir-dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #e0e0e0;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .workdir-dropdown-item:hover {
+            background: #2a2a2a;
+            color: #4ade80;
         }
 
         .workdir-wrapper input:focus {
@@ -349,7 +411,6 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            min-height: 300px;
         }
 
         .output-header {
@@ -466,89 +527,6 @@
             border-color: #4ade80;
         }
 
-        .history-panel {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 12px;
-            max-height: 300px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .history-header {
-            padding: 12px 16px;
-            background: #1a1a1a;
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .history-header h3 {
-            font-size: 14px;
-            color: #888;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .history-header h3 i {
-            color: #fbbf24;
-        }
-
-        .history-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-        }
-
-        .history-item {
-            padding: 10px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-bottom: 4px;
-        }
-
-        .history-item:hover {
-            background: #2a2a2a;
-        }
-
-        .history-item .cmd {
-            font-family: monospace;
-            font-size: 13px;
-            color: #22c55e;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .history-item .time {
-            font-size: 11px;
-            color: #666;
-        }
-
-        .history-item .return-code {
-            font-size: 11px;
-            color: #888;
-            margin-left: 8px;
-        }
-
-        .history-item .return-code.success {
-            color: #22c55e;
-        }
-
-        .history-item .return-code.fail {
-            color: #f87171;
-        }
-
-        .empty-history {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
     </style>
 </head>
 <body>
@@ -601,54 +579,49 @@
             </header>
 
             <div class="terminal-container">
-                <div class="command-panel">
-                    <div class="command-input-wrapper">
-                        <div style="flex: 1; width: 100%;">
-                            <div class="workdir-wrapper">
-                                <label><i class="fas fa-folder"></i> 工作目录:</label>
-                                <input type="text" id="workdir" placeholder="/home/user" onkeydown="handleCommandKey(event)">
+                <div class="left-panel">
+                    <div class="command-panel">
+                        <div class="command-input-wrapper">
+                            <div style="flex: 1; width: 100%;">
+                                <div class="workdir-wrapper">
+                                    <label><i class="fas fa-folder"></i> 工作目录:</label>
+                                    <div class="workdir-select-wrapper">
+                                        <input type="text" id="workdir" placeholder="输入目录路径，支持Tab补全" autocomplete="off" onkeydown="handleCommandKey(event)" oninput="onWorkdirInput()" onfocus="onWorkdirFocus()">
+                                        <div id="workdir-dropdown" class="workdir-dropdown"></div>
+                                    </div>
+                                </div>
+                                <textarea class="command-textarea" id="commandInput" placeholder="输入要执行的命令，如: ls -la, ps aux, git status..." onkeydown="handleCommandKey(event)"></textarea>
                             </div>
-                            <textarea class="command-textarea" id="commandInput" placeholder="输入要执行的命令，如: ls -la, ps aux, git status..." onkeydown="handleCommandKey(event)"></textarea>
                         </div>
-                    </div>
-                    <div class="quick-commands">
-                        <span>快速命令:</span>
-                        <span class="cmd-tag" onclick="quickCommand('ls -la')">ls -la</span>
-                        <span class="cmd-tag" onclick="quickCommand('ps aux')">ps aux</span>
-                        <span class="cmd-tag" onclick="quickCommand('pwd')">pwd</span>
-                        <span class="cmd-tag" onclick="quickCommand('df -h')">df -h</span>
-                        <span class="cmd-tag" onclick="quickCommand('free -h')">free -h</span>
-                        <span class="cmd-tag" onclick="quickCommand('top -bn1 | head -20')">top</span>
-                        <span class="cmd-tag" onclick="quickCommand('netstat -tuln')">netstat</span>
-                        <span class="cmd-tag" onclick="quickCommand('cat /etc/os-release')">系统信息</span>
-                    </div>
-                </div>
-
-                <div class="output-panel">
-                    <div class="output-header">
-                        <h3><i class="fas fa-terminal"></i> 输出结果</h3>
-                        <div class="output-actions">
-                            <button onclick="copyOutput()"><i class="fas fa-copy"></i> 复制</button>
-                            <button onclick="clearOutput()"><i class="fas fa-trash"></i> 清空</button>
-                        </div>
-                    </div>
-                    <div class="output-content" id="outputContent">
-                        <div class="output-placeholder">
-                            <i class="fas fa-terminal"></i>
-                            <p>输入命令并点击执行按钮</p>
+                        <div class="quick-commands">
+                            <span>快速命令:</span>
+                            <span class="cmd-tag" onclick="quickCommand('ls -la')">ls -la</span>
+                            <span class="cmd-tag" onclick="quickCommand('ps aux')">ps aux</span>
+                            <span class="cmd-tag" onclick="quickCommand('pwd')">pwd</span>
+                            <span class="cmd-tag" onclick="quickCommand('df -h')">df -h</span>
+                            <span class="cmd-tag" onclick="quickCommand('free -h')">free -h</span>
+                            <span class="cmd-tag" onclick="quickCommand('top -bn1 | head -20')">top</span>
+                            <span class="cmd-tag" onclick="quickCommand('netstat -tuln')">netstat</span>
+                            <span class="cmd-tag" onclick="quickCommand('cat /etc/os-release')">系统信息</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="history-panel">
-                    <div class="history-header">
-                        <h3><i class="fas fa-history"></i> 执行历史</h3>
-                        <button onclick="clearHistory()" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px;">
-                            <i class="fas fa-trash"></i> 清空
-                        </button>
-                    </div>
-                    <div class="history-list" id="historyList">
-                        <div class="empty-history">暂无执行历史</div>
+                <div class="right-panel">
+                    <div class="output-panel">
+                        <div class="output-header">
+                            <h3><i class="fas fa-terminal"></i> 输出结果</h3>
+                            <div class="output-actions">
+                                <button onclick="copyOutput()"><i class="fas fa-copy"></i> 复制</button>
+                                <button onclick="clearOutput()"><i class="fas fa-trash"></i> 清空</button>
+                            </div>
+                        </div>
+                        <div class="output-content" id="outputContent">
+                            <div class="output-placeholder">
+                                <i class="fas fa-terminal"></i>
+                                <p>输入命令并点击执行按钮</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -666,7 +639,7 @@
                     document.getElementById('loginPage').style.display = 'none';
                     document.getElementById('appPage').style.display = 'flex';
                     document.getElementById('displayUsername').textContent = data.username;
-                    loadHistory();
+                    loadDirectories();
                 } else {
                     document.getElementById('loginPage').style.display = 'flex';
                     document.getElementById('appPage').style.display = 'none';
@@ -676,6 +649,81 @@
                 document.getElementById('appPage').style.display = 'none';
             }
         }
+
+        let workdirDebounce = null;
+        let currentDirectories = [];
+
+        async function loadDirectories() {
+            try {
+                const response = await fetch('/api/directories?prefix=');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('workdir').value = data.current;
+                    currentDirectories = data.directories;
+                    updateWorkdirDropdown(data.directories, data.current);
+                }
+            } catch (e) {
+                console.error('Failed to load directories:', e);
+            }
+        }
+
+        function updateWorkdirDropdown(directories, current) {
+            const dropdown = document.getElementById('workdir-dropdown');
+            let html = '';
+            
+            if (current) {
+                const parent = current.substring(0, current.lastIndexOf('/')) || '/';
+                html += `<div class="workdir-dropdown-item" onclick="selectWorkdir('${parent}')">.. (上级目录)</div>`;
+            }
+            
+            directories.forEach(dir => {
+                html += `<div class="workdir-dropdown-item" onclick="selectWorkdir('${dir.path}')">${dir.path}</div>`;
+            });
+            dropdown.innerHTML = html;
+        }
+
+        function selectWorkdir(path) {
+            document.getElementById('workdir').value = path;
+            document.getElementById('workdir-dropdown').classList.remove('show');
+            onWorkdirInput();
+        }
+
+        function onWorkdirFocus() {
+            const input = document.getElementById('workdir').value.trim();
+            fetch('/api/directories?prefix=' + encodeURIComponent(input))
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        currentDirectories = data.directories;
+                        updateWorkdirDropdown(data.directories, data.current);
+                        document.getElementById('workdir-dropdown').classList.add('show');
+                    }
+                });
+        }
+
+        function onWorkdirInput() {
+            clearTimeout(workdirDebounce);
+            workdirDebounce = setTimeout(async () => {
+                const input = document.getElementById('workdir').value.trim();
+                try {
+                    const response = await fetch('/api/directories?prefix=' + encodeURIComponent(input));
+                    const data = await response.json();
+                    if (data.success) {
+                        currentDirectories = data.directories;
+                        updateWorkdirDropdown(data.directories, data.current);
+                        document.getElementById('workdir-dropdown').classList.add('show');
+                    }
+                } catch (e) {
+                    console.error('Failed to load directories:', e);
+                }
+            }, 300);
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.workdir-select-wrapper')) {
+                document.getElementById('workdir-dropdown').classList.remove('show');
+            }
+        });
 
         function handleLoginKey(event) {
             if (event.key === 'Enter') {
@@ -780,7 +828,6 @@
                                 if (buffer) {
                                     processStreamData(buffer);
                                 }
-                                loadHistory();
                                 return;
                             }
                             
@@ -840,45 +887,6 @@
 
         function clearOutput() {
             document.getElementById('outputContent').innerHTML = '<div class="output-placeholder"><i class="fas fa-terminal"></i><p>输入命令并点击执行按钮</p></div>';
-        }
-
-        async function loadHistory() {
-            try {
-                const response = await fetch('/api/history');
-                const data = await response.json();
-                const list = document.getElementById('historyList');
-                
-                if (data.success && data.history.length > 0) {
-                    list.innerHTML = data.history.map(item => `
-                        <div class="history-item" onclick="loadHistoryItem('${escapeHtml(item.command).replace(/'/g, "\\'")}', '${escapeHtml(item.workdir || '').replace(/'/g, "\\'")}')">
-                            <div class="cmd">${escapeHtml(item.command)}</div>
-                            <div>
-                                <span class="time">${item.timestamp}</span>
-                                <span class="return-code ${item.returncode === 0 ? 'success' : 'fail'}">[${item.returncode}]</span>
-                            </div>
-                        </div>
-                    `).join('');
-                } else {
-                    list.innerHTML = '<div class="empty-history">暂无执行历史</div>';
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        function loadHistoryItem(command, workdir) {
-            document.getElementById('commandInput').value = command;
-            document.getElementById('workdir').value = workdir;
-        }
-
-        async function clearHistory() {
-            if (!confirm('确定要清空执行历史吗？')) return;
-            try {
-                await fetch('/api/clear_history', { method: 'POST' });
-                loadHistory();
-            } catch (e) {
-                console.error(e);
-            }
         }
 
         checkLogin();

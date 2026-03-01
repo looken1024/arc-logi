@@ -36,7 +36,7 @@ start() {
     echo "=========================================="
     echo ""
 
-    nohup python3 app.py >> "$LOG_FILE" 2>&1 &
+    nohup python3 -m flask run --host=0.0.0.0 --port=5001 >> "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     echo "📌 服务 PID: $(cat "$PID_FILE")"
 }

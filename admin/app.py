@@ -85,8 +85,7 @@ def execute_command():
     
     try:
         result = subprocess.run(
-            command,
-            shell=True,
+            ['bash', '-i', '-c', command],
             cwd=workdir,
             capture_output=True,
             text=True,
@@ -138,8 +137,7 @@ def execute_command_stream():
     def generate():
         try:
             process = subprocess.Popen(
-                command,
-                shell=True,
+                ['bash', '-i', '-c', command],
                 cwd=workdir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -236,5 +234,51 @@ def clear_history():
     save_command_history([])
     return jsonify({'success': True})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+@app.route('/api/directories', methods=['GET'])
+def get_directories():
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': '未登录'}), 401
+    
+    prefix = request.args.get('prefix', '').strip()
+    
+    current_dir = os.getcwd()
+    parent_dir = os.path.dirname(current_dir)
+    
+    directories = []
+    
+    try:
+        search_dir = None
+        
+        if not prefix:
+            search_dir = parent_dir
+        else:
+            paths_to_check = [
+                prefix,
+                os.path.join(current_dir, prefix),
+                os.path.join(parent_dir, prefix)
+            ]
+            for p in paths_to_check:
+                if os.path.isdir(p):
+                    search_dir = p
+                    break
+        
+        if not search_dir:
+            search_dir = parent_dir
+        
+        if os.path.exists(search_dir) and os.path.isdir(search_dir):
+            for item in os.listdir(search_dir):
+                item_path = os.path.join(search_dir, item)
+                if os.path.isdir(item_path):
+                    directories.append({
+                        'name': item,
+                        'path': item_path
+                    })
+    except:
+        pass
+    
+    return jsonify({
+        'success': True,
+        'current': current_dir,
+        'parent': parent_dir,
+        'directories': sorted(directories, key=lambda x: x['name'])
+    })
