@@ -167,6 +167,8 @@ body {
 .load-more-container {
     padding: 12px;
     text-align: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .load-more-btn {

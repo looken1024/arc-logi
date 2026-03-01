@@ -1,22 +1,41 @@
 #!/bin/bash
 
-# Chat 服务启停管理脚本
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-PID_FILE="$SCRIPT_DIR/.chat_server.pid"
+PORT=8000
 LOG_FILE="$SCRIPT_DIR/chat.log"
+APP_FILE="app.py"
+
+is_running() {
+    if netstat -tuln 2>/dev/null | grep -q ":${PORT} " || ss -tuln 2>/dev/null | grep -q ":${PORT} "; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+get_pid_by_port() {
+    local pid
+    pid=$(lsof -ti:${PORT} 2>/dev/null | head -1)
+    if [ -n "$pid" ]; then
+        echo "$pid"
+        return 0
+    fi
+    pid=$(fuser ${PORT}/tcp 2>/dev/null | awk '{print $1}')
+    if [ -n "$pid" ]; then
+        echo "$pid"
+        return 0
+    fi
+    return 1
+}
 
 start() {
-    if [ -f "$PID_FILE" ]; then
-        PID=$(cat "$PID_FILE")
-        if kill -0 "$PID" 2>/dev/null; then
-            echo "❌ 服务已在运行 (PID: $PID)"
-            return 1
-        else
-            rm -f "$PID_FILE"
-        fi
+    if is_running; then
+        local pid
+        pid=$(get_pid_by_port)
+        echo "❌ 服务已在运行 (PID: $pid, 端口: $PORT)"
+        return 1
     fi
 
     if [ ! -d "venv" ]; then
@@ -47,95 +66,87 @@ except Exception as e:
     echo ""
     echo "=========================================="
     echo "✅ Chat 服务启动完成!"
-    echo "🌐 访问地址: http://localhost:8000"
+    echo "🌐 访问地址: http://localhost:${PORT}"
     echo "📝 日志文件: $LOG_FILE"
-    echo "🛑 使用 stop.sh 停止服务"
+    echo "🛑 使用 $0 stop 停止服务"
     echo "=========================================="
     echo ""
 
-    nohup python app.py >> "$LOG_FILE" 2>&1 &
-    echo $! > "$PID_FILE"
-    echo "📌 服务 PID: $(cat "$PID_FILE")"
+    nohup python $APP_FILE >> "$LOG_FILE" 2>&1 &
+    local pid=$!
+    sleep 1
+    
+    if is_running; then
+        echo "📌 服务 PID: $pid"
+    else
+        echo "⚠️  服务启动后端口未监听，请检查日志: $LOG_FILE"
+    fi
 }
 
 stop() {
-    if ! netstat -tuln 2>/dev/null | grep -q ":8000 " && ! ss -tuln 2>/dev/null | grep -q ":8000 "; then
-        echo "❌ 服务未运行 (端口 8000 未监听)"
-        rm -f "$PID_FILE"
+    if ! is_running; then
+        echo "❌ 服务未运行 (端口 $PORT 未监听)"
         return 1
     fi
 
-    if [ ! -f "$PID_FILE" ]; then
-        echo "❌ 服务未运行 (未找到 PID 文件，但端口 8000 被占用)"
+    local pid
+    pid=$(get_pid_by_port)
+    if [ -z "$pid" ]; then
+        echo "❌ 无法找到端口 $PORT 对应的进程"
         return 1
     fi
 
-    PID=$(cat "$PID_FILE")
-    if ! kill -0 "$PID" 2>/dev/null; then
-        if ! netstat -tuln 2>/dev/null | grep -q ":8000 " && ! ss -tuln 2>/dev/null | grep -q ":8000 "; then
-            rm -f "$PID_FILE"
-            echo "❌ 服务未运行"
-            return 1
-        fi
-        echo "⚠️  PID 文件过期，尝试查找端口 8000 对应的进程..."
-        PID=$(lsof -ti:8000 2>/dev/null | head -1)
-        if [ -z "$PID" ]; then
-            echo "❌ 无法找到端口 8000 对应的进程"
-            return 1
-        fi
-        echo "$PID" > "$PID_FILE"
-    fi
+    echo "🛑 停止服务 (PID: $pid, 端口: $PORT)..."
+    kill "$pid" 2>/dev/null
 
-    echo "🛑 停止服务 (PID: $PID)..."
-    kill "$PID" 2>/dev/null
-
-    TIMEOUT=10
-    while [ $TIMEOUT -gt 0 ]; do
-        if ! kill -0 "$PID" 2>/dev/null; then
-            rm -f "$PID_FILE"
+    local timeout=10
+    while [ $timeout -gt 0 ]; do
+        if ! is_running; then
             echo "✅ 服务已停止"
             return 0
         fi
         sleep 1
-        TIMEOUT=$((TIMEOUT - 1))
+        timeout=$((timeout - 1))
     done
 
     echo "⚠️  强制终止服务..."
-    kill -9 "$PID" 2>/dev/null
-    rm -f "$PID_FILE"
-    echo "✅ 服务已强制停止"
+    kill -9 "$pid" 2>/dev/null
+    sleep 1
+    
+    if ! is_running; then
+        echo "✅ 服务已强制停止"
+        return 0
+    else
+        echo "❌ 服务停止失败"
+        return 1
+    fi
 }
 
 restart() {
     echo "🔄 重启服务..."
-    stop || echo "ℹ️  服务未运行或停止失败，尝试启动..."
+    stop
     sleep 2
     start
 }
 
 status() {
-    if [ -f "$PID_FILE" ]; then
-        PID=$(cat "$PID_FILE")
-        if kill -0 "$PID" 2>/dev/null; then
-            echo "✅ 服务运行中 (PID: $PID)"
-            exit 0
-        else
-            echo "❌ 服务未运行 (PID 文件过期)"
-            rm -f "$PID_FILE"
-            exit 1
-        fi
+    if is_running; then
+        local pid
+        pid=$(get_pid_by_port)
+        echo "✅ 服务运行中 (PID: $pid, 端口: $PORT)"
+        exit 0
     else
-        echo "❌ 服务未运行"
+        echo "❌ 服务未运行 (端口: $PORT)"
         exit 1
     fi
 }
 
 case "$1" in
     start)
-        start || exit 1
+        start
         ;;
     stop)
-        stop || exit 1
+        stop
         ;;
     restart)
         restart

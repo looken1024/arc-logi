@@ -611,6 +611,10 @@ async function loadConversations(reset = true) {
             item.addEventListener('click', () => loadConversation(conv.id));
             elements.conversationsList.appendChild(item);
         });
+
+        if (elements.loadMoreContainer) {
+            elements.conversationsList.appendChild(elements.loadMoreContainer);
+        }
     } catch (error) {
         console.error('加载对话列表失败:', error);
     }
@@ -647,6 +651,10 @@ async function loadMoreConversations() {
             elements.loadingSpinner.style.display = 'none';
         }
         
+        if (elements.loadMoreContainer) {
+            elements.loadMoreContainer.remove();
+        }
+        
         data.conversations.forEach(conv => {
             const item = document.createElement('div');
             item.className = 'conversation-item';
@@ -667,6 +675,10 @@ async function loadMoreConversations() {
             item.addEventListener('click', () => loadConversation(conv.id));
             elements.conversationsList.appendChild(item);
         });
+        
+        if (elements.loadMoreContainer) {
+            elements.conversationsList.appendChild(elements.loadMoreContainer);
+        }
     } catch (error) {
         console.error('加载更多对话失败:', error);
         currentPage--;

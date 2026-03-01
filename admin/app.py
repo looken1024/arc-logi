@@ -12,6 +12,7 @@ CORS(app, supports_credentials=True)
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_NAME'] = 'admin_session'
 app.config['SESSION_COOKIE_SAMESITE'] = None
 
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
