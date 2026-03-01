@@ -2,6 +2,14 @@
   {
     "command": "push",
     "workdir": "/home/yangkai/github/arc-logi/admin",
+    "output": "\u001b[32m[√] 已开启代理\u001b[0m\n[main 9413240] feat: 初始化\n 10 files changed, 1129 insertions(+), 217 deletions(-)\n create mode 100644 admin/__pycache__/app.cpython-311.pyc\n create mode 100644 admin/cookies2.txt\n create mode 100644 admin/nohup.out\n/home/yangkai/github/arc-logi/admin\n",
+    "error": "bash: 无法设定终端进程组 (1473051): 对设备不适当的 ioctl 操作\nbash: 此 shell 中无任务控制\nTo github.com:looken1024/arc-logi.git\n   6012fba..9413240  main -> main\n",
+    "returncode": 0,
+    "timestamp": "2026-03-01 11:34:33"
+  },
+  {
+    "command": "push",
+    "workdir": "/home/yangkai/github/arc-logi/admin",
     "output": "\u001b[32m[√] 已开启代理\u001b[0m\n",
     "error": "bash: 行 1: push: 未找到命令\n",
     "returncode": 127,
