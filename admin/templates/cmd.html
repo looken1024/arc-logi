@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>远程命令执行 - Terminal</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -207,13 +207,357 @@
             overflow: hidden;
         }
 
-        .page-header {
-            padding: 16px 24px;
-            background: #1a1a1a;
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            gap: 16px;
+            .page-header {
+                padding: 12px 16px;
+                height: 50px;
+                flex-shrink: 0;
+                background: #1a1a1a;
+                border-bottom: 1px solid #333;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+            }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .menu-toggle:hover {
+            background: #2a2a2a;
+            color: #e0e0e0;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 90;
+        }
+
+        @media (max-width: 768px) {
+            * {
+                box-sizing: border-box;
+            }
+
+            html, body {
+                width: 100% !important;
+                max-width: 100vw !important;
+                overflow-x: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            body > * {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .app-container {
+                width: 100vw !important;
+                max-width: 100vw !important;
+                overflow-x: hidden !important;
+            }
+
+            .main-content {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .page-header {
+                width: 100% !important;
+                height: 40px;
+                padding: 0 8px;
+            }
+
+            .page-header h1 {
+                font-size: 14px;
+                font-weight: 600;
+            }
+
+            .terminal-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: calc(100vh - 40px) !important;
+                padding: 4px;
+                display: flex;
+                flex-direction: column;
+                overflow: visible;
+            }
+
+            .right-panel {
+                width: 100%;
+                height: 50%;
+                margin-bottom: 4px;
+                overflow: visible;
+            }
+
+            .output-panel {
+                width: 100%;
+                height: 100%;
+            }
+
+            .left-panel {
+                width: 100%;
+                height: auto;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                overflow: hidden;
+            }
+
+            .command-panel {
+                width: 100%;
+                height: auto;
+                padding: 4px;
+            }
+
+            .command-input-wrapper {
+                width: 100%;
+            }
+
+            .workdir-wrapper {
+                width: 100%;
+                margin-bottom: 4px;
+                font-size: 10px;
+            }
+
+            .workdir-wrapper label {
+                width: 30px;
+                font-size: 10px;
+            }
+
+            .workdir-select-wrapper {
+                width: calc(100% - 35px);
+                overflow: visible;
+            }
+
+            .workdir-select-wrapper input {
+                width: 100%;
+                font-size: 10px;
+                padding: 3px;
+            }
+
+            .command-textarea {
+                width: 100%;
+                height: 70px;
+                font-size: 11px;
+                padding: 4px;
+            }
+
+            .quick-commands {
+                flex-wrap: wrap;
+                font-size: 9px;
+                margin-top: 6px;
+                padding-top: 6px;
+                gap: 4px;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                width: 80%;
+                z-index: 100;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
+            html, body, #appPage, .app-container, .main-content {
+                height: 100%;
+                margin: 0;
+                overflow: visible;
+            }
+
+            .page-header {
+                height: 44px;
+                padding: 0 10px;
+                box-sizing: border-box;
+                flex-shrink: 0;
+            }
+
+            .terminal-container {
+                display: block !important;
+                width: 100% !important;
+                height: calc(100% - 44px);
+                padding: 4px !important;
+                margin: 0 !important;
+                box-sizing: border-box;
+                overflow: visible;
+            }
+
+            .right-panel {
+                width: 100% !important;
+                height: auto;
+                margin: 0 0 4px 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box;
+                overflow: visible;
+            }
+
+            .output-panel {
+                width: 100%;
+                height: 100%;
+                box-sizing: border-box;
+            }
+
+            .left-panel {
+                width: 100% !important;
+                height: auto;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-sizing: border-box;
+                overflow: visible;
+            }
+
+            .command-panel {
+                width: 100% !important;
+                height: 100%;
+                padding: 4px !important;
+                margin: 0 !important;
+                box-sizing: border-box;
+                overflow: visible;
+            }
+
+            .command-input-wrapper {
+                width: 100%;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-sizing: border-box;
+            }
+
+            .command-input-wrapper > div {
+                width: 100%;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-sizing: border-box;
+            }
+
+            .workdir-wrapper {
+                display: block;
+                width: 100%;
+                padding: 0 !important;
+                margin: 0 0 4px 0 !important;
+                box-sizing: border-box;
+                overflow: hidden;
+            }
+
+            .workdir-wrapper label {
+                display: inline-block;
+                width: 35px;
+                font-size: 10px;
+                padding: 0 !important;
+                margin: 0 !important;
+                vertical-align: middle;
+            }
+
+            .workdir-select-wrapper {
+                display: inline-block;
+                width: calc(100% - 40px);
+                padding: 0 !important;
+                margin: 0 !important;
+                box-sizing: border-box;
+                vertical-align: middle;
+                overflow: visible;
+            }
+
+            .workdir-select-wrapper input {
+                width: 100% !important;
+                padding: 3px !important;
+                margin: 0 !important;
+                font-size: 10px;
+                box-sizing: border-box;
+                border-radius: 3px;
+            }
+
+            .command-textarea {
+                width: 100% !important;
+                height: 70px !important;
+                padding: 4px !important;
+                margin: 0 !important;
+                font-size: 11px;
+                box-sizing: border-box;
+                border-radius: 4px;
+            }
+
+            .execute-btn {
+                width: 100% !important;
+                padding: 6px !important;
+                font-size: 11px !important;
+                margin-top: 4px !important;
+            }
+
+            .quick-commands {
+                flex-wrap: wrap;
+                gap: 3px !important;
+                margin-top: 4px;
+                padding-top: 4px;
+            }
+
+            .quick-commands span:first-child {
+                width: 100%;
+                font-size: 9px;
+                margin-bottom: 2px;
+            }
+
+            .cmd-tag {
+                font-size: 9px !important;
+                padding: 2px 4px !important;
+            }
+
+            .quick-commands {
+                flex-wrap: wrap;
+                width: 100%;
+                box-sizing: border-box;
+                margin-top: 4px;
+                padding-top: 4px;
+            }
+
+            .quick-commands span {
+                font-size: 10px;
+            }
+
+            .cmd-tag {
+                font-size: 10px;
+                padding: 2px 5px;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 100;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
         }
 
         .page-header h1 {
@@ -225,17 +569,17 @@
             flex: 1;
             display: flex;
             flex-direction: row;
-            padding: 24px;
-            gap: 16px;
-            overflow: hidden;
+            padding: 16px;
+            gap: 12px;
+            overflow: visible;
         }
 
         .left-panel {
             width: 45%;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            min-width: 400px;
+            gap: 8px;
+            min-width: 300px;
         }
 
         .right-panel {
@@ -249,26 +593,33 @@
             background: #1a1a1a;
             border: 1px solid #333;
             border-radius: 12px;
-            padding: 20px;
+            padding: 12px 16px 8px 16px;
+            display: flex;
+            flex-direction: column;
         }
 
         .quick-commands {
-            margin-top: 12px;
-            padding-top: 12px;
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 1px solid #333;
         }
 
         .command-input-wrapper {
             display: flex;
-            gap: 12px;
-            align-items: flex-start;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .command-input-wrapper > div {
+            display: flex;
+            flex-direction: column;
         }
 
         .workdir-wrapper {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .workdir-wrapper label {
@@ -290,6 +641,7 @@
         .workdir-select-wrapper {
             flex: 1;
             position: relative;
+            overflow: visible;
         }
 
         .workdir-select-wrapper input {
@@ -335,9 +687,9 @@
 
         .command-textarea {
             width: 100%;
-            flex: 1;
+            height: 90px;
             min-height: 80px;
-            padding: 12px 16px;
+            padding: 8px 12px;
             background: #0d0d0d;
             border: 1px solid #333;
             border-radius: 8px;
@@ -408,7 +760,7 @@
             background: #0d0d0d;
             border: 1px solid #333;
             border-radius: 12px;
-            overflow: hidden;
+            overflow: auto;
             display: flex;
             flex-direction: column;
         }
@@ -497,9 +849,9 @@
         .quick-commands {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 16px;
-            padding-top: 16px;
+            gap: 4px;
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 1px solid #333;
         }
 
@@ -510,7 +862,7 @@
         }
 
         .cmd-tag {
-            padding: 4px 10px;
+            padding: 3px 8px;
             background: #2a2a2a;
             border: 1px solid #444;
             border-radius: 4px;
@@ -547,7 +899,8 @@
     </div>
 
     <div id="appPage" class="app-container" style="display: none;">
-        <aside class="sidebar">
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
                     <i class="fas fa-terminal"></i>
@@ -575,6 +928,9 @@
 
         <main class="main-content">
             <header class="page-header">
+                <button class="menu-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
                 <h1><i class="fas fa-terminal"></i> 远程命令执行</h1>
             </header>
 
@@ -582,15 +938,15 @@
                 <div class="left-panel">
                     <div class="command-panel">
                         <div class="command-input-wrapper">
-                            <div style="flex: 1; width: 100%;">
+                            <div style="width: 100%;">
                                 <div class="workdir-wrapper">
-                                    <label><i class="fas fa-folder"></i> 工作目录:</label>
+                                    <label>目录:</label>
                                     <div class="workdir-select-wrapper">
-                                        <input type="text" id="workdir" placeholder="输入目录路径，支持Tab补全" autocomplete="off" onkeydown="handleCommandKey(event)" oninput="onWorkdirInput()" onfocus="onWorkdirFocus()">
+                                        <input type="text" id="workdir" placeholder="路径" autocomplete="off" onkeydown="handleCommandKey(event)" oninput="onWorkdirInput()" onfocus="onWorkdirFocus()">
                                         <div id="workdir-dropdown" class="workdir-dropdown"></div>
                                     </div>
                                 </div>
-                                <textarea class="command-textarea" id="commandInput" placeholder="输入要执行的命令，如: ls -la, ps aux, git status..." onkeydown="handleCommandKey(event)"></textarea>
+                                <textarea class="command-textarea" id="commandInput" placeholder="输入命令..." onkeydown="handleCommandKey(event)"></textarea>
                             </div>
                         </div>
                         <div class="quick-commands">
@@ -668,6 +1024,7 @@
         }
 
         function updateWorkdirDropdown(directories, current) {
+            console.log('updateWorkdirDropdown called, directories:', directories.length, 'current:', current);
             const dropdown = document.getElementById('workdir-dropdown');
             let html = '';
             
@@ -680,38 +1037,53 @@
                 html += `<div class="workdir-dropdown-item" onclick="selectWorkdir('${dir.path}')">${dir.path}</div>`;
             });
             dropdown.innerHTML = html;
+            console.log('Dropdown HTML set, length:', html.length);
         }
 
         function selectWorkdir(path) {
+            console.log('selectWorkdir called with path:', path);
             document.getElementById('workdir').value = path;
             document.getElementById('workdir-dropdown').classList.remove('show');
             onWorkdirInput();
         }
 
         function onWorkdirFocus() {
+            console.log('onWorkdirFocus called');
             const input = document.getElementById('workdir').value.trim();
+            console.log('Current input:', input);
             fetch('/api/directories?prefix=' + encodeURIComponent(input))
                 .then(res => res.json())
                 .then(data => {
+                    console.log('Focus API response:', data);
                     if (data.success) {
                         currentDirectories = data.directories;
                         updateWorkdirDropdown(data.directories, data.current);
                         document.getElementById('workdir-dropdown').classList.add('show');
+                        console.log('Dropdown shown');
+                    } else {
+                        console.error('Focus API failed:', data);
                     }
-                });
+                })
+                .catch(e => console.error('Focus API error:', e));
         }
 
         function onWorkdirInput() {
+            console.log('onWorkdirInput called');
             clearTimeout(workdirDebounce);
             workdirDebounce = setTimeout(async () => {
                 const input = document.getElementById('workdir').value.trim();
+                console.log('Fetching directories for:', input);
                 try {
                     const response = await fetch('/api/directories?prefix=' + encodeURIComponent(input));
                     const data = await response.json();
+                    console.log('API response:', data);
                     if (data.success) {
                         currentDirectories = data.directories;
                         updateWorkdirDropdown(data.directories, data.current);
                         document.getElementById('workdir-dropdown').classList.add('show');
+                        console.log('Dropdown updated, items:', data.directories.length);
+                    } else {
+                        console.error('API returned success: false', data);
                     }
                 } catch (e) {
                     console.error('Failed to load directories:', e);
@@ -887,6 +1259,13 @@
 
         function clearOutput() {
             document.getElementById('outputContent').innerHTML = '<div class="output-placeholder"><i class="fas fa-terminal"></i><p>输入命令并点击执行按钮</p></div>';
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
         }
 
         checkLogin();

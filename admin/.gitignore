@@ -1,5 +1,7 @@
 *.log
-nohup
+nohup.out
 *.pid
 command_history.json
+cookie*
+__pycache__
 
