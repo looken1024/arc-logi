@@ -466,6 +466,13 @@ def weather_tool():
         return redirect(url_for('login'))
     return render_template('weather.html')
 
+@app.route('/markdown')
+def markdown_tool():
+    """Markdown 格式转换工具页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('markdown.html')
+
 @app.route('/api/weather/query', methods=['POST'])
 def query_weather():
     """查询天气API"""

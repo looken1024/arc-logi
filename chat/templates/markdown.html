@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 工具 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/tools" class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-markdown"></i>
+                    <span>Markdown 工具</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>Markdown 格式转换</h1>
+            </header>
+
+            <div class="tool-container">
+                <div class="tool-workspace">
+                    <div class="columns-container">
+                        <div class="left-column">
+                            <div class="input-section">
+                                <div class="section-header">
+                                    <label><i class="fas fa-edit"></i> 输入内容</label>
+                                </div>
+                                <textarea id="inputText" placeholder="输入 Markdown 或 HTML 内容..." oninput="updatePreview()"></textarea>
+                            </div>
+
+
+                        </div>
+                        <div class="right-column">
+                            <div class="preview-section">
+                                <div class="section-header">
+                                    <label><i class="fas fa-desktop"></i> 实时预览</label>
+
+                                </div>
+                                <div id="previewContent" class="preview-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+
+
+
+
+        function updatePreview() {
+            const input = document.getElementById('inputText').value;
+            const previewContent = document.getElementById('previewContent');
+            if (!input) {
+                previewContent.innerHTML = '<p class="placeholder">预览将在此处显示...</p>';
+                return;
+            }
+            try {
+                // 预处理：确保标题#号后有一个空格
+                let processedInput = input.replace(/^(\s*#{1,6})([^#\s])/gm, '$1 $2');
+                const html = marked.parse(processedInput);
+                previewContent.innerHTML = html;
+            } catch (e) {
+                previewContent.innerHTML = '<p class="error">预览解析错误: ' + e.message + '</p>';
+            }
+        }
+
+
+
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            marked.setOptions({
+                gfm: true,
+                breaks: false,
+                headerIds: true,
+                mangle: false
+            });
+            updatePreview();
+        });
+    </script>
+</body>
+</html>
