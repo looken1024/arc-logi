@@ -298,6 +298,21 @@ def init_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
             
+            # 创建Agent技能关联表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS agent_skills (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    agent_id INT NOT NULL,
+                    skill_name VARCHAR(100) NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_agent_skill (agent_id, skill_name),
+                    INDEX idx_agent_id (agent_id),
+                    INDEX idx_skill_name (skill_name),
+                    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
             conn.commit()
             print("✅ 数据库表初始化完成")
 
@@ -3592,19 +3607,25 @@ def get_agents():
             with conn.cursor() as cursor:
                 if search:
                     cursor.execute(
-                        """SELECT a.*, p.name as prompt_name 
+                        """SELECT a.*, p.name as prompt_name, 
+                           GROUP_CONCAT(asl.skill_name ORDER BY asl.skill_name) as skills
                            FROM agents a 
                            LEFT JOIN prompts p ON a.prompt_id = p.id 
+                           LEFT JOIN agent_skills asl ON a.id = asl.agent_id
                            WHERE a.username = %s AND (a.name LIKE %s OR a.description LIKE %s) 
+                           GROUP BY a.id
                            ORDER BY a.updated_at DESC""",
                         (username, f'%{search}%', f'%{search}%')
                     )
                 else:
                     cursor.execute(
-                        """SELECT a.*, p.name as prompt_name 
+                        """SELECT a.*, p.name as prompt_name,
+                           GROUP_CONCAT(asl.skill_name ORDER BY asl.skill_name) as skills
                            FROM agents a 
                            LEFT JOIN prompts p ON a.prompt_id = p.id 
+                           LEFT JOIN agent_skills asl ON a.id = asl.agent_id
                            WHERE a.username = %s 
+                           GROUP BY a.id
                            ORDER BY a.updated_at DESC""",
                         (username,)
                     )
@@ -3629,6 +3650,7 @@ def create_agent():
     model = data.get('model', 'gpt-4')
     temperature = data.get('temperature', 0.7)
     max_tokens = data.get('max_tokens', 2000)
+    skills = data.get('skills', [])
     
     if not name:
         return jsonify({'error': 'Agent名称不能为空'}), 400
@@ -3646,6 +3668,14 @@ def create_agent():
                 )
                 conn.commit()
                 agent_id = cursor.lastrowid
+                
+                if skills:
+                    for skill_name in skills:
+                        cursor.execute(
+                            "INSERT INTO agent_skills (agent_id, skill_name) VALUES (%s, %s)",
+                            (agent_id, skill_name)
+                        )
+                    conn.commit()
                 
                 return jsonify({
                     'success': True,
@@ -3671,10 +3701,13 @@ def get_agent(agent_id):
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    """SELECT a.*, p.name as prompt_name, p.content as prompt_content 
+                    """SELECT a.*, p.name as prompt_name, p.content as prompt_content,
+                       GROUP_CONCAT(asl.skill_name ORDER BY asl.skill_name) as skills
                        FROM agents a 
                        LEFT JOIN prompts p ON a.prompt_id = p.id 
-                       WHERE a.id = %s AND a.username = %s""",
+                       LEFT JOIN agent_skills asl ON a.id = asl.agent_id
+                       WHERE a.id = %s AND a.username = %s
+                       GROUP BY a.id""",
                     (agent_id, username)
                 )
                 agent = cursor.fetchone()
@@ -3702,6 +3735,7 @@ def update_agent(agent_id):
     model = data.get('model', 'gpt-4')
     temperature = data.get('temperature', 0.7)
     max_tokens = data.get('max_tokens', 2000)
+    skills = data.get('skills', [])
     
     if not name:
         return jsonify({'error': 'Agent名称不能为空'}), 400
@@ -3722,6 +3756,17 @@ def update_agent(agent_id):
                 
                 if cursor.rowcount == 0:
                     return jsonify({'error': 'Agent不存在'}), 404
+                
+                cursor.execute("DELETE FROM agent_skills WHERE agent_id = %s", (agent_id,))
+                conn.commit()
+                
+                if skills:
+                    for skill_name in skills:
+                        cursor.execute(
+                            "INSERT INTO agent_skills (agent_id, skill_name) VALUES (%s, %s)",
+                            (agent_id, skill_name)
+                        )
+                    conn.commit()
                 
                 return jsonify({'success': True})
     except Exception as e:

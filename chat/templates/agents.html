@@ -167,6 +167,17 @@
             border-radius: 4px;
             font-size: 11px;
         }
+        .agent-skills-badge {
+            background: #6366f1;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -230,6 +241,16 @@
             background-repeat: no-repeat;
             background-position: right 12px center;
             padding-right: 30px;
+        }
+        .skills-select-container select {
+            min-height: 100px;
+        }
+        .skills-select-container select option {
+            padding: 8px;
+        }
+        .skills-select-container select option:checked {
+            background: var(--primary-color, #10a37f);
+            color: #fff;
         }
     </style>
 </head>
@@ -328,6 +349,14 @@
                             <option value="">-- 不使用提示词模板 --</option>
                         </select>
                         <p style="font-size: 12px; color: var(--text-muted, #888); margin-top: 4px;">选择提示词模板后，系统提示词将从模板中自动获取</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="agentSkills">关联技能（可多选）</label>
+                        <div class="skills-select-container">
+                            <select id="agentSkills" name="skills" multiple>
+                            </select>
+                            <p style="font-size: 12px; color: var(--text-muted, #888); margin-top: 4px;">按住Ctrl/Cmd可多选技能</p>
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">

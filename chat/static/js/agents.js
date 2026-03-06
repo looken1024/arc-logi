@@ -3,6 +3,7 @@
 let currentUser = null;
 let agents = [];
 let prompts = [];
+let skills = [];
 let agentToDelete = null;
 let editingAgentId = null;
 
@@ -24,6 +25,7 @@ const elements = {
     agentDescription: document.getElementById('agentDescription'),
     agentSystemPrompt: document.getElementById('agentSystemPrompt'),
     agentPromptId: document.getElementById('agentPromptId'),
+    agentSkills: document.getElementById('agentSkills'),
     agentModel: document.getElementById('agentModel'),
     agentTemperature: document.getElementById('agentTemperature'),
     agentMaxTokens: document.getElementById('agentMaxTokens'),
@@ -43,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
     loadPromptsForSelect();
+    loadSkillsForSelect();
     loadAgents();
 });
 
@@ -167,6 +170,27 @@ async function loadPromptsForSelect() {
     }
 }
 
+async function loadSkillsForSelect() {
+    try {
+        const response = await fetch('/api/skills', {
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            skills = data.skills || [];
+            
+            const optionsHtml = skills.map(skill => 
+                `<option value="${skill.name}">${escapeHtml(skill.name)} - ${escapeHtml(skill.description || '')}</option>`
+            ).join('');
+            
+            elements.agentSkills.innerHTML = optionsHtml;
+        }
+    } catch (error) {
+        console.error('加载技能列表失败:', error);
+    }
+}
+
 async function loadAgents(search = '') {
     try {
         const url = search ? `/api/agents?search=${encodeURIComponent(search)}` : '/api/agents';
@@ -230,6 +254,7 @@ function renderAgents() {
             <div class="agent-card-meta">
                 <span class="agent-model-badge">${escapeHtml(agent.model)}</span>
                 ${agent.prompt_name ? `<span class="agent-prompt-badge">${escapeHtml(agent.prompt_name)}</span>` : ''}
+                ${agent.skills ? `<span class="agent-skills-badge">${escapeHtml(agent.skills)}</span>` : ''}
                 <span>更新: ${formatDate(agent.updated_at)}</span>
             </div>
         </div>
@@ -273,6 +298,11 @@ function openAgentModal(agent = null) {
     elements.agentMaxTokens.value = agent && agent.max_tokens ? agent.max_tokens : '2000';
     elements.agentId.value = agent ? agent.id : '';
     
+    const agentSkills = agent && agent.skills ? agent.skills.split(',') : [];
+    Array.from(elements.agentSkills.options).forEach(option => {
+        option.selected = agentSkills.includes(option.value);
+    });
+    
     elements.agentModal.classList.add('active');
     elements.agentName.focus();
 }
@@ -291,6 +321,7 @@ async function saveAgent() {
     const model = elements.agentModel.value;
     const temperature = parseFloat(elements.agentTemperature.value) || 0.7;
     const max_tokens = parseInt(elements.agentMaxTokens.value) || 2000;
+    const skills = Array.from(elements.agentSkills.selectedOptions).map(option => option.value);
     
     if (!name) {
         alert('请输入Agent名称');
@@ -308,7 +339,8 @@ async function saveAgent() {
         prompt_id,
         model,
         temperature,
-        max_tokens
+        max_tokens,
+        skills
     };
 
     try {
@@ -409,6 +441,12 @@ function showAgentDetail(agentId) {
             <div style="margin-bottom: 16px;">
                 <strong>关联提示词:</strong>
                 <span class="agent-prompt-badge" style="margin-left: 8px;">${escapeHtml(agent.prompt_name)}</span>
+            </div>
+        ` : ''}
+        ${agent.skills ? `
+            <div style="margin-bottom: 16px;">
+                <strong>关联技能:</strong>
+                <span class="agent-skills-badge" style="margin-left: 8px;">${escapeHtml(agent.skills)}</span>
             </div>
         ` : ''}
         <div>
