@@ -295,11 +295,23 @@
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
-        let currentAudioFile = null;
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let recognition = null;
-        let isRecording = false;
+         let currentAudioFile = null;
+         let mediaRecorder = null;
+         let audioChunks = [];
+         let recognition = null;
+         let isRecording = false;
+         let microphoneRetryCount = 0;
+
+         // 检查环境安全性
+         (function checkEnvironment() {
+             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+             const isHttps = window.location.protocol === 'https:';
+             
+             if (!isLocalhost && !isHttps) {
+                 console.warn('⚠️ 麦克风功能通常需要 HTTPS 或 localhost 环境才能正常工作。当前环境：' + window.location.protocol + '//' + window.location.hostname);
+                 console.info('💡 建议通过 localhost 访问或配置 HTTPS 以获得更好的兼容性。');
+             }
+         })();
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -342,18 +354,21 @@
         }
 
         function toggleRecording() {
-            if (!recognition) {
-                alert('您的浏览器不支持语音识别功能，请使用 Chrome 或 Edge 浏览器');
-                return;
-            }
-
             const btn = document.getElementById('recordBtn');
             const status = document.getElementById('recordStatus');
 
             if (isRecording) {
-                stopRecording();
+                if (recognition) {
+                    stopRecording();
+                } else {
+                    stopModelRecording();
+                }
             } else {
-                startRecording();
+                if (recognition) {
+                    startRecording();
+                } else {
+                    startModelRecording();
+                }
             }
         }
 
@@ -383,6 +398,94 @@
             if (recognition) {
                 recognition.stop();
             }
+        }
+
+        function startModelRecording() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('您的浏览器不支持音频录制功能');
+                return;
+            }
+            
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                 .then(stream => {
+                     microphoneRetryCount = 0;
+                     mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.addEventListener('dataavailable', event => {
+                        audioChunks.push(event.data);
+                    });
+                    
+                    mediaRecorder.addEventListener('stop', () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        sendAudioToServer(audioBlob);
+                        
+                        stream.getTracks().forEach(track => track.stop());
+                    });
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    const btn = document.getElementById('recordBtn');
+                    const status = document.getElementById('recordStatus');
+                    btn.classList.add('recording');
+                    btn.innerHTML = '<i class="fas fa-stop"></i>';
+                    status.textContent = '正在录音...';
+                    status.classList.add('active');
+                })
+                 .catch(error => {
+                     console.error('获取麦克风权限失败:', error);
+                     if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                         const message = '请允许浏览器使用麦克风权限。\n\n解决方法：\n1. 检查浏览器地址栏左侧的锁形图标或信息图标\n2. 找到"麦克风"或"Camera"权限设置\n3. 选择"允许"或"总是允许此网站使用麦克风"\n4. 刷新页面后重试\n\n如果仍然无法使用，请检查系统麦克风设置是否已启用。';
+                         if (microphoneRetryCount < 3 && confirm(message + '\n\n是否立即重试？')) {
+                             microphoneRetryCount++;
+                             setTimeout(startModelRecording, 100);
+                         } else {
+                             microphoneRetryCount = 0;
+                         }
+                     } else {
+                         alert('无法访问麦克风: ' + error.message + '\n\n请确保已连接麦克风设备并且没有被其他程序占用。');
+                     }
+                 });
+        }
+
+        function stopModelRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordStatus');
+            btn.classList.remove('recording');
+            btn.innerHTML = '<i class="fas fa-microphone"></i>';
+            status.textContent = '点击开始录音';
+            status.classList.remove('active');
+        }
+
+        function sendAudioToServer(audioBlob) {
+            const loading = document.getElementById('audioLoading');
+            loading.classList.add('show');
+            
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.webm');
+            
+            fetch('/api/voice/recognize', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('resultText').value += data.text;
+                } else {
+                    alert('语音识别失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('语音识别失败: ' + error.message);
+            })
+            .finally(() => {
+                loading.classList.remove('show');
+            });
         }
 
         function previewAudio(input) {

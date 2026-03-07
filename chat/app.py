@@ -1084,8 +1084,13 @@ def pdf_to_image():
 
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mp3'}
 
+ALLOWED_AUDIO_EXTENSIONS = {'mp3', 'wav', 'm4a', 'ogg', 'webm', 'mp4', 'flac', 'aac', 'opus'}
+
 def allowed_video_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_VIDEO_EXTENSIONS
+
+def allowed_audio_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_AUDIO_EXTENSIONS
 
 @app.route('/api/video/convert', methods=['POST'])
 def video_convert():
@@ -1154,6 +1159,54 @@ def video_convert():
             as_attachment=True,
             download_name=f'{original_name}.{target_format.lower()}'
         )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/voice/recognize', methods=['POST'])
+def voice_recognize():
+    """语音转文字"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': '请选择文件'})
+    
+    if not allowed_audio_file(file.filename):
+        return jsonify({'success': False, 'error': '不支持的音频格式'})
+    
+    try:
+        if not OPENAI_API_KEY:
+            return jsonify({'success': False, 'error': '未配置 OpenAI API Key'})
+        
+        client = openai.OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+        
+        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        import uuid
+        input_ext = file.filename.rsplit('.', 1)[1].lower()
+        input_filename = f"{uuid.uuid4()}.{input_ext}"
+        input_path = os.path.join(temp_dir, input_filename)
+        file.save(input_path)
+        
+        with open(input_path, 'rb') as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                language="zh"
+            )
+        
+        os.remove(input_path)
+        
+        return jsonify({
+            'success': True,
+            'text': transcript.text
+        })
+        
+    except openai.OpenAIError as e:
+        return jsonify({'success': False, 'error': f'语音识别失败: {str(e)}'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -1596,6 +1649,13 @@ def agents_page():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('agents.html')
+
+@app.route('/voice')
+def voice_page():
+    """语音转文字页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('voice.html')
 
 @app.route('/workflows/editor/<int:workflow_id>')
 def workflow_editor(workflow_id):

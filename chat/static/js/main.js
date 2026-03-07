@@ -9,6 +9,10 @@ let currentUser = null;
 let currentTheme = 'dark';
 let currentPage = 1;
 let hasMoreConversations = false;
+let isRecording = false;
+let recognition = null;
+let mediaRecorder = null;
+let audioChunks = [];
 
 // DOM 元素
 const elements = {
@@ -34,7 +38,8 @@ const elements = {
     dropdown: document.getElementById('moreActionsDropdown'),
     loadMoreBtn: document.getElementById('loadMoreBtn'),
     loadMoreContainer: document.getElementById('loadMoreContainer'),
-    loadingSpinner: document.getElementById('loadingSpinner')
+    loadingSpinner: document.getElementById('loadingSpinner'),
+    voiceBtn: document.getElementById('voiceBtn')
 };
 
 // 初始化
@@ -270,6 +275,9 @@ function initializeEventListeners() {
         });
     });
 
+    // 语音输入
+    elements.voiceBtn?.addEventListener('click', toggleVoiceRecognition);
+
     // 示例提示词
     document.querySelectorAll('.example-prompt').forEach(prompt => {
         prompt.addEventListener('click', () => {
@@ -335,6 +343,7 @@ function generateUUID() {
 
 // 创建新对话
 function createNewConversation() {
+    stopVoiceRecognition();
     currentConversationId = generateUUID();
     elements.messagesContainer.innerHTML = '';
     elements.welcomeScreen.style.display = 'flex';
@@ -349,6 +358,7 @@ function createNewConversation() {
 
 // 发送消息
 async function sendMessage() {
+    stopVoiceRecognition();
     const message = elements.messageInput.value.trim();
     if (!message || isGenerating) return;
 
@@ -752,6 +762,7 @@ async function deleteConversation(conversationId, event) {
 // 清空当前对话
 function clearCurrentConversation() {
     if (confirm('确定要清空当前对话吗?')) {
+        stopVoiceRecognition();
         elements.messagesContainer.innerHTML = '';
         elements.welcomeScreen.style.display = 'flex';
         deleteConversation(currentConversationId, { stopPropagation: () => {} });
@@ -820,6 +831,166 @@ function highlightCurrentNav() {
         } else {
             item.classList.remove('active');
         }
+    });
+}
+
+// 语音识别
+function toggleVoiceRecognition() {
+    const hasSpeechRecognition = ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+    
+    if (hasSpeechRecognition) {
+        if (isRecording) {
+            stopVoiceRecognition();
+        } else {
+            startVoiceRecognition();
+        }
+    } else {
+        const hasMediaRecorder = navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder;
+        if (!hasMediaRecorder) {
+            showError('您的浏览器不支持语音识别功能，请使用 Chrome 或 Edge 等现代浏览器');
+            return;
+        }
+        
+        if (isRecording) {
+            stopModelRecording();
+        } else {
+            startModelRecording();
+        }
+    }
+}
+
+function startVoiceRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'zh-CN';
+
+    recognition.onstart = () => {
+        isRecording = true;
+        elements.voiceBtn.classList.add('recording');
+        elements.voiceBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+        elements.voiceBtn.title = '点击停止录音';
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        elements.messageInput.value += transcript;
+        elements.sendBtn.disabled = !elements.messageInput.value.trim();
+        autoResizeTextarea();
+        elements.messageInput.focus();
+    };
+
+    recognition.onerror = (event) => {
+        console.error('语音识别错误:', event.error);
+        if (event.error === 'not-allowed') {
+            showError('请允许浏览器使用麦克风权限');
+        } else {
+            showError('语音识别失败: ' + event.error);
+        }
+        stopVoiceRecognition();
+    };
+
+    recognition.onend = () => {
+        stopVoiceRecognition();
+    };
+
+    try {
+        recognition.start();
+    } catch (error) {
+        console.error('启动语音识别失败:', error);
+        showError('启动语音识别失败');
+        isRecording = false;
+        elements.voiceBtn.classList.remove('recording');
+        elements.voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    }
+}
+
+function stopVoiceRecognition() {
+    if (recognition) {
+        try {
+            recognition.stop();
+        } catch (e) {
+            // ignore
+        }
+        recognition = null;
+    }
+    isRecording = false;
+    elements.voiceBtn.classList.remove('recording');
+    elements.voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    elements.voiceBtn.title = '点击开始录音';
+}
+
+function startModelRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showError('您的浏览器不支持音频录制功能');
+        return;
+    }
+    
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            
+            mediaRecorder.addEventListener('dataavailable', event => {
+                audioChunks.push(event.data);
+            });
+            
+            mediaRecorder.addEventListener('stop', () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                sendAudioToServer(audioBlob);
+                
+                stream.getTracks().forEach(track => track.stop());
+            });
+            
+            mediaRecorder.start();
+            isRecording = true;
+            elements.voiceBtn.classList.add('recording');
+            elements.voiceBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+            elements.voiceBtn.title = '点击停止录音';
+        })
+        .catch(error => {
+            console.error('获取麦克风权限失败:', error);
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                showError('请允许浏览器使用麦克风权限');
+            } else {
+                showError('无法访问麦克风: ' + error.message);
+            }
+        });
+}
+
+function stopModelRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    isRecording = false;
+    elements.voiceBtn.classList.remove('recording');
+    elements.voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    elements.voiceBtn.title = '点击开始录音';
+}
+
+function sendAudioToServer(audioBlob) {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'recording.webm');
+    
+    fetch('/api/voice/recognize', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            elements.messageInput.value += data.text;
+            elements.sendBtn.disabled = !elements.messageInput.value.trim();
+            autoResizeTextarea();
+            elements.messageInput.focus();
+        } else {
+            showError('语音识别失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('上传音频失败:', error);
+        showError('语音识别失败: ' + error.message);
     });
 }
 
