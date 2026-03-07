@@ -1910,6 +1910,7 @@ def chat():
                         for tool_call in tool_calls:
                             function_name = tool_call.function.name
                             function_args = json.loads(tool_call.function.arguments)
+                            function_args['_username'] = username
                             
                             # 发送思考过程：正在调用函数
                             yield f"data: {json.dumps({'thinking': {'type': 'calling_function', 'function': function_name, 'args': function_args}})}\n\n"

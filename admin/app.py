@@ -136,6 +136,7 @@ def execute_command_stream():
         return Response(f"data: {json.dumps({'error': '请输入命令'})}\n\n", mimetype='text/event-stream')
     
     def generate():
+        process = None
         try:
             process = subprocess.Popen(
                 ['bash', '-i', '-c', command],
@@ -150,9 +151,13 @@ def execute_command_stream():
             error_lines = []
             
             import select
+            import time
             
             stdout = process.stdout
             stderr = process.stderr
+            
+            last_activity = time.time()
+            timeout_seconds = 300
             
             while True:
                 if stdout:
@@ -170,15 +175,28 @@ def execute_command_stream():
                         if line:
                             output_lines.append(line)
                             yield f"data: {json.dumps({'type': 'output', 'data': line})}\n\n"
+                            last_activity = time.time()
                     
                     if stderr and stderr.fileno() in readable:
                         line = stderr.readline()
                         if line:
                             error_lines.append(line)
                             yield f"data: {json.dumps({'type': 'error', 'data': line})}\n\n"
+                            last_activity = time.time()
                 
                 if process.poll() is not None:
                     break
+                
+                if time.time() - last_activity > timeout_seconds:
+                    import signal
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                    yield f"data: {json.dumps({'type': 'error', 'data': '命令执行超时（无活动输出超过5分钟）'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'returncode': -1})}\n\n"
+                    return
             
             if stdout:
                 remaining_out = stdout.read()
@@ -210,12 +228,29 @@ def execute_command_stream():
             history = history[:100]
             save_command_history(history)
             
+        except GeneratorExit:
+            if process and process.poll() is None:
+                import signal
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+            raise
         except subprocess.TimeoutExpired:
             yield f"data: {json.dumps({'type': 'error', 'data': '命令执行超时（最大5分钟）'})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'returncode': -1})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'returncode': -1})}\n\n"
+        finally:
+            if process and process.poll() is None:
+                import signal
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
     
     return Response(generate(), mimetype='text/event-stream')
 

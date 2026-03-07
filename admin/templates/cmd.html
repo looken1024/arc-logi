@@ -205,6 +205,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 0;
         }
 
             .page-header {
@@ -282,7 +283,7 @@
             }
 
             .page-header h1 {
-                font-size: 14px;
+                font-size: 8px;
                 font-weight: 600;
             }
 
@@ -298,14 +299,17 @@
 
             .right-panel {
                 width: 100%;
-                height: 50%;
+                flex: 1;
+                overflow: hidden;
+                min-height: 0;
                 margin-bottom: 4px;
-                overflow: visible;
             }
 
             .output-panel {
                 width: 100%;
                 height: 100%;
+                overflow: hidden;
+                min-height: 0;
             }
 
             .left-panel {
@@ -314,6 +318,7 @@
                 min-width: 0 !important;
                 max-width: 100% !important;
                 overflow: hidden;
+                flex-shrink: 0;
             }
 
             .command-panel {
@@ -393,28 +398,33 @@
             }
 
             .terminal-container {
-                display: block !important;
+                display: flex !important;
+                flex-direction: column;
                 width: 100% !important;
                 height: calc(100% - 44px);
                 padding: 4px !important;
                 margin: 0 !important;
                 box-sizing: border-box;
                 overflow: visible;
+                gap: 4px;
             }
 
             .right-panel {
                 width: 100% !important;
-                height: auto;
-                margin: 0 0 4px 0 !important;
+                flex: 1;
+                margin: 0 !important;
                 padding: 0 !important;
                 box-sizing: border-box;
-                overflow: visible;
+                overflow: hidden;
+                min-height: 0;
             }
 
             .output-panel {
                 width: 100%;
                 height: 100%;
                 box-sizing: border-box;
+                overflow: hidden;
+                min-height: 0;
             }
 
             .left-panel {
@@ -424,6 +434,7 @@
                 margin: 0 !important;
                 box-sizing: border-box;
                 overflow: visible;
+                flex-shrink: 0;
             }
 
             .command-panel {
@@ -561,25 +572,26 @@
         }
 
         .page-header h1 {
-            font-size: 20px;
+            font-size: 10px;
             font-weight: 600;
         }
 
         .terminal-container {
             flex: 1;
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
             padding: 16px;
             gap: 12px;
             overflow: visible;
+            min-height: 0;
         }
 
         .left-panel {
-            width: 45%;
+            width: 100%;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            min-width: 300px;
+            flex-shrink: 0;
         }
 
         .right-panel {
@@ -587,6 +599,9 @@
             display: flex;
             flex-direction: column;
             min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+            width: 100%;
         }
 
         .command-panel {
@@ -760,9 +775,10 @@
             background: #0d0d0d;
             border: 1px solid #333;
             border-radius: 12px;
-            overflow: auto;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 0;
         }
 
         .output-header {
@@ -810,12 +826,16 @@
         .output-content {
             flex: 1;
             padding: 16px;
-            overflow: auto;
+            overflow-y: auto;
+            overflow-x: hidden;
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 13px;
             line-height: 1.6;
             white-space: pre-wrap;
             word-break: break-all;
+            min-height: 0;
+            height: 100%;
+            max-height: 100%;
         }
 
         .output-content.success {
@@ -956,6 +976,24 @@
             </header>
 
             <div class="terminal-container">
+                <div class="right-panel">
+                    <div class="output-panel">
+                        <div class="output-header">
+                            <h3><i class="fas fa-terminal"></i> 输出结果</h3>
+                            <div class="output-actions">
+                                <button onclick="copyOutput()"><i class="fas fa-copy"></i> 复制</button>
+                                <button onclick="clearOutput()"><i class="fas fa-trash"></i> 清空</button>
+                            </div>
+                        </div>
+                        <div class="output-content" id="outputContent">
+                            <div class="output-placeholder">
+                                <i class="fas fa-terminal"></i>
+                                <p>输入命令并点击执行按钮</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="left-panel">
                     <div class="command-panel">
                         <div class="command-input-wrapper">
@@ -980,24 +1018,7 @@
                             <span class="cmd-tag" onclick="quickCommand('top -bn1 | head -20')">top</span>
                             <span class="cmd-tag" onclick="quickCommand('netstat -tuln')">netstat</span>
                             <span class="cmd-tag" onclick="quickCommand('cat /etc/os-release')">系统信息</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="right-panel">
-                    <div class="output-panel">
-                        <div class="output-header">
-                            <h3><i class="fas fa-terminal"></i> 输出结果</h3>
-                            <div class="output-actions">
-                                <button onclick="copyOutput()"><i class="fas fa-copy"></i> 复制</button>
-                                <button onclick="clearOutput()"><i class="fas fa-trash"></i> 清空</button>
-                            </div>
-                        </div>
-                        <div class="output-content" id="outputContent">
-                            <div class="output-placeholder">
-                                <i class="fas fa-terminal"></i>
-                                <p>输入命令并点击执行按钮</p>
-                            </div>
+                            <span class="cmd-tag" onclick="insertOpenCode()">opencode</span>
                         </div>
                     </div>
                 </div>
@@ -1006,7 +1027,10 @@
     </div>
 
     <script>
-        let eventSource = null;
+         let eventSource = null;
+         let commandHistory = [];
+         let commandHistoryIndex = -1;
+         let tempCommand = '';
 
         async function checkLogin() {
             try {
@@ -1169,10 +1193,43 @@
         }
 
         function handleCommandKey(event) {
+            const commandInput = document.getElementById('commandInput');
+            
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 executeCommand();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (commandHistoryIndex === -1) {
+                    tempCommand = commandInput.value.trim();
+                }
+                if (commandHistory.length > 0) {
+                    if (commandHistoryIndex < commandHistory.length - 1) {
+                        commandHistoryIndex++;
+                    }
+                    commandInput.value = commandHistory[commandHistory.length - 1 - commandHistoryIndex];
+                }
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (commandHistoryIndex > 0) {
+                    commandHistoryIndex--;
+                    commandInput.value = commandHistory[commandHistory.length - 1 - commandHistoryIndex];
+                } else if (commandHistoryIndex === 0) {
+                    commandHistoryIndex = -1;
+                    commandInput.value = tempCommand || '';
+                }
             }
+        }
+
+        function insertOpenCode() {
+            const commandInput = document.getElementById('commandInput');
+            const text = 'opencode run ""';
+            commandInput.value = text;
+            
+            const quotePos = text.indexOf('"') + 1;
+            
+            commandInput.focus();
+            commandInput.setSelectionRange(quotePos, quotePos);
         }
 
         function quickCommand(cmd) {
@@ -1191,6 +1248,15 @@
                 output.innerHTML = '<div class="output-placeholder"><i class="fas fa-exclamation-circle"></i><p>请输入命令</p></div>';
                 return;
             }
+
+            if (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== command) {
+                commandHistory.push(command);
+                if (commandHistory.length > 20) {
+                    commandHistory.shift();
+                }
+            }
+            commandHistoryIndex = -1;
+            tempCommand = '';
 
             if (eventSource) {
                 eventSource.close();
@@ -1252,6 +1318,7 @@
                             } else if (data.error) {
                                 outputContent.innerHTML = `<div class="output-content error">${escapeHtml(data.error)}</div>`;
                             }
+                            outputContent.scrollTop = outputContent.scrollHeight;
                         } catch (e) {
                             console.error('Parse error:', e);
                         }
