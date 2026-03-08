@@ -76,6 +76,17 @@ function applyTheme(theme) {
 }
 
 function initializeEventListeners() {
+    // 禁用双指捏合缩放
+    document.addEventListener('gesturestart', (e) => {
+        e.preventDefault();
+    });
+    document.addEventListener('gesturechange', (e) => {
+        e.preventDefault();
+    });
+    document.addEventListener('gestureend', (e) => {
+        e.preventDefault();
+    });
+
     const mainContent = document.querySelector('.main-content');
 
     elements.sidebarToggle?.addEventListener('click', () => {

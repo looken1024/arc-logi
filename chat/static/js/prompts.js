@@ -71,6 +71,31 @@ function applyTheme(theme) {
 }
 
 function initializeEventListeners() {
+    // 禁用双指捏合缩放
+    document.addEventListener('gesturestart', (e) => {
+        e.preventDefault();
+    });
+    document.addEventListener('gesturechange', (e) => {
+        e.preventDefault();
+    });
+    document.addEventListener('gestureend', (e) => {
+        e.preventDefault();
+    });
+
+    // 禁用 Ctrl+滚轮缩放
+    document.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    // 禁用 Ctrl+加号/减号/0 缩放
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+            e.preventDefault();
+        }
+    });
+
     const mainContent = document.querySelector('.main-content');
 
     elements.sidebarToggle?.addEventListener('click', () => {

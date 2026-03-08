@@ -125,6 +125,17 @@ async function loadAgentsForSelect() {
 
 // 初始化事件监听器
 function initializeEventListeners() {
+    // 禁用双指捏合缩放
+    document.addEventListener('gesturestart', (e) => {
+        e.preventDefault();
+    });
+    document.addEventListener('gesturechange', (e) => {
+        e.preventDefault();
+    });
+    document.addEventListener('gestureend', (e) => {
+        e.preventDefault();
+    });
+
     // 侧边栏切换
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebar = document.getElementById('sidebar');
