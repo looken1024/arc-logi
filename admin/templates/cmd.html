@@ -1078,11 +1078,12 @@
         </main>
     </div>
 
-    <script>
-         let eventSource = null;
-         let commandHistory = [];
-         let commandHistoryIndex = -1;
-         let tempCommand = '';
+     <script>
+          let eventSource = null;
+          let isExecuting = false;
+          let commandHistory = [];
+          let commandHistoryIndex = -1;
+          let tempCommand = '';
 
         async function checkLogin() {
             try {
@@ -1290,14 +1291,18 @@
         }
 
         async function executeCommand() {
-
+            if (isExecuting) {
+                return;
+            }
+            isExecuting = true;
+            
             const command = document.getElementById('commandInput').value.trim();
-            document.getElementById('commandInput').value = '';
             const workdir = document.getElementById('workdir').value.trim();
             const output = document.getElementById('outputContent');
 
             if (!command) {
                 output.innerHTML = '<div class="output-placeholder"><i class="fas fa-exclamation-circle"></i><p>请输入命令</p></div>';
+                isExecuting = false;
                 return;
             }
 
@@ -1310,77 +1315,83 @@
             commandHistoryIndex = -1;
             tempCommand = '';
 
-            if (eventSource) {
-                eventSource.close();
-            }
-
             output.innerHTML = '<div class="output-content"></div>';
             const outputContent = output.querySelector('.output-content');
             outputContent.className = 'output-content';
 
+            const commandInput = document.getElementById('commandInput');
+            const workdirInput = document.getElementById('workdir');
+            commandInput.value = '';
+            commandInput.disabled = true;
+            workdirInput.disabled = true;
+
             try {
-                eventSource = new EventSource('/api/execute_stream', {
-                    method: 'POST',
-                    body: JSON.stringify({ command, workdir })
-                });
-                
-                fetch('/api/execute_stream', {
+                const response = await fetch('/api/execute_stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ command, workdir })
-                }).then(response => {
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-
-                    function read() {
-                        reader.read().then(({ done, value }) => {
-                            if (done) {
-                                if (buffer) {
-                                    processStreamData(buffer);
-                                }
-                                return;
-                            }
-                            
-                            buffer += decoder.decode(value, { stream: true });
-                            const lines = buffer.split('\n\n');
-                            buffer = lines.pop() || '';
-                            
-                            lines.forEach(line => {
-                                if (line.startsWith('data: ')) {
-                                    processStreamData(line.slice(6));
-                                }
-                            });
-                            
-                            read();
-                        });
-                    }
-                    
-                    function processStreamData(dataStr) {
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.type === 'output') {
-                                outputContent.innerHTML += ansiToHtml(data.data);
-                                outputContent.className = 'output-content success';
-                            } else if (data.type === 'error') {
-                                outputContent.innerHTML += ansiToHtml(data.data);
-                                outputContent.className = 'output-content error';
-                            } else if (data.type === 'done') {
-                                outputContent.innerHTML += `\n\n<div class="return-code">退出码: ${data.returncode}</div>`;
-                            } else if (data.error) {
-                                outputContent.innerHTML = `<div class="output-content error">${escapeHtml(data.error)}</div>`;
-                            }
-                            outputContent.scrollTop = outputContent.scrollHeight;
-                        } catch (e) {
-                            console.error('Parse error:', e);
-                        }
-                    }
-                    
-                    read();
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`请求失败: ${response.status} ${response.statusText}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                function read() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) {
+                            if (buffer) {
+                                processStreamData(buffer);
+                            }
+                            return;
+                        }
+                        
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n\n');
+                        buffer = lines.pop() || '';
+                        
+                        lines.forEach(line => {
+                            if (line.startsWith('data: ')) {
+                                processStreamData(line.slice(6));
+                            }
+                        });
+                        
+                        return read();
+                    });
+                }
+                
+                function processStreamData(dataStr) {
+                    try {
+                        const data = JSON.parse(dataStr);
+                        if (data.type === 'output') {
+                            outputContent.innerHTML += ansiToHtml(data.data);
+                            outputContent.className = 'output-content success';
+                        } else if (data.type === 'error') {
+                            outputContent.innerHTML += ansiToHtml(data.data);
+                            outputContent.className = 'output-content error';
+                        } else if (data.type === 'done') {
+                            outputContent.innerHTML += `\n\n<div class="return-code">退出码: ${data.returncode}</div>`;
+                        } else if (data.error) {
+                            outputContent.innerHTML = `<div class="output-content error">${escapeHtml(data.error)}</div>`;
+                        }
+                        outputContent.scrollTop = outputContent.scrollHeight;
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                    }
+                }
+                
+                await read();
                 
             } catch (e) {
                 output.innerHTML = `<div class="output-content error">执行失败: ${escapeHtml(e.message)}</div>`;
+            } finally {
+                commandInput.disabled = false;
+                workdirInput.disabled = false;
+                commandInput.focus();
+                isExecuting = false;
             }
         }
 

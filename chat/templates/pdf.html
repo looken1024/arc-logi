@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PDF阅读器 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item">
+                    <i class="fas fa-tools"></i>
+                    <span>工具列表</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>PDF阅读器</h1>
+                <a href="/tools" class="back-to-tools">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回工具列表</span>
+                </a>
+            </header>
+            
+            <div class="tool-container">
+                <div class="tool-header">
+                    <h2><i class="fas fa-file-pdf"></i> PDF阅读器</h2>
+                    <p>上传PDF文件，直接在浏览器中查看内容</p>
+                </div>
+                
+                <div class="tool-content">
+                    <form id="pdfForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="pdfFile">选择PDF文件</label>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="pdfFile" name="file" accept=".pdf" required>
+                                <div class="file-input-custom">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <span>点击或拖拽PDF文件到此处</span>
+                                </div>
+                            </div>
+                            <div id="fileName" class="file-name"></div>
+                            <small>支持格式：PDF，最大文件大小：16MB</small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-eye"></i> 查看PDF
+                        </button>
+                    </form>
+                    
+                    <div id="pdfViewer" class="pdf-viewer mt-4" style="display: none;">
+                        <div class="pdf-header">
+                            <h3>PDF内容预览</h3>
+                            <div class="pdf-actions">
+                                <button id="prevPage" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-chevron-left"></i> 上一页
+                                </button>
+                                <span id="pageInfo">第 1 页，共 1 页</span>
+                                <button id="nextPage" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-chevron-right"></i> 下一页
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="pdfCanvasContainer" class="pdf-canvas-container">
+                            <canvas id="pdfCanvas"></canvas>
+                        </div>
+                        
+                        <div id="pdfTextContent" class="pdf-text-content mt-4" style="display: none;">
+                            <div class="pdf-text-header">
+                                <h4>PDF文本内容</h4>
+                                <button id="toggleView" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-eye-slash"></i> 切换到预览模式
+                                </button>
+                            </div>
+                            <div id="pdfText" class="pdf-text"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="loading" class="loading mt-4" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>正在加载PDF...</p>
+                    </div>
+                    
+                    <div id="errorMessage" class="alert alert-danger mt-4" style="display: none;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置PDF.js worker源
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+            }
+            
+            const pdfForm = document.getElementById('pdfForm');
+            const pdfFileInput = document.getElementById('pdfFile');
+            const pdfViewer = document.getElementById('pdfViewer');
+            const loading = document.getElementById('loading');
+            const errorMessage = document.getElementById('errorMessage');
+            const pdfCanvas = document.getElementById('pdfCanvas');
+            const pdfCanvasContainer = document.getElementById('pdfCanvasContainer');
+            const pdfTextContent = document.getElementById('pdfTextContent');
+            const pdfText = document.getElementById('pdfText');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevPageBtn = document.getElementById('prevPage');
+            const nextPageBtn = document.getElementById('nextPage');
+            const toggleViewBtn = document.getElementById('toggleView');
+            const submitBtn = pdfForm.querySelector('button[type="submit"]');
+            const fileName = document.getElementById('fileName');
+            
+            let pdfDoc = null;
+            let currentPage = 1;
+            let isRendering = false;
+            let pageNumIsPending = null;
+            const scale = 1.5;
+            const canvas = pdfCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // 文件选择变化时显示文件名和启用按钮
+            pdfFileInput.addEventListener('change', function(e) {
+                const file = this.files[0];
+                if (file) {
+                    fileName.textContent = '已选择: ' + file.name;
+                    fileName.classList.add('show');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-eye"></i> 查看PDF';
+                } else {
+                    fileName.textContent = '';
+                    fileName.classList.remove('show');
+                    submitBtn.disabled = true;
+                }
+                errorMessage.style.display = 'none';
+            });
+            
+             // 渲染页面
+             function renderPage(num) {
+                 console.log('渲染页面:', num);
+                 isRendering = true;
+                
+                // 获取页面
+                pdfDoc.getPage(num).then(function(page) {
+                    const viewport = page.getViewport({scale: scale});
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    // 渲染PDF页面到canvas上下文
+                    const renderContext = {
+                        canvasContext: ctx,
+                        viewport: viewport
+                    };
+                    const renderTask = page.render(renderContext);
+                    
+                    // 等待渲染完成
+                    renderTask.promise.then(function() {
+                        isRendering = false;
+                        if (pageNumIsPending !== null) {
+                            // 新的页面渲染请求
+                            renderPage(pageNumIsPending);
+                            pageNumIsPending = null;
+                        }
+                    });
+                });
+                
+                // 更新页面计数
+                pageInfo.textContent = `第 ${num} 页，共 ${pdfDoc.numPages} 页`;
+                currentPage = num;
+            }
+            
+            // 队列渲染页面（防止快速翻页时的问题）
+            function queueRenderPage(num) {
+                if (isRendering) {
+                    pageNumIsPending = num;
+                } else {
+                    renderPage(num);
+                }
+            }
+            
+            // 显示上一页
+            function showPrevPage() {
+                if (currentPage <= 1) {
+                    return;
+                }
+                currentPage--;
+                queueRenderPage(currentPage);
+            }
+            
+            // 显示下一页
+            function showNextPage() {
+                if (currentPage >= pdfDoc.numPages) {
+                    return;
+                }
+                currentPage++;
+                queueRenderPage(currentPage);
+            }
+            
+            // 提取PDF文本
+            function extractText() {
+                if (!pdfDoc) return '';
+                const numPages = pdfDoc.numPages;
+                let fullText = '';
+                const promises = [];
+                for (let i = 1; i <= numPages; i++) {
+                    promises.push(pdfDoc.getPage(i).then(function(page) {
+                        return page.getTextContent();
+                    }).then(function(textContent) {
+                        const pageText = textContent.items.map(item => item.str).join(' ');
+                        return pageText;
+                    }));
+                }
+                return Promise.all(promises).then(pageTexts => pageTexts.join('\n\n'));
+            }
+            
+            // 切换视图模式
+            function toggleViewMode() {
+                if (pdfTextContent.style.display === 'none' || pdfTextContent.style.display === '') {
+                    // 切换到文本视图
+                    pdfCanvasContainer.style.display = 'none';
+                    pdfTextContent.style.display = 'block';
+                    toggleViewBtn.innerHTML = '<i class="fas fa-eye"></i> 切换到预览模式';
+                    // 提取并显示文本
+                    extractText().then(text => {
+                        pdfText.textContent = text;
+                    }).catch(err => {
+                        pdfText.textContent = '无法提取文本: ' + err.message;
+                    });
+                } else {
+                    // 切换到预览视图
+                    pdfCanvasContainer.style.display = 'block';
+                    pdfTextContent.style.display = 'none';
+                    toggleViewBtn.innerHTML = '<i class="fas fa-eye-slash"></i> 切换到文本模式';
+                }
+            }
+            
+            // 处理表单提交
+            pdfForm.addEventListener('submit', function(e) {
+                console.log('PDF表单提交');
+                e.preventDefault();
+                
+                const file = pdfFileInput.files[0];
+                if (!file) {
+                    showError('请选择一个PDF文件');
+                    return;
+                }
+                
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    showError('请选择一个有效的PDF文件');
+                    return;
+                }
+                
+                // 显示加载状态
+                loading.style.display = 'block';
+                errorMessage.style.display = 'none';
+                pdfViewer.style.display = 'none';
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+                
+                // 使用FileReader读取文件
+                const reader = new FileReader();
+                 reader.onload = function() {
+                    console.log('文件读取成功，大小:', this.result.byteLength, '字节');
+                    const typedarray = new Uint8Array(this.result);
+                    
+                    // 使用PDF.js加载PDF
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                    
+                     pdfjsLib.getDocument({data: typedarray}).promise.then(function(pdfDoc_) {
+                        console.log('PDF加载成功，总页数:', pdfDoc_.numPages);
+                        pdfDoc = pdfDoc_;
+                        pdfViewer.style.display = 'block';
+                        loading.style.display = 'none';
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-eye"></i> 查看PDF';
+                        
+                        // 显示第一页
+                        renderPage(1);
+                     }).catch(function(error) {
+                         console.error('PDF加载失败:', error);
+                         showError('PDF加载失败: ' + error.message);
+                        loading.style.display = 'none';
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-eye"></i> 查看PDF';
+                    });
+                };
+                reader.onerror = function() {
+                    showError('读取文件失败');
+                    loading.style.display = 'none';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-eye"></i> 查看PDF';
+                };
+                reader.readAsArrayBuffer(file);
+            });
+            
+            // 显示错误消息
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-eye"></i> 查看PDF';
+            }
+            
+            // 事件监听器
+            prevPageBtn.addEventListener('click', showPrevPage);
+            nextPageBtn.addEventListener('click', showNextPage);
+            toggleViewBtn.addEventListener('click', toggleViewMode);
+            
+            // 键盘快捷键
+            document.addEventListener('keydown', function(e) {
+                if (pdfViewer.style.display === 'block') {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        showPrevPage();
+                    } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        showNextPage();
+                    }
+                }
+            });
+            
+            // 初始化按钮状态
+            submitBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>

@@ -368,6 +368,13 @@ def image_tool():
         return redirect(url_for('login'))
     return render_template('image.html')
 
+@app.route('/pdf')
+def pdf_tool():
+    """PDF 阅读器页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('pdf.html')
+
 @app.route('/video')
 def video_tool():
     """视频转换工具页面"""

@@ -85,12 +85,16 @@ def execute_command():
         return jsonify({'success': False, 'error': '请输入命令'})
     
     try:
+        env = os.environ.copy()
+        env['TERM'] = 'xterm-256color'
+        env['FORCE_COLOR'] = '1'
         result = subprocess.run(
             ['bash', '-i', '-c', command],
             cwd=workdir,
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
+            env=env
         )
         
         output = result.stdout if result.stdout else ''
@@ -138,13 +142,17 @@ def execute_command_stream():
     def generate():
         process = None
         try:
+            env = os.environ.copy()
+            env['TERM'] = 'xterm-256color'
+            env['FORCE_COLOR'] = '1'
             process = subprocess.Popen(
                 ['bash', '-i', '-c', command],
                 cwd=workdir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                bufsize=1
+                bufsize=1,
+                env=env
             )
             
             output_lines = []
