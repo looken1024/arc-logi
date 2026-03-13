@@ -1786,7 +1786,7 @@ def update_theme():
         data = request.json
         theme = data.get('theme', 'dark')
         
-        if theme not in ['dark', 'light', 'blue', 'green', 'purple']:
+        if theme not in ['dark', 'light', 'blue', 'green', 'purple', 'red', 'orange', 'pink', 'cyan', 'indigo']:
             return jsonify({'error': '无效的主题'}), 400
         
         username = session['username']
