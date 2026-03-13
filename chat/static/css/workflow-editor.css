@@ -213,11 +213,11 @@
 
 /* 节点类型特定样式 */
 .workflow-node[data-node-type="start"] {
-    border-color: #10a37f;
+    border-color: var(--primary-color);
 }
 
 .workflow-node[data-node-type="start"] .workflow-node-icon {
-    color: #10a37f;
+    color: var(--primary-color);
 }
 
 .workflow-node[data-node-type="end"] {
@@ -229,11 +229,11 @@
 }
 
 .workflow-node[data-node-type="llm"] {
-    border-color: #19c37d;
+    border-color: var(--secondary-color);
 }
 
 .workflow-node[data-node-type="llm"] .workflow-node-icon {
-    color: #19c37d;
+    color: var(--secondary-color);
 }
 
 .workflow-node[data-node-type="script"] {

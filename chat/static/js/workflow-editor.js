@@ -9,6 +9,7 @@ let nodes = {};
 let edges = {};
 let nodeCounter = 0;
 let jsPlumbLoading = false;
+let currentTheme = 'dark';
 
 // 动态加载 jsPlumb 库
 function loadJsPlumbLibrary() {
@@ -265,12 +266,20 @@ async function loadUserInfo() {
             const user = await response.json();
             currentUser = user;
             elements.username.textContent = user.username;
+            currentTheme = user.theme || 'dark';
+            applyTheme(currentTheme);
         } else {
             window.location.href = '/login';
         }
     } catch (error) {
         console.error('加载用户信息失败:', error);
     }
+}
+
+// 应用主题
+function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    currentTheme = theme;
 }
 
 // 加载工作流
@@ -442,12 +451,16 @@ function initializeJsPlumb() {
         }
         console.log('Canvas element found:', elements.workflowCanvas);
         
+        // 获取当前主题的颜色变量
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#10a37f';
+        const secondaryColor = getComputedStyle(document.documentElement).getPropertyValue('--secondary-color').trim() || '#19c37d';
+        
         jsPlumbInstance = jsPlumb.getInstance({
             Container: elements.workflowCanvas,
             Connector: ['Flowchart', { stub: [40, 60], gap: 10, cornerRadius: 5 }],
-            PaintStyle: { stroke: '#10a37f', strokeWidth: 2 },
-            EndpointStyle: { radius: 6, fill: '#10a37f' },
-            HoverPaintStyle: { stroke: '#19c37d', strokeWidth: 3 },
+            PaintStyle: { stroke: primaryColor, strokeWidth: 2 },
+            EndpointStyle: { radius: 6, fill: primaryColor },
+            HoverPaintStyle: { stroke: secondaryColor, strokeWidth: 3 },
             ConnectionOverlays: [
                 ['Arrow', { location: 1, width: 12, length: 12 }],
                 ['Label', { label: '', location: 0.5, cssClass: 'connection-label' }]

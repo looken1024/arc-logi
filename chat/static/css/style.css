@@ -991,6 +991,15 @@ body {
 
 /* 移动端 */
 @media (max-width: 768px) {
+    body {
+        overflow: auto;
+    }
+    .app-container {
+        overflow: auto;
+    }
+    .main-content {
+        overflow: auto;
+    }
     .sidebar {
         position: fixed;
         left: 0;
