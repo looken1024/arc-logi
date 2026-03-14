@@ -3,6 +3,7 @@
 // 全局状态
 let currentUser = null;
 let schedules = [];
+let filteredSchedules = [];
 let scheduleToDelete = null;
 let currentScheduleId = null;
 let currentTheme = 'dark';
@@ -14,6 +15,7 @@ const elements = {
     schedulesList: document.getElementById('schedulesList'),
     username: document.getElementById('username'),
     createScheduleBtn: document.getElementById('createScheduleBtn'),
+    searchScheduleInput: document.getElementById('searchScheduleInput'),
     scheduleModal: document.getElementById('scheduleModal'),
     closeScheduleModal: document.getElementById('closeScheduleModal'),
     cancelScheduleBtn: document.getElementById('cancelScheduleBtn'),
@@ -178,6 +180,11 @@ function initializeEventListeners() {
             closeExecutionsModal();
         }
     });
+
+    // 搜索任务
+    elements.searchScheduleInput?.addEventListener('input', (e) => {
+        filterSchedules(e.target.value);
+    });
 }
 
 // 加载定时任务列表
@@ -195,7 +202,13 @@ async function loadSchedules() {
         });
         if (response.ok) {
             schedules = await response.json();
-            renderSchedules();
+            filteredSchedules = schedules;
+            const searchValue = elements.searchScheduleInput?.value || '';
+            if (searchValue) {
+                filterSchedules(searchValue);
+            } else {
+                renderSchedules();
+            }
         } else {
             elements.schedulesList.innerHTML = `
                 <div class="empty-state">
@@ -217,9 +230,26 @@ async function loadSchedules() {
     }
 }
 
+// 过滤定时任务列表
+function filterSchedules(searchTerm) {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) {
+        filteredSchedules = schedules;
+    } else {
+        filteredSchedules = schedules.filter(schedule => 
+            (schedule.name && schedule.name.toLowerCase().includes(term)) ||
+            (schedule.description && schedule.description.toLowerCase().includes(term)) ||
+            (schedule.cron && schedule.cron.toLowerCase().includes(term)) ||
+            (schedule.command && schedule.command.toLowerCase().includes(term))
+        );
+    }
+    renderSchedules();
+}
+
 // 渲染定时任务列表
 function renderSchedules() {
-    if (!schedules || schedules.length === 0) {
+    const displaySchedules = filteredSchedules && filteredSchedules.length > 0 ? filteredSchedules : (schedules || []);
+    if (!displaySchedules || displaySchedules.length === 0) {
         elements.schedulesList.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-clock"></i>
@@ -230,76 +260,73 @@ function renderSchedules() {
         return;
     }
 
-    const schedulesHtml = schedules.map(schedule => {
+    // 创建列表头部
+    const headerHtml = `
+        <div class="schedules-list-container">
+            <div class="schedule-list-header">
+                <div class="schedule-list-col schedule-list-col-name">任务名称</div>
+                <div class="schedule-list-col schedule-list-col-status">状态</div>
+                <div class="schedule-list-col schedule-list-col-command">命令</div>
+                <div class="schedule-list-col schedule-list-col-cron">执行周期</div>
+                <div class="schedule-list-col schedule-list-col-created">执行时间</div>
+                <div class="schedule-list-col schedule-list-col-actions">操作</div>
+            </div>
+    `;
+
+    const rowsHtml = displaySchedules.map(schedule => {
+        const createdAt = schedule.created_at ? new Date(schedule.created_at).toLocaleString('zh-CN') : '-';
         const lastRun = schedule.last_run_at ? new Date(schedule.last_run_at).toLocaleString('zh-CN') : '从未运行';
         const nextRun = schedule.next_run_at ? new Date(schedule.next_run_at).toLocaleString('zh-CN') : '-';
         
         return `
-        <div class="schedule-row" data-id="${schedule.id}">
-            <div class="schedule-cell schedule-name-cell">
-                <div>${escapeHtml(schedule.name)}</div>
-                <div class="schedule-meta-preview">
-                    <div class="meta-item-preview">
-                        <i class="fas fa-play-circle"></i>
-                        <span>${lastRun}</span>
-                    </div>
-                    <div class="meta-item-preview">
-                        <i class="fas fa-forward"></i>
-                        <span>${nextRun}</span>
-                    </div>
+            <div class="schedule-list-item" data-id="${schedule.id}">
+                <div class="schedule-list-col schedule-list-col-name">
+                    <div style="font-weight: 500;">${escapeHtml(schedule.name)}</div>
+                    ${schedule.description ? `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${escapeHtml(schedule.description)}</div>` : ''}
                 </div>
-            </div>
-            <div class="schedule-cell schedule-cron-cell">
-                <code class="cron-expression">${escapeHtml(schedule.cron)}</code>
-            </div>
-            <div class="schedule-cell schedule-command-cell">
-                <div class="schedule-command-preview" title="${escapeHtml(schedule.command)}">
-                    ${escapeHtml(schedule.command)}
+                <div class="schedule-list-col schedule-list-col-status">
+                    <span class="status-badge ${schedule.status}">
+                        ${schedule.status === 'active' ? '启用' : '暂停'}
+                    </span>
                 </div>
-                ${schedule.description ? `<div style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">${escapeHtml(schedule.description)}</div>` : ''}
-            </div>
-            <div class="schedule-cell schedule-status-cell">
-                <span class="schedule-status-badge ${schedule.status}">
-                    ${schedule.status === 'active' ? '启用' : '暂停'}
-                </span>
-            </div>
-            <div class="schedule-cell schedule-actions-cell">
-                <div class="schedule-actions">
-                    <button class="btn btn-icon run-schedule-btn" title="立即执行">
+                <div class="schedule-list-col schedule-list-col-command">
+                    <code style="font-size: 12px; word-break: break-all;">${escapeHtml(schedule.command)}</code>
+                </div>
+                <div class="schedule-list-col schedule-list-col-cron">
+                    <code class="cron-expression">${escapeHtml(schedule.cron)}</code>
+                </div>
+                <div class="schedule-list-col schedule-list-col-created">
+                    <div>创建: ${createdAt}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">上次: ${lastRun}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">下次: ${nextRun}</div>
+                </div>
+                <div class="schedule-list-col schedule-list-col-actions">
+                    <button class="btn-icon-sm run run-schedule-btn" title="立即执行">
                         <i class="fas fa-play"></i>
                     </button>
-                    <button class="btn btn-icon executions-schedule-btn" title="执行记录">
+                    <button class="btn-icon-sm executions executions-schedule-btn" title="执行记录">
                         <i class="fas fa-history"></i>
                     </button>
-                    <button class="btn btn-icon edit-schedule-btn" title="编辑">
+                    <button class="btn-icon-sm edit edit-schedule-btn" title="编辑">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-icon delete-schedule-btn" title="删除">
+                    <button class="btn-icon-sm delete delete-schedule-btn" title="删除">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
-        </div>
-    `}).join('');
+        `;
+    }).join('');
 
-    elements.schedulesList.innerHTML = `
-        <div class="schedules-table">
-            <div class="schedule-row">
-                <div class="schedule-cell schedule-name-cell header">任务名称</div>
-                <div class="schedule-cell schedule-cron-cell header">执行周期</div>
-                <div class="schedule-cell schedule-command-cell header">执行命令</div>
-                <div class="schedule-cell schedule-status-cell header">状态</div>
-                <div class="schedule-cell schedule-actions-cell header">操作</div>
-            </div>
-            ${schedulesHtml}
-        </div>
-    `;
+    const footerHtml = `</div>`;
 
-    // 绑定编辑和删除按钮事件
+    elements.schedulesList.innerHTML = headerHtml + rowsHtml;
+
+    // 绑定按钮事件
     document.querySelectorAll('.edit-schedule-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
+            const scheduleItem = e.target.closest('.schedule-list-item');
+            const scheduleId = scheduleItem.dataset.id;
             const schedule = schedules.find(s => s.id == scheduleId);
             if (schedule) {
                 openScheduleModal(schedule);
@@ -309,8 +336,8 @@ function renderSchedules() {
 
     document.querySelectorAll('.delete-schedule-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
+            const scheduleItem = e.target.closest('.schedule-list-item');
+            const scheduleId = scheduleItem.dataset.id;
             const schedule = schedules.find(s => s.id == scheduleId);
             if (schedule) {
                 openDeleteModal(schedule);
@@ -321,8 +348,8 @@ function renderSchedules() {
     // 绑定立即执行按钮事件
     document.querySelectorAll('.run-schedule-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
+            const scheduleItem = e.target.closest('.schedule-list-item');
+            const scheduleId = scheduleItem.dataset.id;
             const schedule = schedules.find(s => s.id == scheduleId);
             if (schedule) {
                 runSchedule(schedule);
@@ -333,8 +360,8 @@ function renderSchedules() {
     // 绑定执行记录按钮事件
     document.querySelectorAll('.executions-schedule-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
+            const scheduleItem = e.target.closest('.schedule-list-item');
+            const scheduleId = scheduleItem.dataset.id;
             const schedule = schedules.find(s => s.id == scheduleId);
             if (schedule) {
                 showScheduleExecutions(schedule);

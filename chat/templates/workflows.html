@@ -82,13 +82,43 @@
                 </div>
             </header>
 
+            <!-- 搜索区域 -->
+            <div class="search-container">
+                <div class="search-box">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="searchInput" class="search-input" placeholder="搜索工作流名称、描述、创建者...">
+                        <button class="search-clear" id="searchClear" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="workflows-container">
+                <!-- 搜索结果信息 -->
+                <div class="search-info" id="searchInfo" style="display: none;">
+                    <span id="searchResultCount"></span>
+                    <button class="btn btn-link" id="clearSearchBtn">清除搜索</button>
+                </div>
+                
                 <!-- 工作流列表 -->
                 <div class="workflows-list" id="workflowsList">
                     <div class="loading">
                         <i class="fas fa-spinner fa-spin"></i>
                         <span>加载中...</span>
                     </div>
+                </div>
+                
+                <!-- 分页控件 -->
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button class="page-btn" id="prevPageBtn" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="page-info" id="pageInfo"></span>
+                    <button class="page-btn" id="nextPageBtn" disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </main>

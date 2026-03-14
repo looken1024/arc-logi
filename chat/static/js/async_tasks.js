@@ -3,6 +3,7 @@
 // 全局状态
 let currentUser = null;
 let schedules = [];
+let filteredSchedules = [];
 let scheduleToDelete = null;
 let currentScheduleId = null;
 let currentTheme = 'dark';
@@ -17,6 +18,7 @@ const elements = {
     schedulesList: document.getElementById('schedulesList'),
     username: document.getElementById('username'),
     createScheduleBtn: document.getElementById('createScheduleBtn'),
+    searchTaskInput: document.getElementById('searchTaskInput'),
     scheduleModal: document.getElementById('scheduleModal'),
     closeScheduleModal: document.getElementById('closeScheduleModal'),
     cancelScheduleBtn: document.getElementById('cancelScheduleBtn'),
@@ -213,6 +215,11 @@ function initializeEventListeners() {
     elements.refreshOutputBtn?.addEventListener('click', () => {
         refreshOutput();
     });
+
+    // 搜索任务
+    elements.searchTaskInput?.addEventListener('input', (e) => {
+        filterSchedules(e.target.value);
+    });
 }
 
 // 加载异步任务列表
@@ -231,13 +238,19 @@ async function loadSchedules() {
         if (response.ok) {
             const data = await response.json();
             schedules = data.tasks || [];
-            renderSchedules();
+            filteredSchedules = schedules;
+            const searchValue = elements.searchTaskInput?.value || '';
+            if (searchValue) {
+                filterSchedules(searchValue);
+            } else {
+                renderSchedules();
+            }
         } else {
             elements.schedulesList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-clock"></i>
                     <h3>暂无异步任务</h3>
-                    <p>点击“新建异步任务”按钮创建一个异步任务</p>
+                    <p>点击"新建异步任务"按钮创建一个异步任务</p>
                 </div>
             `;
         }
@@ -253,9 +266,26 @@ async function loadSchedules() {
     }
 }
 
+// 过滤异步任务列表
+function filterSchedules(searchTerm) {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) {
+        filteredSchedules = schedules;
+    } else {
+        filteredSchedules = schedules.filter(task => 
+            (task.task_name && task.task_name.toLowerCase().includes(term)) ||
+            (task.description && task.description.toLowerCase().includes(term)) ||
+            (task.command && task.command.toLowerCase().includes(term)) ||
+            (task.status && task.status.toLowerCase().includes(term))
+        );
+    }
+    renderSchedules();
+}
+
 // 渲染异步任务列表
 function renderSchedules() {
-    if (!schedules || schedules.length === 0) {
+    const displaySchedules = filteredSchedules && filteredSchedules.length > 0 ? filteredSchedules : (schedules || []);
+    if (!displaySchedules || displaySchedules.length === 0) {
         elements.schedulesList.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-clock"></i>
@@ -273,12 +303,12 @@ function renderSchedules() {
                 <div class="schedule-list-col schedule-list-col-name">任务名称</div>
                 <div class="schedule-list-col schedule-list-col-status">状态</div>
                 <div class="schedule-list-col schedule-list-col-command">命令</div>
-                <div class="schedule-list-col schedule-list-col-created">创建时间</div>
+                <div class="schedule-list-col schedule-list-col-created">创建/执行时间</div>
                 <div class="schedule-list-col schedule-list-col-actions">操作</div>
             </div>
     `;
 
-    const rowsHtml = schedules.map(task => {
+    const rowsHtml = displaySchedules.map(task => {
         const createdAt = task.created_at ? new Date(task.created_at).toLocaleString('zh-CN') : '-';
         const startedAt = task.started_at ? new Date(task.started_at).toLocaleString('zh-CN') : '-';
         const completedAt = task.completed_at ? new Date(task.completed_at).toLocaleString('zh-CN') : '-';
@@ -302,25 +332,22 @@ function renderSchedules() {
             }
         }
         
-        // 命令截断
-        const commandPreview = task.command.length > 50 ? task.command.substring(0, 50) + '...' : task.command;
-        
         return `
             <div class="schedule-list-item" data-id="${task.id}">
                 <div class="schedule-list-col schedule-list-col-name">
                     <div style="font-weight: 500;">${escapeHtml(task.task_name)}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(task.description || '无描述')}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${escapeHtml(task.description || '无描述')}</div>
                 </div>
                 <div class="schedule-list-col schedule-list-col-status">
                     <span class="status-badge status-${task.status}">${statusText}${statusExtra}</span>
                 </div>
-                <div class="schedule-list-col schedule-list-col-command" title="${escapeHtml(task.command)}">
-                    <code style="font-size: 12px;">${escapeHtml(commandPreview)}</code>
+                <div class="schedule-list-col schedule-list-col-command">
+                    <code style="font-size: 12px; word-break: break-all;">${escapeHtml(task.command)}</code>
                 </div>
                 <div class="schedule-list-col schedule-list-col-created">
-                    <div>${createdAt}</div>
-                    ${startedAt !== '-' ? `<div style="font-size: 12px; color: var(--text-secondary);">开始: ${startedAt}</div>` : ''}
-                    ${completedAt !== '-' ? `<div style="font-size: 12px; color: var(--text-secondary);">完成: ${completedAt}</div>` : ''}
+                    <div>创建: ${createdAt}</div>
+                    ${startedAt !== '-' ? `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">开始: ${startedAt}</div>` : ''}
+                    ${completedAt !== '-' ? `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">完成: ${completedAt}</div>` : ''}
                 </div>
                 <div class="schedule-list-col schedule-list-col-actions">
                     <button class="btn-icon-sm output" data-id="${task.id}" title="查看输出">

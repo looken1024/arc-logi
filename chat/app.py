@@ -336,6 +336,48 @@ def init_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
             
+            # 创建工作流搜索历史表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_search_history (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL,
+                    search_keyword VARCHAR(200) NOT NULL,
+                    search_type VARCHAR(20) DEFAULT 'workflow',
+                    search_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_search_time (search_time),
+                    INDEX idx_keyword (search_keyword)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
+            # 创建热门搜索表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS popular_searches (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    keyword VARCHAR(200) NOT NULL,
+                    search_type VARCHAR(20) DEFAULT 'workflow',
+                    search_count INT DEFAULT 1,
+                    last_searched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_keyword_type (keyword, search_type),
+                    INDEX idx_search_count (search_count),
+                    INDEX idx_last_searched (last_searched_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
+            # 为 workflows 表添加 username 索引（如果不存在）
+            try:
+                cursor.execute("""
+                    SHOW INDEX FROM workflows WHERE Key_name = 'idx_username'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        ALTER TABLE workflows ADD INDEX idx_username (username)
+                    """)
+                    print("✅ 已添加 username 索引到 workflows 表")
+            except Exception as e:
+                print(f"添加 username 索引失败: {e}")
+
             # 为 async_tasks 表添加 scheduled_at 列（如果不存在）
             try:
                 cursor.execute("""
@@ -2475,6 +2517,212 @@ def get_workflows():
                             wf[field] = wf[field].isoformat()
                 
                 return jsonify({'workflows': workflows})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/search', methods=['GET'])
+def search_workflows():
+    """搜索工作流"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    # 获取搜索参数
+    keyword = request.args.get('keyword', '').strip()
+    status = request.args.get('status', '')
+    creator = request.args.get('creator', '').strip()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+    sort_by = request.args.get('sort_by', 'relevance')
+    sort_order = request.args.get('sort_order', 'desc')
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 20))
+    
+    # 验证排序参数
+    valid_sort_by = ['relevance', 'created_at', 'updated_at', 'name']
+    valid_sort_order = ['asc', 'desc']
+    if sort_by not in valid_sort_by:
+        sort_by = 'relevance'
+    if sort_order not in valid_sort_order:
+        sort_order = 'desc'
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 构建查询条件
+                conditions = ["username = %s"]
+                params = [username]
+                
+                # 关键词模糊搜索
+                if keyword:
+                    conditions.append("(name LIKE %s OR description LIKE %s)")
+                    keyword_pattern = f"%{keyword}%"
+                    params.extend([keyword_pattern, keyword_pattern])
+                
+                # 状态筛选
+                if status:
+                    conditions.append("status = %s")
+                    params.append(status)
+                
+                # 创建者筛选（支持模糊匹配）
+                if creator:
+                    conditions.append("username LIKE %s")
+                    params.append(f"%{creator}%")
+                
+                # 创建时间范围筛选
+                if date_from:
+                    conditions.append("created_at >= %s")
+                    params.append(date_from)
+                if date_to:
+                    conditions.append("created_at <= %s")
+                    params.append(date_to + ' 23:59:59')
+                
+                where_clause = " AND ".join(conditions)
+                
+                count_params = params.copy()
+                
+                # 构建排序逻辑
+                if sort_by == 'relevance':
+                    if keyword:
+                        # 按相关度排序：名称匹配优先，然后是描述匹配
+                        order_clause = f"CASE WHEN name LIKE %s THEN 0 ELSE 1 END, "
+                        keyword_starts = f"{keyword}%"
+                        params.append(keyword_starts)
+                    else:
+                        order_clause = ""
+                    order_clause += "updated_at DESC" if sort_order == 'desc' else "updated_at ASC"
+                elif sort_by == 'name':
+                    order_clause = f"name {sort_order.upper()}, updated_at DESC"
+                else:
+                    order_clause = f"{sort_by} {sort_order.upper()}"
+                
+                # 查询总数 - 使用独立的params副本
+                count_sql = f"SELECT COUNT(*) as total FROM workflows WHERE {where_clause}"
+                cursor.execute(count_sql, count_params)
+                total = cursor.fetchone()['total']
+                
+                # 分页查询
+                offset = (page - 1) * page_size
+                sql = f"""
+                    SELECT id, name, description, status, username, created_at, updated_at 
+                    FROM workflows 
+                    WHERE {where_clause} 
+                    ORDER BY {order_clause} 
+                    LIMIT %s OFFSET %s
+                """
+                params.append(page_size)
+                params.append(offset)
+                
+                cursor.execute(sql, params)
+                workflows = cursor.fetchall()
+                
+                # 转换日期格式
+                for wf in workflows:
+                    for field in ['created_at', 'updated_at']:
+                        if wf[field] and isinstance(wf[field], datetime):
+                            wf[field] = wf[field].isoformat()
+                
+                # 如果有关键词，记录搜索历史
+                if keyword:
+                    # 记录搜索历史
+                    cursor.execute(
+                        "INSERT INTO workflow_search_history (username, search_keyword) VALUES (%s, %s)",
+                        (username, keyword)
+                    )
+                    
+                    # 更新热门搜索
+                    cursor.execute("""
+                        INSERT INTO popular_searches (keyword, search_type, search_count, last_searched_at)
+                        VALUES (%s, 'workflow', 1, CURRENT_TIMESTAMP)
+                        ON DUPLICATE KEY UPDATE 
+                            search_count = search_count + 1,
+                            last_searched_at = CURRENT_TIMESTAMP
+                    """, (keyword,))
+                    
+                    conn.commit()
+                
+                return jsonify({
+                    'workflows': workflows,
+                    'total': total,
+                    'page': page,
+                    'page_size': page_size,
+                    'total_pages': (total + page_size - 1) // page_size
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/search/history', methods=['GET'])
+def get_search_history():
+    """获取用户搜索历史"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    limit = int(request.args.get('limit', 10))
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT DISTINCT search_keyword, MAX(search_time) as last_search_time
+                    FROM workflow_search_history 
+                    WHERE username = %s 
+                    GROUP BY search_keyword 
+                    ORDER BY last_search_time DESC 
+                    LIMIT %s
+                """, (username, limit))
+                history = cursor.fetchall()
+                
+                return jsonify({'history': [h['search_keyword'] for h in history]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/search/history', methods=['DELETE'])
+def clear_search_history():
+    """清除用户搜索历史"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM workflow_search_history WHERE username = %s",
+                    (username,)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True, 'message': '搜索历史已清除'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/workflows/search/popular', methods=['GET'])
+def get_popular_searches():
+    """获取热门搜索"""
+    limit = int(request.args.get('limit', 10))
+    search_type = request.args.get('type', 'workflow')
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT keyword, search_count, last_searched_at
+                    FROM popular_searches 
+                    WHERE search_type = %s
+                    ORDER BY search_count DESC, last_searched_at DESC 
+                    LIMIT %s
+                """, (search_type, limit))
+                popular = cursor.fetchall()
+                
+                return jsonify({'popular': [
+                    {
+                        'keyword': p['keyword'],
+                        'count': p['search_count']
+                    } for p in popular
+                ]})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -5,6 +5,10 @@ let currentUser = null;
 let workflows = [];
 let workflowToDelete = null;
 let currentTheme = 'dark';
+let searchDebounceTimer = null;
+let currentPage = 1;
+let totalPages = 1;
+let isSearching = false;
 
 // DOM 元素
 const elements = {
@@ -27,7 +31,30 @@ const elements = {
     closeDeleteModal: document.getElementById('closeDeleteModal'),
     cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
     confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
-    deleteMessage: document.getElementById('deleteMessage')
+    deleteMessage: document.getElementById('deleteMessage'),
+    searchInput: document.getElementById('searchInput'),
+    searchClear: document.getElementById('searchClear'),
+    advancedSearchBtn: document.getElementById('advancedSearchBtn'),
+    advancedSearchPanel: document.getElementById('advancedSearchPanel'),
+    filterStatus: document.getElementById('filterStatus'),
+    filterCreator: document.getElementById('filterCreator'),
+    filterDateFrom: document.getElementById('filterDateFrom'),
+    filterDateTo: document.getElementById('filterDateTo'),
+    filterSortBy: document.getElementById('filterSortBy'),
+    filterSortOrder: document.getElementById('filterSortOrder'),
+    resetSearchBtn: document.getElementById('resetSearchBtn'),
+    applySearchBtn: document.getElementById('applySearchBtn'),
+    searchSuggestions: document.getElementById('searchSuggestions'),
+    popularSearches: document.getElementById('popularSearches'),
+    searchHistory: document.getElementById('searchHistory'),
+    clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+    searchInfo: document.getElementById('searchInfo'),
+    searchResultCount: document.getElementById('searchResultCount'),
+    clearSearchBtn: document.getElementById('clearSearchBtn'),
+    pagination: document.getElementById('pagination'),
+    prevPageBtn: document.getElementById('prevPageBtn'),
+    nextPageBtn: document.getElementById('nextPageBtn'),
+    pageInfo: document.getElementById('pageInfo')
 };
 
 // 初始化
@@ -133,6 +160,266 @@ function initializeEventListeners() {
             closeDeleteModal();
         }
     });
+
+    // 搜索相关事件
+    initializeSearchListeners();
+}
+
+function initializeSearchListeners() {
+    // 搜索输入框 - 防抖搜索
+    elements.searchInput?.addEventListener('input', (e) => {
+        const keyword = e.target.value.trim();
+        elements.searchClear.style.display = keyword ? 'block' : 'none';
+        
+        if (!keyword) {
+            loadWorkflows();
+        }
+        
+        // 防抖处理
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            if (keyword) {
+                performSearch();
+            }
+        }, 300);
+    });
+
+    // 清除搜索按钮
+    elements.searchClear?.addEventListener('click', () => {
+        elements.searchInput.value = '';
+        elements.searchClear.style.display = 'none';
+        clearSearch();
+    });
+
+    // 清除搜索结果按钮
+    elements.clearSearchBtn?.addEventListener('click', clearSearch);
+
+    // 分页按钮
+    elements.prevPageBtn?.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            performSearch();
+        }
+    });
+
+    elements.nextPageBtn?.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            performSearch();
+        }
+    });
+}
+
+function showSearchSuggestions() {
+    elements.searchSuggestions.style.display = 'block';
+    loadPopularSearches();
+    loadSearchHistory();
+}
+
+function hideSearchSuggestions() {
+    elements.searchSuggestions.style.display = 'none';
+}
+
+async function loadPopularSearches() {
+    try {
+        const response = await fetch('/api/workflows/search/popular?limit=8', {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const data = await response.json();
+            renderPopularSearches(data.popular || []);
+        }
+    } catch (error) {
+        console.error('加载热门搜索失败:', error);
+    }
+}
+
+function renderPopularSearches(popular) {
+    if (!elements.popularSearches) return;
+    
+    if (popular.length === 0) {
+        elements.popularSearches.innerHTML = '<span class="no-data">暂无热门搜索</span>';
+        return;
+    }
+    
+    elements.popularSearches.innerHTML = popular.map(item => 
+        `<span class="suggestion-tag" data-keyword="${escapeHtml(item.keyword)}">${escapeHtml(item.keyword)}</span>`
+    ).join('');
+    
+    // 添加点击事件
+    elements.popularSearches.querySelectorAll('.suggestion-tag').forEach(tag => {
+        tag.addEventListener('click', () => {
+            const keyword = tag.dataset.keyword;
+            elements.searchInput.value = keyword;
+            elements.searchClear.style.display = 'block';
+            hideSearchSuggestions();
+            performSearch();
+        });
+    });
+}
+
+async function loadSearchHistory() {
+    try {
+        const response = await fetch('/api/workflows/search/history?limit=8', {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const data = await response.json();
+            renderSearchHistory(data.history || []);
+        }
+    } catch (error) {
+        console.error('加载搜索历史失败:', error);
+    }
+}
+
+function renderSearchHistory(history) {
+    if (!elements.searchHistory) return;
+    
+    if (history.length === 0) {
+        elements.searchHistory.innerHTML = '<span class="no-data">暂无搜索历史</span>';
+        return;
+    }
+    
+    elements.searchHistory.innerHTML = history.map(keyword => 
+        `<span class="suggestion-tag" data-keyword="${escapeHtml(keyword)}">${escapeHtml(keyword)}</span>`
+    ).join('');
+    
+    // 添加点击事件
+    elements.searchHistory.querySelectorAll('.suggestion-tag').forEach(tag => {
+        tag.addEventListener('click', () => {
+            const keyword = tag.dataset.keyword;
+            elements.searchInput.value = keyword;
+            elements.searchClear.style.display = 'block';
+            hideSearchSuggestions();
+            performSearch();
+        });
+    });
+}
+
+async function clearSearchHistory() {
+    try {
+        const response = await fetch('/api/workflows/search/history', {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            loadSearchHistory();
+        }
+    } catch (error) {
+        console.error('清除搜索历史失败:', error);
+    }
+}
+
+function resetSearchFilters() {
+    elements.filterStatus.value = '';
+    elements.filterCreator.value = '';
+    elements.filterDateFrom.value = '';
+    elements.filterDateTo.value = '';
+    elements.filterSortBy.value = 'relevance';
+    elements.filterSortOrder.value = 'desc';
+}
+
+function getSearchParams() {
+    const keyword = elements.searchInput?.value.trim() || '';
+    const status = elements.filterStatus?.value || '';
+    const creator = elements.filterCreator?.value.trim() || '';
+    const dateFrom = elements.filterDateFrom?.value || '';
+    const dateTo = elements.filterDateTo?.value || '';
+    const sortBy = elements.filterSortBy?.value || 'relevance';
+    const sortOrder = elements.filterSortOrder?.value || 'desc';
+    
+    return { keyword, status, creator, dateFrom, dateTo, sortBy, sortOrder };
+}
+
+async function performSearch() {
+    const params = getSearchParams();
+    
+    // 检查是否有任何搜索条件
+    if (!params.keyword && !params.status && !params.creator && !params.dateFrom && !params.dateTo) {
+        isSearching = false;
+        loadWorkflows();
+        return;
+    }
+    
+    isSearching = true;
+    
+    try {
+        elements.workflowsList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><span>搜索中...</span></div>';
+        
+        const queryParams = new URLSearchParams({
+            keyword: params.keyword,
+            status: params.status,
+            creator: params.creator,
+            date_from: params.dateFrom,
+            date_to: params.dateTo,
+            sort_by: params.sortBy,
+            sort_order: params.sortOrder,
+            page: currentPage,
+            page_size: 20
+        });
+        
+        const response = await fetch(`/api/workflows/search?${queryParams}`, {
+            credentials: 'same-origin'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        workflows = data.workflows || [];
+        totalPages = data.total_pages || 1;
+        
+        renderWorkflows();
+        updateSearchInfo(data.total, params.keyword);
+        updatePagination();
+        
+        // 刷新搜索历史和热门搜索
+        if (params.keyword) {
+            loadPopularSearches();
+            loadSearchHistory();
+        }
+        
+    } catch (error) {
+        console.error('搜索失败:', error);
+        elements.workflowsList.innerHTML = `<div class="error-state">搜索失败: ${escapeHtml(error.message)}</div>`;
+    }
+}
+
+function updateSearchInfo(total, keyword) {
+    if (!elements.searchInfo || !elements.searchResultCount) return;
+    
+    if (keyword) {
+        elements.searchResultCount.textContent = `找到 ${total} 个与"${escapeHtml(keyword)}"相关的工作流`;
+    } else {
+        elements.searchResultCount.textContent = `找到 ${total} 个工作流`;
+    }
+    elements.searchInfo.style.display = 'block';
+}
+
+function updatePagination() {
+    if (!elements.pagination) return;
+    
+    if (isSearching && totalPages > 1) {
+        elements.pagination.style.display = 'flex';
+        elements.pageInfo.textContent = `${currentPage} / ${totalPages}`;
+        elements.prevPageBtn.disabled = currentPage <= 1;
+        elements.nextPageBtn.disabled = currentPage >= totalPages;
+    } else {
+        elements.pagination.style.display = 'none';
+    }
+}
+
+function clearSearch() {
+    isSearching = false;
+    currentPage = 1;
+    elements.searchInput.value = '';
+    elements.searchClear.style.display = 'none';
+    resetSearchFilters();
+    hideSearchSuggestions();
+    elements.searchInfo.style.display = 'none';
+    elements.pagination.style.display = 'none';
+    loadWorkflows();
 }
 
 // 加载工作流列表

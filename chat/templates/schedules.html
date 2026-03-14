@@ -377,144 +377,152 @@
             }
         }
 
-        /* 定时任务列表样式 */
-        .schedules-table {
+        /* 定时任务列表样式 - 表格布局 */
+        .schedules-list-container {
             display: table;
             width: 100%;
-            border-collapse: collapse;
+            min-width: 900px;
             background: var(--bg-card);
-            border-radius: 12px;
             border: 1px solid var(--border-color);
-            overflow: hidden;
+            border-radius: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--bg-light);
         }
-        
-        .schedule-row {
+        .schedules-list-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .schedules-list-container::-webkit-scrollbar-track {
+            background: var(--bg-light);
+            border-radius: 4px;
+        }
+        .schedules-list-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        .schedules-list-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        .schedule-list-header {
+            display: table-row;
+            background: var(--bg-light);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .schedule-list-header .schedule-list-col {
+            display: table-cell;
+            padding: 14px 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .schedule-list-item {
             display: table-row;
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s;
         }
-        
-        .schedule-row:hover {
+
+        .schedule-list-item:hover {
             background: var(--bg-hover);
         }
-        
-        .schedule-row:last-child {
+
+        .schedule-list-item:last-child {
             border-bottom: none;
         }
-        
-        .schedule-cell {
+
+        .schedule-list-col {
             display: table-cell;
-            padding: 16px 20px;
-            vertical-align: top;
-            color: var(--text-primary);
+            padding: 12px;
+            vertical-align: middle;
+            word-break: break-word;
         }
-        
-        .schedule-cell.header {
-            font-weight: 600;
-            color: var(--text-secondary);
-            background: var(--bg-light);
-            border-bottom: 2px solid var(--border-color);
+
+        .schedule-list-col-name {
+            width: 18%;
+            min-width: 150px;
         }
-        
-        .schedule-name-cell {
+
+        .schedule-list-col-cron {
+            width: 12%;
+            min-width: 100px;
+        }
+
+        .schedule-list-col-command {
             width: 25%;
+            min-width: 180px;
         }
-        
-        .schedule-cron-cell {
-            width: 20%;
+
+        .schedule-list-col-status {
+            width: 8%;
+            min-width: 70px;
         }
-        
-        .schedule-command-cell {
-            width: 35%;
+
+        .schedule-list-col-created {
+            width: 17%;
+            min-width: 140px;
         }
-        
-        .schedule-status-cell {
-            width: 10%;
-            text-align: center;
-        }
-        
-        .schedule-actions-cell {
-            width: 10%;
+
+        .schedule-list-col-actions {
+            width: 15%;
+            min-width: 150px;
             text-align: right;
         }
-        
-        .schedule-actions {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-        }
-        
-        .schedule-actions .btn-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            color: var(--text-secondary);
-        }
-        
-        .schedule-actions .btn-icon:hover {
-            transform: scale(1.1);
-        }
-        
-        .schedule-actions .run-schedule-btn:hover {
-            background: #dcfce7;
-            color: #166534;
-            border-color: #86efac;
-        }
-        
-        .schedule-actions .executions-schedule-btn:hover {
-            background: #e0e7ff;
-            color: #4338ca;
-            border-color: #a5b4fc;
-        }
-        
-        .schedule-actions .edit-schedule-btn:hover {
-            background: #fef3c7;
-            color: #92400e;
-            border-color: #fcd34d;
-        }
-        
-        .schedule-actions .delete-schedule-btn:hover {
-            background: #fee2e2;
-            color: #dc2626;
-            border-color: #fca5a5;
-        }
-        
-        .schedule-status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
             font-size: 12px;
             font-weight: 600;
-            white-space: nowrap;
-            display: inline-block;
         }
-        
-        .schedule-status-badge.active {
+
+        .status-badge.active,
+        .status-badge.status-active {
             background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
             color: #166534;
             border: 1px solid #86efac;
         }
-        
-        .schedule-status-badge.paused {
+
+        .status-badge.paused,
+        .status-badge.status-paused {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             color: #92400e;
             border: 1px solid #fcd34d;
         }
-        
-        .schedule-command-preview {
+
+        .btn-icon-sm {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
             color: var(--text-secondary);
-            font-size: 13px;
-            word-break: break-all;
-            max-width: 400px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            cursor: pointer;
+            margin-left: 4px;
         }
+
+        .btn-icon-sm:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-icon-sm.edit:hover,
+        .btn-icon-sm.edit-schedule-btn:hover { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .btn-icon-sm.retry:hover { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .btn-icon-sm.delete:hover,
+        .btn-icon-sm.delete-schedule-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+        .btn-icon-sm.output:hover { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+        .btn-icon-sm.run:hover,
+        .btn-icon-sm.run-schedule-btn:hover { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .btn-icon-sm.executions:hover,
+        .btn-icon-sm.executions-schedule-btn:hover { background: #e0e7ff; color: #4338ca; border-color: #a5b4fc; }
         
         .schedule-meta-preview {
             display: flex;
@@ -535,67 +543,25 @@
             font-size: 11px;
         }
         
-        /* 响应式列表样式 */
+        /* 响应式 */
         @media (max-width: 768px) {
-            .schedules-table,
-            .schedule-row,
-            .schedule-cell {
-                display: block;
+            .schedule-list-col-name {
+                min-width: 150px;
             }
-            
-            .schedule-cell.header {
-                display: none;
+            .schedule-list-col-cron {
+                min-width: 100px;
             }
-            
-            .schedule-name-cell,
-            .schedule-cron-cell,
-            .schedule-command-cell,
-            .schedule-status-cell,
-            .schedule-actions-cell {
-                width: 100%;
-                display: flex;
-                align-items: center;
-                padding: 12px 16px;
-                border-bottom: 1px solid var(--border-color);
+            .schedule-list-col-command {
+                min-width: 150px;
             }
-            
-            .schedule-name-cell::before {
-                content: "任务名称: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
+            .schedule-list-col-status {
+                min-width: 70px;
             }
-            
-            .schedule-cron-cell::before {
-                content: "执行周期: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
+            .schedule-list-col-created {
+                min-width: 130px;
             }
-            
-            .schedule-command-cell::before {
-                content: "执行命令: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-status-cell::before {
-                content: "状态: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-actions-cell::before {
-                content: "操作: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-actions {
-                justify-content: flex-start;
+            .schedule-list-col-actions {
+                min-width: 150px;
             }
         }
 
@@ -880,6 +846,41 @@
         .executions-modal .modal-footer {
             background: var(--bg-light);
         }
+
+        /* 搜索框样式 */
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 8px 14px;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+
+        .search-box i {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            width: 200px;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -922,6 +923,10 @@
                 </button>
                 <h1>定时任务</h1>
                 <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchScheduleInput" placeholder="搜索任务名称...">
+                    </div>
                     <button class="btn btn-primary" id="createScheduleBtn">
                         <i class="fas fa-plus"></i>
                         新建定时任务

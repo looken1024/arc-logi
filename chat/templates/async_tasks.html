@@ -405,6 +405,23 @@
             .schedule-status {
                 align-self: flex-start;
             }
+
+            /* 列表视图在小屏幕上调整列的最小宽度 */
+            .schedule-list-col-name {
+                min-width: 150px;
+            }
+            .schedule-list-col-status {
+                min-width: 80px;
+            }
+            .schedule-list-col-command {
+                min-width: 200px;
+            }
+            .schedule-list-col-created {
+                min-width: 120px;
+            }
+            .schedule-list-col-actions {
+                min-width: 150px;
+            }
         }
 
         /* 异步任务编辑表单美化 */
@@ -693,12 +710,15 @@
         .output-modal .modal-content {
             max-width: 1000px;
             max-height: 85vh;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
 
         .output-modal .modal-header {
             background: linear-gradient(135deg, #10a37f 0%, #0d8b6c 100%);
             padding: 16px 24px;
             border-bottom: none;
+            border-radius: 20px 20px 0 0;
         }
 
         .output-modal .modal-header h2 {
@@ -784,16 +804,51 @@
 
         /* 异步任务列表样式 */
         .schedules-list-container {
+            display: table;
+            width: 100%;
+            min-width: 900px;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            overflow: hidden;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--bg-light);
+        }
+        .schedules-list-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .schedules-list-container::-webkit-scrollbar-track {
+            background: var(--bg-light);
+            border-radius: 4px;
+        }
+        .schedules-list-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        .schedules-list-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        .schedule-list-header {
+            display: table-row;
+            background: var(--bg-light);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .schedule-list-header .schedule-list-col {
+            display: table-cell;
+            padding: 14px 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
         .schedule-list-item {
-            display: flex;
-            align-items: center;
-            padding: 16px 20px;
+            display: table-row;
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s;
         }
@@ -806,47 +861,39 @@
             border-bottom: none;
         }
 
-        .schedule-list-header {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            background: var(--bg-light);
-            border-bottom: 2px solid var(--border-color);
-            font-weight: bold;
-            color: var(--text-secondary);
-        }
-
         .schedule-list-col {
-            flex: 1;
-            padding: 0 8px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            display: table-cell;
+            padding: 12px;
+            vertical-align: middle;
+            word-break: break-word;
         }
 
         .schedule-list-col-name {
-            flex: 2;
-            min-width: 200px;
-        }
-
-        .schedule-list-col-status {
-            flex: 0.8;
-            min-width: 100px;
-        }
-
-        .schedule-list-col-command {
-            flex: 3;
-            min-width: 300px;
-        }
-
-        .schedule-list-col-created {
-            flex: 1;
+            width: 20%;
             min-width: 150px;
         }
 
-        .schedule-list-col-actions {
-            flex: 1.2;
+        .schedule-list-col-status {
+            width: 10%;
+            min-width: 90px;
+            white-space: nowrap;
+        }
+
+        .schedule-list-col-command {
+            width: 30%;
             min-width: 200px;
+        }
+
+        .schedule-list-col-created {
+            width: 18%;
+            min-width: 140px;
+            white-space: nowrap;
+        }
+
+        .schedule-list-col-actions {
+            width: 12%;
+            min-width: 140px;
+            white-space: nowrap;
             text-align: right;
         }
 
@@ -886,6 +933,41 @@
         .btn-icon-sm.retry:hover { background: #dcfce7; color: #166534; border-color: #86efac; }
         .btn-icon-sm.delete:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
         .btn-icon-sm.output:hover { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+
+        /* 搜索框样式 */
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 8px 14px;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+
+        .search-box i {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            width: 200px;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -928,6 +1010,10 @@
                 </button>
                 <h1>异步任务</h1>
                 <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchTaskInput" placeholder="搜索任务名称...">
+                    </div>
                     <button class="btn btn-primary" id="createScheduleBtn">
                         <i class="fas fa-plus"></i>
                         新建异步任务

@@ -209,6 +209,23 @@ class ScheduleScheduler:
                         
         except Exception as e:
             print(f"检查异步任务失败: {e}")
+        
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """SELECT id, username, command, execution_id 
+                           FROM async_tasks 
+                           WHERE status = 'pending' 
+                           LIMIT 10""",
+                    )
+                    tasks = cursor.fetchall()
+                    
+                    for task in tasks:
+                        self._execute_async_task(task)
+                        
+        except Exception as e:
+            print(f"检查待执行异步任务失败: {e}")
     
     def _execute_async_task(self, task):
         """执行单个异步任务"""
