@@ -1,6 +1,7 @@
 import threading
 import time
 import uuid
+import subprocess
 from datetime import datetime, timedelta
 from croniter import croniter
 import pymysql
@@ -144,6 +145,12 @@ class ScheduleScheduler:
                         
         except Exception as e:
             print(f"检查定时任务失败: {e}")
+        
+        # 检查并执行到期的异步任务
+        try:
+            self._check_and_execute_async_tasks()
+        except Exception as e:
+            print(f"检查异步任务失败: {e}")
     
     def _execute_schedule(self, schedule):
         """执行单个定时任务"""
@@ -179,6 +186,152 @@ class ScheduleScheduler:
             
         except Exception as e:
             print(f"执行定时任务失败: {e}")
+    
+    def _check_and_execute_async_tasks(self):
+        """检查并执行到期的异步任务（延迟执行）"""
+        now = datetime.now()
+        
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """SELECT id, username, command, execution_id 
+                           FROM async_tasks 
+                           WHERE status = 'scheduled' 
+                           AND scheduled_at IS NOT NULL 
+                           AND scheduled_at <= %s""",
+                        (now,)
+                    )
+                    tasks = cursor.fetchall()
+                    
+                    for task in tasks:
+                        self._execute_async_task(task)
+                        
+        except Exception as e:
+            print(f"检查异步任务失败: {e}")
+    
+    def _execute_async_task(self, task):
+        """执行单个异步任务"""
+        task_id = task['id']
+        execution_id = task['execution_id']
+        command = task['command']
+        
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE async_tasks SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = %s",
+                        (task_id,)
+                    )
+                    conn.commit()
+            
+            # 使用与 execute_schedule_command 类似的逻辑，但更新 async_tasks 表
+            thread = threading.Thread(
+                target=self.execute_async_command,
+                args=(task_id, execution_id, command),
+                daemon=True
+            )
+            thread.start()
+            
+            print(f"🕐 异步任务已执行: ID {task_id}")
+            
+        except Exception as e:
+            print(f"执行异步任务失败: {e}")
+    
+    def execute_async_command(self, task_id, execution_id, command):
+        """执行异步任务命令（类似 execute_schedule_command 但更新 async_tasks）"""
+        import select
+        import queue
+        import threading
+        
+        def update_output_in_db(output_text, error_msg=None, status=None):
+            """更新数据库中的输出"""
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        if status:
+                            cursor.execute(
+                                "UPDATE async_tasks SET status = %s, output = %s, error_message = %s, completed_at = CURRENT_TIMESTAMP WHERE execution_id = %s",
+                                (status, output_text, error_msg, execution_id)
+                            )
+                        else:
+                            cursor.execute(
+                                "UPDATE async_tasks SET output = %s WHERE execution_id = %s",
+                                (output_text, execution_id)
+                            )
+                        conn.commit()
+            except Exception as e:
+                print(f"更新异步任务输出失败: {e}")
+        
+        def read_stream(stream, output_queue):
+            """从流中读取行并放入队列"""
+            try:
+                for line in iter(stream.readline, ''):
+                    output_queue.put(line)
+                stream.close()
+            except Exception as e:
+                output_queue.put(f"\n流读取错误: {e}")
+        
+        output_lines = []
+        error_message = None
+        status = 'running'
+        
+        try:
+            proc = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # 创建队列用于收集输出
+            output_queue = queue.Queue()
+            
+            # 启动线程读取 stdout 和 stderr
+            stdout_thread = threading.Thread(target=read_stream, args=(proc.stdout, output_queue), daemon=True)
+            stderr_thread = threading.Thread(target=read_stream, args=(proc.stderr, output_queue), daemon=True)
+            stdout_thread.start()
+            stderr_thread.start()
+            
+            # 主线程等待进程结束并处理输出
+            while proc.poll() is None or not output_queue.empty():
+                try:
+                    line = output_queue.get(timeout=0.5)
+                    if line:
+                        output_lines.append(line)
+                        # 更新数据库输出（每次有新行时更新）
+                        update_output_in_db(''.join(output_lines))
+                except queue.Empty:
+                    continue
+                except Exception as e:
+                    print(f"处理输出时出错: {e}")
+            
+            # 确保所有输出都已读取
+            stdout_thread.join(timeout=5)
+            stderr_thread.join(timeout=5)
+            
+            # 获取最终返回码
+            returncode = proc.returncode
+            if returncode == 0:
+                status = 'completed'
+            else:
+                status = 'failed'
+                error_message = f"Exit code: {returncode}"
+            
+            # 最终更新状态
+            update_output_in_db(''.join(output_lines), error_message, status)
+            
+        except subprocess.TimeoutExpired:
+            error_message = "执行超时（超过1小时）"
+            status = 'failed'
+            update_output_in_db(''.join(output_lines), error_message, status)
+        except Exception as e:
+            error_message = str(e)
+            status = 'failed'
+            update_output_in_db(''.join(output_lines), error_message, status)
     
     def update_schedule_next_run(self, schedule_id, cron_str):
         """更新定时任务的下次执行时间"""

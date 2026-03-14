@@ -1,4 +1,4 @@
-// 定时任务管理页面 JavaScript
+// 异步任务管理页面 JavaScript
 
 // 全局状态
 let currentUser = null;
@@ -6,6 +6,9 @@ let schedules = [];
 let scheduleToDelete = null;
 let currentScheduleId = null;
 let currentTheme = 'dark';
+let currentOutputTaskId = null;
+let outputPollInterval = null;
+let globalPollInterval = null;
 
 // DOM 元素
 const elements = {
@@ -27,6 +30,7 @@ const elements = {
     schedulePreset: document.getElementById('schedulePreset'),
     scheduleCommand: document.getElementById('scheduleCommand'),
     scheduleStatus: document.getElementById('scheduleStatus'),
+    scheduleDelay: document.getElementById('scheduleDelay'),
     confirmDeleteModal: document.getElementById('confirmDeleteModal'),
     closeDeleteModal: document.getElementById('closeDeleteModal'),
     cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
@@ -38,7 +42,18 @@ const elements = {
     executionsModalTitle: document.getElementById('executionsModalTitle'),
     executionsLoading: document.getElementById('executionsLoading'),
     executionsList: document.getElementById('executionsList'),
-    executionsEmpty: document.getElementById('executionsEmpty')
+    executionsEmpty: document.getElementById('executionsEmpty'),
+    outputModal: document.getElementById('outputModal'),
+    closeOutputModal: document.getElementById('closeOutputModal'),
+    closeOutputBtn: document.getElementById('closeOutputBtn'),
+    outputModalTitle: document.getElementById('outputModalTitle'),
+    outputTaskName: document.getElementById('outputTaskName'),
+    outputTaskStatus: document.getElementById('outputTaskStatus'),
+    outputTaskStarted: document.getElementById('outputTaskStarted'),
+    outputTaskCompleted: document.getElementById('outputTaskCompleted'),
+    outputContent: document.getElementById('outputContent'),
+    copyOutputBtn: document.getElementById('copyOutputBtn'),
+    refreshOutputBtn: document.getElementById('refreshOutputBtn')
 };
 
 // 初始化
@@ -46,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
     loadSchedules();
+    startGlobalPolling();
 });
 
 // 加载用户信息
@@ -114,7 +130,7 @@ function initializeEventListeners() {
         }
     });
 
-    // 新建定时任务按钮
+    // 新建异步任务按钮
     elements.createScheduleBtn?.addEventListener('click', () => {
         openScheduleModal();
     });
@@ -127,7 +143,7 @@ function initializeEventListeners() {
         closeScheduleModal();
     });
 
-    // 保存定时任务按钮
+    // 保存异步任务按钮
     elements.saveScheduleBtn?.addEventListener('click', async () => {
         await saveSchedule();
     });
@@ -178,9 +194,28 @@ function initializeEventListeners() {
             closeExecutionsModal();
         }
     });
+
+    // 实时输出模态框
+    elements.closeOutputModal?.addEventListener('click', () => {
+        closeOutputModal();
+    });
+    elements.closeOutputBtn?.addEventListener('click', () => {
+        closeOutputModal();
+    });
+    elements.outputModal?.addEventListener('click', (e) => {
+        if (e.target === elements.outputModal) {
+            closeOutputModal();
+        }
+    });
+    elements.copyOutputBtn?.addEventListener('click', () => {
+        copyOutputToClipboard();
+    });
+    elements.refreshOutputBtn?.addEventListener('click', () => {
+        refreshOutput();
+    });
 }
 
-// 加载定时任务列表
+// 加载异步任务列表
 async function loadSchedules() {
     try {
         elements.schedulesList.innerHTML = `
@@ -190,166 +225,232 @@ async function loadSchedules() {
             </div>
         `;
 
-        const response = await fetch('/api/schedules', {
+        const response = await fetch('/api/async_tasks', {
             credentials: 'same-origin'
         });
         if (response.ok) {
-            schedules = await response.json();
+            const data = await response.json();
+            schedules = data.tasks || [];
             renderSchedules();
         } else {
             elements.schedulesList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-clock"></i>
-                    <h3>暂无定时任务</h3>
-                    <p>点击“新建定时任务”按钮创建一个定时任务</p>
+                    <h3>暂无异步任务</h3>
+                    <p>点击“新建异步任务”按钮创建一个异步任务</p>
                 </div>
             `;
         }
     } catch (error) {
-        console.error('加载定时任务失败:', error);
+        console.error('加载异步任务失败:', error);
         elements.schedulesList.innerHTML = `
             <div class="error-state">
                 <i class="fas fa-exclamation-triangle"></i>
                 <h3>加载失败</h3>
-                <p>无法加载定时任务，请刷新页面重试</p>
+                <p>无法加载异步任务，请刷新页面重试</p>
             </div>
         `;
     }
 }
 
-// 渲染定时任务列表
+// 渲染异步任务列表
 function renderSchedules() {
     if (!schedules || schedules.length === 0) {
         elements.schedulesList.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-clock"></i>
-                <h3>暂无定时任务</h3>
-                <p>点击"新建定时任务"按钮创建一个定时任务</p>
+                <h3>暂无异步任务</h3>
+                <p>点击"新建异步任务"按钮创建一个异步任务</p>
             </div>
         `;
         return;
     }
 
-    const schedulesHtml = schedules.map(schedule => {
-        const lastRun = schedule.last_run_at ? new Date(schedule.last_run_at).toLocaleString('zh-CN') : '从未运行';
-        const nextRun = schedule.next_run_at ? new Date(schedule.next_run_at).toLocaleString('zh-CN') : '-';
+    // 创建列表头部
+    const headerHtml = `
+        <div class="schedules-list-container">
+            <div class="schedule-list-header">
+                <div class="schedule-list-col schedule-list-col-name">任务名称</div>
+                <div class="schedule-list-col schedule-list-col-status">状态</div>
+                <div class="schedule-list-col schedule-list-col-command">命令</div>
+                <div class="schedule-list-col schedule-list-col-created">创建时间</div>
+                <div class="schedule-list-col schedule-list-col-actions">操作</div>
+            </div>
+    `;
+
+    const rowsHtml = schedules.map(task => {
+        const createdAt = task.created_at ? new Date(task.created_at).toLocaleString('zh-CN') : '-';
+        const startedAt = task.started_at ? new Date(task.started_at).toLocaleString('zh-CN') : '-';
+        const completedAt = task.completed_at ? new Date(task.completed_at).toLocaleString('zh-CN') : '-';
+        const statusTextMap = {
+            'pending': '等待中',
+            'scheduled': '已调度',
+            'running': '运行中',
+            'completed': '已完成',
+            'failed': '失败',
+            'cancelled': '已取消'
+        };
+        const statusText = statusTextMap[task.status] || task.status;
+        
+        // 状态额外信息：如果是失败，显示退出码
+        let statusExtra = '';
+        if (task.status === 'failed' && task.error_message) {
+            // 提取退出码，例如 "Exit code: -1"
+            const match = task.error_message.match(/Exit code: (-?\d+)/);
+            if (match) {
+                statusExtra = ` (${match[1]})`;
+            }
+        }
+        
+        // 命令截断
+        const commandPreview = task.command.length > 50 ? task.command.substring(0, 50) + '...' : task.command;
         
         return `
-        <div class="schedule-row" data-id="${schedule.id}">
-            <div class="schedule-cell schedule-name-cell">
-                <div>${escapeHtml(schedule.name)}</div>
-                <div class="schedule-meta-preview">
-                    <div class="meta-item-preview">
-                        <i class="fas fa-play-circle"></i>
-                        <span>${lastRun}</span>
-                    </div>
-                    <div class="meta-item-preview">
-                        <i class="fas fa-forward"></i>
-                        <span>${nextRun}</span>
-                    </div>
+            <div class="schedule-list-item" data-id="${task.id}">
+                <div class="schedule-list-col schedule-list-col-name">
+                    <div style="font-weight: 500;">${escapeHtml(task.task_name)}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(task.description || '无描述')}</div>
                 </div>
-            </div>
-            <div class="schedule-cell schedule-cron-cell">
-                <code class="cron-expression">${escapeHtml(schedule.cron)}</code>
-            </div>
-            <div class="schedule-cell schedule-command-cell">
-                <div class="schedule-command-preview" title="${escapeHtml(schedule.command)}">
-                    ${escapeHtml(schedule.command)}
+                <div class="schedule-list-col schedule-list-col-status">
+                    <span class="status-badge status-${task.status}">${statusText}${statusExtra}</span>
                 </div>
-                ${schedule.description ? `<div style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">${escapeHtml(schedule.description)}</div>` : ''}
-            </div>
-            <div class="schedule-cell schedule-status-cell">
-                <span class="schedule-status-badge ${schedule.status}">
-                    ${schedule.status === 'active' ? '启用' : '暂停'}
-                </span>
-            </div>
-            <div class="schedule-cell schedule-actions-cell">
-                <div class="schedule-actions">
-                    <button class="btn btn-icon run-schedule-btn" title="立即执行">
-                        <i class="fas fa-play"></i>
+                <div class="schedule-list-col schedule-list-col-command" title="${escapeHtml(task.command)}">
+                    <code style="font-size: 12px;">${escapeHtml(commandPreview)}</code>
+                </div>
+                <div class="schedule-list-col schedule-list-col-created">
+                    <div>${createdAt}</div>
+                    ${startedAt !== '-' ? `<div style="font-size: 12px; color: var(--text-secondary);">开始: ${startedAt}</div>` : ''}
+                    ${completedAt !== '-' ? `<div style="font-size: 12px; color: var(--text-secondary);">完成: ${completedAt}</div>` : ''}
+                </div>
+                <div class="schedule-list-col schedule-list-col-actions">
+                    <button class="btn-icon-sm output" data-id="${task.id}" title="查看输出">
+                        <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn btn-icon executions-schedule-btn" title="执行记录">
-                        <i class="fas fa-history"></i>
-                    </button>
-                    <button class="btn btn-icon edit-schedule-btn" title="编辑">
+                    <button class="btn-icon-sm edit" data-id="${task.id}" title="编辑">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-icon delete-schedule-btn" title="删除">
+                    ${task.status === 'failed' || task.status === 'cancelled' || task.status === 'completed' ? `
+                    <button class="btn-icon-sm retry" data-id="${task.id}" title="重试">
+                        <i class="fas fa-redo"></i>
+                    </button>` : ''}
+                    ${task.status === 'running' ? `
+                    <button class="btn-icon-sm cancel" data-id="${task.id}" title="取消">
+                        <i class="fas fa-stop"></i>
+                    </button>` : ''}
+                    <button class="btn-icon-sm delete" data-id="${task.id}" title="删除">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
-        </div>
-    `}).join('');
+        `;
+    }).join('');
 
-    elements.schedulesList.innerHTML = `
-        <div class="schedules-table">
-            <div class="schedule-row">
-                <div class="schedule-cell schedule-name-cell header">任务名称</div>
-                <div class="schedule-cell schedule-cron-cell header">执行周期</div>
-                <div class="schedule-cell schedule-command-cell header">执行命令</div>
-                <div class="schedule-cell schedule-status-cell header">状态</div>
-                <div class="schedule-cell schedule-actions-cell header">操作</div>
-            </div>
-            ${schedulesHtml}
-        </div>
-    `;
+    const footerHtml = `</div>`;
 
-    // 绑定编辑和删除按钮事件
-    document.querySelectorAll('.edit-schedule-btn').forEach(btn => {
+    elements.schedulesList.innerHTML = headerHtml + rowsHtml + footerHtml;
+
+    // 绑定按钮事件
+    document.querySelectorAll('.btn-icon-sm.output').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
-            const schedule = schedules.find(s => s.id == scheduleId);
-            if (schedule) {
-                openScheduleModal(schedule);
-            }
+            const taskId = e.target.closest('.schedule-list-item').dataset.id;
+            const task = schedules.find(t => t.id == taskId);
+            if (task) showTaskOutput(task);
         });
     });
 
-    document.querySelectorAll('.delete-schedule-btn').forEach(btn => {
+    document.querySelectorAll('.btn-icon-sm.edit').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
-            const schedule = schedules.find(s => s.id == scheduleId);
-            if (schedule) {
-                openDeleteModal(schedule);
-            }
+            const taskId = e.target.closest('.schedule-list-item').dataset.id;
+            const task = schedules.find(t => t.id == taskId);
+            if (task) editTask(task);
         });
     });
 
-    // 绑定立即执行按钮事件
-    document.querySelectorAll('.run-schedule-btn').forEach(btn => {
+    document.querySelectorAll('.btn-icon-sm.retry').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
-            const schedule = schedules.find(s => s.id == scheduleId);
-            if (schedule) {
-                runSchedule(schedule);
-            }
+            const taskId = e.target.closest('.schedule-list-item').dataset.id;
+            const task = schedules.find(t => t.id == taskId);
+            if (task) retryTask(task);
         });
     });
 
-    // 绑定执行记录按钮事件
-    document.querySelectorAll('.executions-schedule-btn').forEach(btn => {
+    document.querySelectorAll('.btn-icon-sm.cancel').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const scheduleRow = e.target.closest('.schedule-row');
-            const scheduleId = scheduleRow.dataset.id;
-            const schedule = schedules.find(s => s.id == scheduleId);
-            if (schedule) {
-                showScheduleExecutions(schedule);
-            }
+            const taskId = e.target.closest('.schedule-list-item').dataset.id;
+            const task = schedules.find(t => t.id == taskId);
+            if (task) cancelTask(task);
+        });
+    });
+
+    document.querySelectorAll('.btn-icon-sm.delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const taskId = e.target.closest('.schedule-list-item').dataset.id;
+            const task = schedules.find(t => t.id == taskId);
+            if (task) deleteTask(task);
         });
     });
 }
 
-// 打开定时任务模态框
+// 编辑任务
+function editTask(task) {
+    // 将任务属性映射到表单字段
+    const scheduleData = {
+        id: task.id,
+        name: task.task_name,
+        description: task.description || '',
+        command: task.command,
+        status: task.status,
+        cron: '',
+        preset: '',
+        delay: 0
+    };
+    openScheduleModal(scheduleData);
+}
+
+// 重试任务
+async function retryTask(task) {
+    if (!confirm(`确定要重试任务 "${task.task_name}" 吗？`)) {
+        return;
+    }
+    try {
+        const response = await fetch('/api/async_tasks', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                task_name: `${task.task_name} (重试)`,
+                description: task.description || '',
+                command: task.command,
+                delay_minutes: 0
+            })
+        });
+        if (response.ok) {
+            alert('重试任务已创建');
+            await loadSchedules();
+        } else {
+            const error = await response.text();
+            alert(`重试失败: ${error}`);
+        }
+    } catch (error) {
+        console.error('重试任务失败:', error);
+        alert('重试失败，请检查网络连接');
+    }
+}
+
+// 删除任务
+function deleteTask(task) {
+    openDeleteModal(task);
+}
+
+// 打开异步任务模态框
 function openScheduleModal(schedule = null) {
     elements.scheduleForm.reset();
     elements.scheduleId.value = '';
 
     if (schedule) {
-        elements.scheduleModalTitle.textContent = '编辑定时任务';
+        elements.scheduleModalTitle.textContent = '编辑异步任务';
         elements.scheduleId.value = schedule.id;
         elements.scheduleName.value = schedule.name;
         elements.scheduleDescription.value = schedule.description || '';
@@ -357,15 +458,17 @@ function openScheduleModal(schedule = null) {
         elements.schedulePreset.value = schedule.preset || '';
         elements.scheduleCommand.value = schedule.command;
         elements.scheduleStatus.value = schedule.status;
+        elements.scheduleDelay.value = schedule.delay || 0;
     } else {
-        elements.scheduleModalTitle.textContent = '新建定时任务';
+        elements.scheduleModalTitle.textContent = '新建异步任务';
         elements.scheduleStatus.value = 'active';
+        elements.scheduleDelay.value = 0;
     }
 
     elements.scheduleModal.classList.add('active');
 }
 
-// 关闭定时任务模态框
+// 关闭异步任务模态框
 function closeScheduleModal() {
     elements.scheduleModal.classList.remove('active');
     elements.scheduleForm.reset();
@@ -402,25 +505,19 @@ function updateCronFromPreset() {
     }
 }
 
-// 保存定时任务
+// 保存异步任务
 async function saveSchedule() {
     const scheduleId = elements.scheduleId.value;
     const scheduleData = {
-        name: elements.scheduleName.value.trim(),
+        task_name: elements.scheduleName.value.trim(),
         description: elements.scheduleDescription.value.trim(),
-        cron: elements.scheduleCron.value.trim(),
-        preset: elements.schedulePreset.value,
         command: elements.scheduleCommand.value.trim(),
-        status: elements.scheduleStatus.value
+        delay_minutes: parseInt(elements.scheduleDelay.value) || 0
     };
 
     // 简单验证
-    if (!scheduleData.name) {
+    if (!scheduleData.task_name) {
         alert('请输入任务名称');
-        return;
-    }
-    if (!scheduleData.cron) {
-        alert('请输入 Cron 表达式');
         return;
     }
     if (!scheduleData.command) {
@@ -429,7 +526,7 @@ async function saveSchedule() {
     }
 
     try {
-        const url = scheduleId ? `/api/schedules/${scheduleId}` : '/api/schedules';
+        const url = scheduleId ? `/api/async_tasks/${scheduleId}` : '/api/async_tasks';
         const method = scheduleId ? 'PUT' : 'POST';
 
         const response = await fetch(url, {
@@ -449,7 +546,7 @@ async function saveSchedule() {
             alert(`保存失败: ${error}`);
         }
     } catch (error) {
-        console.error('保存定时任务失败:', error);
+        console.error('保存异步任务失败:', error);
         alert('保存失败，请检查网络连接');
     }
 }
@@ -457,7 +554,7 @@ async function saveSchedule() {
 // 打开删除确认模态框
 function openDeleteModal(schedule) {
     scheduleToDelete = schedule;
-    elements.deleteMessage.textContent = `确定要删除定时任务 "${schedule.name}" 吗？此操作不可撤销。`;
+    elements.deleteMessage.textContent = `确定要删除异步任务 "${schedule.task_name || schedule.name}" 吗？此操作不可撤销。`;
     elements.confirmDeleteModal.classList.add('active');
 }
 
@@ -467,12 +564,12 @@ function closeDeleteModal() {
     scheduleToDelete = null;
 }
 
-// 删除定时任务
+// 删除异步任务
 async function deleteSchedule() {
     if (!scheduleToDelete) return;
 
     try {
-        const response = await fetch(`/api/schedules/${scheduleToDelete.id}`, {
+        const response = await fetch(`/api/async_tasks/${scheduleToDelete.id}`, {
             method: 'DELETE',
             credentials: 'same-origin'
         });
@@ -485,19 +582,19 @@ async function deleteSchedule() {
             alert(`删除失败: ${error}`);
         }
     } catch (error) {
-        console.error('删除定时任务失败:', error);
+        console.error('删除异步任务失败:', error);
         alert('删除失败，请检查网络连接');
     }
 }
 
-// 立即执行定时任务
+// 立即执行异步任务
 async function runSchedule(schedule) {
-    if (!confirm(`确定要立即执行定时任务 "${schedule.name}" 吗？`)) {
+    if (!confirm(`确定要立即执行异步任务 "${schedule.task_name || schedule.name}" 吗？`)) {
         return;
     }
     
     try {
-        const response = await fetch(`/api/schedules/${schedule.id}/execute`, {
+        const response = await fetch(`/api/async_tasks/${schedule.id}/execute`, {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
@@ -514,7 +611,7 @@ async function runSchedule(schedule) {
             alert(`执行失败: ${error}`);
         }
     } catch (error) {
-        console.error('执行定时任务失败:', error);
+        console.error('执行异步任务失败:', error);
         alert('执行失败，请检查网络连接');
     }
 }
@@ -525,10 +622,10 @@ function closeExecutionsModal() {
     currentScheduleId = null;
 }
 
-// 显示定时任务执行记录（使用模态框）
+// 显示异步任务执行记录（使用模态框）
 async function showScheduleExecutions(schedule) {
     currentScheduleId = schedule.id;
-    elements.executionsModalTitle.textContent = `定时任务 "${schedule.name}" 的执行记录`;
+    elements.executionsModalTitle.textContent = `异步任务 "${schedule.name}" 的执行记录`;
     
     // 显示加载状态
     elements.executionsLoading.style.display = 'block';
@@ -539,7 +636,7 @@ async function showScheduleExecutions(schedule) {
     elements.executionsModal.classList.add('active');
     
     try {
-        const response = await fetch(`/api/schedules/${schedule.id}/executions`, {
+        const response = await fetch(`/api/async_tasks/${schedule.id}/executions`, {
             credentials: 'same-origin'
         });
         if (response.ok) {
@@ -660,4 +757,169 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// 显示任务输出（打开实时输出模态框）
+async function showTaskOutput(task) {
+    currentOutputTaskId = task.id;
+    elements.outputTaskName.textContent = task.task_name;
+    elements.outputTaskStatus.textContent = {'pending': '等待中', 'scheduled': '已调度', 'running': '运行中', 'completed': '已完成', 'failed': '失败'}[task.status] || task.status;
+    elements.outputTaskStarted.textContent = task.started_at ? new Date(task.started_at).toLocaleString('zh-CN') : '-';
+    elements.outputTaskCompleted.textContent = task.completed_at ? new Date(task.completed_at).toLocaleString('zh-CN') : '-';
+    
+    // 打开模态框
+    elements.outputModal.classList.add('active');
+    
+    // 开始轮询输出
+    startOutputPolling();
+}
+
+// 开始轮询输出
+function startOutputPolling() {
+    if (outputPollInterval) {
+        clearInterval(outputPollInterval);
+    }
+    // 立即加载一次
+    loadOutput();
+    // 每2秒轮询一次（对于运行中的任务）
+    outputPollInterval = setInterval(loadOutput, 2000);
+}
+
+// 加载输出内容
+async function loadOutput() {
+    if (!currentOutputTaskId) return;
+    
+    try {
+        const response = await fetch(`/api/async_tasks/${currentOutputTaskId}/output`, {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const data = await response.json();
+            // 更新输出内容
+            elements.outputContent.textContent = data.output || '无输出';
+            // 滚动到底部
+            const terminal = elements.outputContent.parentElement;
+            terminal.scrollTop = terminal.scrollHeight;
+            
+            // 更新任务元数据
+            await updateTaskMeta();
+            
+            // 如果任务已完成或失败，停止轮询
+            const task = schedules.find(t => t.id == currentOutputTaskId);
+            if (task && (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled')) {
+                stopOutputPolling();
+            }
+        } else {
+            console.error('获取输出失败');
+        }
+    } catch (error) {
+        console.error('获取输出失败:', error);
+    }
+}
+
+async function updateTaskMeta() {
+    if (!currentOutputTaskId) return;
+    
+    try {
+        const response = await fetch(`/api/async_tasks/${currentOutputTaskId}`, {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const data = await response.json();
+            const task = data.task;
+            if (task) {
+                elements.outputTaskStatus.textContent = {'pending': '等待中', 'scheduled': '已调度', 'running': '运行中', 'completed': '已完成', 'failed': '失败', 'cancelled': '已取消'}[task.status] || task.status;
+                elements.outputTaskStarted.textContent = task.started_at ? new Date(task.started_at).toLocaleString('zh-CN') : '-';
+                elements.outputTaskCompleted.textContent = task.completed_at ? new Date(task.completed_at).toLocaleString('zh-CN') : '-';
+            }
+        }
+    } catch (error) {
+        console.error('更新任务元数据失败:', error);
+    }
+}
+
+// 停止轮询输出
+function stopOutputPolling() {
+    if (outputPollInterval) {
+        clearInterval(outputPollInterval);
+        outputPollInterval = null;
+    }
+}
+
+// 关闭输出模态框
+function closeOutputModal() {
+    elements.outputModal.classList.remove('active');
+    stopOutputPolling();
+    currentOutputTaskId = null;
+}
+
+// 复制输出到剪贴板
+function copyOutputToClipboard() {
+    const text = elements.outputContent.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('输出已复制到剪贴板');
+    }).catch(err => {
+        console.error('复制失败:', err);
+        alert('复制失败');
+    });
+}
+
+// 手动刷新输出
+function refreshOutput() {
+    loadOutput();
+}
+
+// 启动全局轮询（用于更新任务状态）
+function startGlobalPolling() {
+    if (globalPollInterval) {
+        clearInterval(globalPollInterval);
+    }
+    // 立即检查一次
+    checkTasksNeedPolling();
+    // 每5秒检查一次
+    globalPollInterval = setInterval(checkTasksNeedPolling, 5000);
+}
+
+// 停止全局轮询
+function stopGlobalPolling() {
+    if (globalPollInterval) {
+        clearInterval(globalPollInterval);
+        globalPollInterval = null;
+    }
+}
+
+// 检查是否有需要轮询的任务（scheduled 或 running）
+function checkTasksNeedPolling() {
+    const hasActiveTasks = schedules.some(task => 
+        task.status === 'scheduled' || task.status === 'running'
+    );
+    if (hasActiveTasks) {
+        loadSchedules();
+    }
+}
+
+// 取消任务
+async function cancelTask(task) {
+    if (!confirm(`确定要取消任务 "${task.task_name}" 吗？`)) {
+        return;
+    }
+    try {
+        // 注意：后端需要实现取消端点，这里暂时只更新状态为 cancelled
+        const response = await fetch(`/api/async_tasks/${task.id}`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: 'cancelled' })
+        });
+        if (response.ok) {
+            await loadSchedules();
+        } else {
+            alert('取消失败');
+        }
+    } catch (error) {
+        console.error('取消失败:', error);
+        alert('取消失败，请检查网络连接');
+    }
 }

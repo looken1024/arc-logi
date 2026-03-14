@@ -260,6 +260,29 @@ def init_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
 
+            # 创建异步任务表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS async_tasks (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL,
+                    task_name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    command TEXT NOT NULL,
+                    status ENUM('pending', 'running', 'completed', 'failed') DEFAULT 'pending',
+                    output TEXT,
+                    error_message TEXT,
+                    execution_id VARCHAR(64) NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    started_at DATETIME,
+                    completed_at DATETIME,
+                    INDEX idx_username (username),
+                    INDEX idx_status (status),
+                    INDEX idx_execution_id (execution_id),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
             # 创建提示词表
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS prompts (
@@ -313,11 +336,69 @@ def init_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
             
+            # 为 async_tasks 表添加 scheduled_at 列（如果不存在）
+            try:
+                cursor.execute("""
+                    SELECT COLUMN_NAME 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = 'async_tasks' 
+                    AND COLUMN_NAME = 'scheduled_at'
+                """)
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        ALTER TABLE async_tasks 
+                        ADD COLUMN scheduled_at DATETIME NULL DEFAULT NULL
+                    """)
+                    print("✅ 已添加 scheduled_at 列到 async_tasks 表")
+            except Exception as e:
+                print(f"添加 scheduled_at 列失败: {e}")
+            
+            # 为 async_tasks 表添加 scheduled 状态到 status 枚举（如果不存在）
+            try:
+                cursor.execute("""
+                    SELECT COLUMN_TYPE 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = 'async_tasks' 
+                    AND COLUMN_NAME = 'status'
+                """)
+                row = cursor.fetchone()
+                if row and 'scheduled' not in row['COLUMN_TYPE']:
+                    cursor.execute("""
+                        ALTER TABLE async_tasks 
+                        MODIFY COLUMN status ENUM('pending', 'running', 'completed', 'failed', 'scheduled') DEFAULT 'pending'
+                    """)
+                    print("✅ 已添加 scheduled 状态到 async_tasks 表")
+            except Exception as e:
+                print(f"修改 status 枚举失败: {e}")
+            
             conn.commit()
             print("✅ 数据库表初始化完成")
 
 # 初始化技能注册表
 skill_registry = register_all_skills()
+
+def execute_async_task(task_id, execution_id, command):
+    """执行异步任务命令"""
+    # 先更新状态为运行中
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE async_tasks SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE execution_id = %s",
+                    (execution_id,)
+                )
+                conn.commit()
+    except Exception as e:
+        print(f"更新异步任务状态为运行中失败: {e}")
+    
+    # 调用调度器的异步任务执行函数（支持实时输出）
+    try:
+        scheduler.execute_async_command(task_id, execution_id, command)
+    except Exception as e:
+        print(f"执行异步任务失败: {e}")
+
 
 @app.route('/')
 def index():
@@ -1635,6 +1716,13 @@ def schedules():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('schedules.html')
+
+@app.route('/async_tasks')
+def async_tasks():
+    """异步任务管理页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('async_tasks.html')
 
 @app.route('/workflows')
 def workflows():
@@ -3486,6 +3574,281 @@ def update_schedule_execution(schedule_id, execution_id):
                 conn.commit()
                 
                 return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== 异步任务 API ====================
+
+@app.route('/api/async_tasks', methods=['GET'])
+def get_async_tasks():
+    """获取用户的异步任务列表"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, task_name, description, command, status, output, error_message, execution_id, created_at, updated_at, started_at, completed_at "
+                    "FROM async_tasks WHERE username = %s ORDER BY created_at DESC LIMIT 50",
+                    (username,)
+                )
+                tasks = cursor.fetchall()
+                
+                # 转换日期格式
+                for task in tasks:
+                    for field in ['created_at', 'updated_at', 'started_at', 'completed_at']:
+                        if task[field] and isinstance(task[field], datetime):
+                            task[field] = task[field].isoformat()
+                
+                return jsonify({'tasks': tasks})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/async_tasks', methods=['POST'])
+def create_async_task():
+    """创建新的异步任务"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    # 验证必要字段
+    required_fields = ['task_name', 'command']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'缺少必要字段: {field}'}), 400
+    
+    try:
+        import uuid
+        import threading
+        from datetime import datetime, timedelta
+        
+        execution_id = str(uuid.uuid4())
+        task_name = data['task_name']
+        description = data.get('description', '')
+        command = data['command']
+        delay_minutes = int(data.get('delay_minutes', 0))
+        if delay_minutes < 0:
+            delay_minutes = 0
+        
+        if delay_minutes > 0:
+            scheduled_at = datetime.now() + timedelta(minutes=delay_minutes)
+            status = 'scheduled'
+        else:
+            scheduled_at = None
+            status = 'pending'
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                if scheduled_at:
+                    cursor.execute(
+                        "INSERT INTO async_tasks (username, task_name, description, command, status, execution_id, scheduled_at) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        (username, task_name, description, command, status, execution_id, scheduled_at)
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO async_tasks (username, task_name, description, command, status, execution_id) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)",
+                        (username, task_name, description, command, status, execution_id)
+                    )
+                task_id = cursor.lastrowid
+                conn.commit()
+                
+                # 如果立即执行，启动后台线程执行任务
+                if status == 'pending':
+                    thread = threading.Thread(
+                        target=execute_async_task,
+                        args=(task_id, execution_id, command),
+                        daemon=True
+                    )
+                    thread.start()
+                
+                # 返回新创建的任务
+                cursor.execute(
+                    "SELECT id, task_name, description, command, status, execution_id, scheduled_at, created_at, updated_at, started_at, completed_at "
+                    "FROM async_tasks WHERE id = %s",
+                    (task_id,)
+                )
+                task = cursor.fetchone()
+                if task:
+                    for field in ['scheduled_at', 'created_at', 'updated_at', 'started_at', 'completed_at']:
+                        if task[field] and isinstance(task[field], datetime):
+                            task[field] = task[field].isoformat()
+                
+                return jsonify({'task': task}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/async_tasks/<int:task_id>', methods=['GET'])
+def get_async_task(task_id):
+    """获取单个异步任务详情"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, task_name, description, command, status, output, error_message, execution_id, created_at, updated_at, started_at, completed_at "
+                    "FROM async_tasks WHERE id = %s AND username = %s",
+                    (task_id, username)
+                )
+                task = cursor.fetchone()
+                
+                if not task:
+                    return jsonify({'error': '任务不存在或无权访问'}), 404
+                
+                # 转换日期格式
+                for field in ['created_at', 'updated_at', 'started_at', 'completed_at']:
+                    if task[field] and isinstance(task[field], datetime):
+                        task[field] = task[field].isoformat()
+                
+                return jsonify({'task': task})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/async_tasks/<int:task_id>', methods=['PUT'])
+def update_async_task(task_id):
+    """更新异步任务状态"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    # 只允许更新状态字段
+    if 'status' not in data:
+        return jsonify({'error': '缺少状态字段'}), 400
+    
+    allowed_statuses = ['pending', 'running', 'completed', 'failed', 'cancelled']
+    if data['status'] not in allowed_statuses:
+        return jsonify({'error': '无效的状态值'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查任务是否存在且属于用户
+                cursor.execute(
+                    "SELECT id FROM async_tasks WHERE id = %s AND username = %s",
+                    (task_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '任务不存在或无权访问'}), 404
+                
+                # 更新状态
+                cursor.execute(
+                    "UPDATE async_tasks SET status = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                    (data['status'], task_id)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/async_tasks/<int:task_id>/output', methods=['GET'])
+def get_async_task_output(task_id):
+    """获取异步任务的输出内容"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT output, error_message FROM async_tasks WHERE id = %s AND username = %s",
+                    (task_id, username)
+                )
+                task = cursor.fetchone()
+                
+                if not task:
+                    return jsonify({'error': '任务不存在或无权访问'}), 404
+                
+                return jsonify({'output': task['output'], 'error_message': task['error_message']})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/async_tasks/<int:task_id>', methods=['DELETE'])
+def delete_async_task(task_id):
+    """删除异步任务"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查任务是否存在且属于用户
+                cursor.execute(
+                    "SELECT id FROM async_tasks WHERE id = %s AND username = %s",
+                    (task_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '任务不存在或无权访问'}), 404
+                
+                # 删除任务
+                cursor.execute(
+                    "DELETE FROM async_tasks WHERE id = %s",
+                    (task_id,)
+                )
+                conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/async_tasks/<int:task_id>/execute', methods=['POST'])
+def execute_async_task_endpoint(task_id):
+    """立即执行异步任务"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        import uuid
+        import threading
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # 检查任务是否存在且属于用户
+                cursor.execute(
+                    "SELECT id, command, status FROM async_tasks WHERE id = %s AND username = %s",
+                    (task_id, username)
+                )
+                task = cursor.fetchone()
+                if not task:
+                    return jsonify({'error': '任务不存在或无权访问'}), 404
+                
+                command = task['command']
+                new_execution_id = str(uuid.uuid4())
+                
+                # 更新任务状态为 pending，设置新的 execution_id
+                cursor.execute(
+                    "UPDATE async_tasks SET status = 'pending', execution_id = %s, scheduled_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                    (new_execution_id, task_id)
+                )
+                conn.commit()
+                
+                # 启动后台线程执行任务
+                thread = threading.Thread(
+                    target=execute_async_task,
+                    args=(task_id, new_execution_id, command),
+                    daemon=True
+                )
+                thread.start()
+                
+                return jsonify({'success': True, 'message': '任务执行已启动', 'execution_id': new_execution_id})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

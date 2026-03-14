@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>定时任务 - AI Chat Platform</title>
+    <title>异步任务 - AI Chat Platform</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -157,7 +157,7 @@
             color: var(--text-primary);
         }
 
-        /* 定时任务卡片样式 */
+        /* 异步任务卡片样式 */
         .schedules-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -215,6 +215,36 @@
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             color: #92400e;
             border: 1px solid #fcd34d;
+        }
+
+        .schedule-status.scheduled {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            color: #3730a3;
+            border: 1px solid #a5b4fc;
+        }
+
+        .schedule-status.running {
+            background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+            color: #1e40af;
+            border: 1px solid #60a5fa;
+        }
+
+        .schedule-status.completed {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .schedule-status.failed {
+            background: linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%);
+            color: #991b1b;
+            border: 1px solid #f87171;
+        }
+
+        .schedule-status.cancelled {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: #4b5563;
+            border: 1px solid #9ca3af;
         }
 
         .schedule-card-body {
@@ -377,229 +407,7 @@
             }
         }
 
-        /* 定时任务列表样式 */
-        .schedules-table {
-            display: table;
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--bg-card);
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            overflow: hidden;
-        }
-        
-        .schedule-row {
-            display: table-row;
-            border-bottom: 1px solid var(--border-color);
-            transition: background 0.2s;
-        }
-        
-        .schedule-row:hover {
-            background: var(--bg-hover);
-        }
-        
-        .schedule-row:last-child {
-            border-bottom: none;
-        }
-        
-        .schedule-cell {
-            display: table-cell;
-            padding: 16px 20px;
-            vertical-align: top;
-            color: var(--text-primary);
-        }
-        
-        .schedule-cell.header {
-            font-weight: 600;
-            color: var(--text-secondary);
-            background: var(--bg-light);
-            border-bottom: 2px solid var(--border-color);
-        }
-        
-        .schedule-name-cell {
-            width: 25%;
-        }
-        
-        .schedule-cron-cell {
-            width: 20%;
-        }
-        
-        .schedule-command-cell {
-            width: 35%;
-        }
-        
-        .schedule-status-cell {
-            width: 10%;
-            text-align: center;
-        }
-        
-        .schedule-actions-cell {
-            width: 10%;
-            text-align: right;
-        }
-        
-        .schedule-actions {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-        }
-        
-        .schedule-actions .btn-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            color: var(--text-secondary);
-        }
-        
-        .schedule-actions .btn-icon:hover {
-            transform: scale(1.1);
-        }
-        
-        .schedule-actions .run-schedule-btn:hover {
-            background: #dcfce7;
-            color: #166534;
-            border-color: #86efac;
-        }
-        
-        .schedule-actions .executions-schedule-btn:hover {
-            background: #e0e7ff;
-            color: #4338ca;
-            border-color: #a5b4fc;
-        }
-        
-        .schedule-actions .edit-schedule-btn:hover {
-            background: #fef3c7;
-            color: #92400e;
-            border-color: #fcd34d;
-        }
-        
-        .schedule-actions .delete-schedule-btn:hover {
-            background: #fee2e2;
-            color: #dc2626;
-            border-color: #fca5a5;
-        }
-        
-        .schedule-status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            white-space: nowrap;
-            display: inline-block;
-        }
-        
-        .schedule-status-badge.active {
-            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-            color: #166534;
-            border: 1px solid #86efac;
-        }
-        
-        .schedule-status-badge.paused {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            color: #92400e;
-            border: 1px solid #fcd34d;
-        }
-        
-        .schedule-command-preview {
-            color: var(--text-secondary);
-            font-size: 13px;
-            word-break: break-all;
-            max-width: 400px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .schedule-meta-preview {
-            display: flex;
-            gap: 16px;
-            margin-top: 8px;
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-        
-        .meta-item-preview {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .meta-item-preview i {
-            color: var(--primary-color);
-            font-size: 11px;
-        }
-        
-        /* 响应式列表样式 */
-        @media (max-width: 768px) {
-            .schedules-table,
-            .schedule-row,
-            .schedule-cell {
-                display: block;
-            }
-            
-            .schedule-cell.header {
-                display: none;
-            }
-            
-            .schedule-name-cell,
-            .schedule-cron-cell,
-            .schedule-command-cell,
-            .schedule-status-cell,
-            .schedule-actions-cell {
-                width: 100%;
-                display: flex;
-                align-items: center;
-                padding: 12px 16px;
-                border-bottom: 1px solid var(--border-color);
-            }
-            
-            .schedule-name-cell::before {
-                content: "任务名称: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-cron-cell::before {
-                content: "执行周期: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-command-cell::before {
-                content: "执行命令: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-status-cell::before {
-                content: "状态: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-actions-cell::before {
-                content: "操作: ";
-                font-weight: 600;
-                color: var(--text-secondary);
-                min-width: 80px;
-            }
-            
-            .schedule-actions {
-                justify-content: flex-start;
-            }
-        }
-
-        /* 定时任务编辑表单美化 */
+        /* 异步任务编辑表单美化 */
         .schedule-modal .modal-content {
             max-width: 560px;
             border-radius: 20px;
@@ -880,6 +688,204 @@
         .executions-modal .modal-footer {
             background: var(--bg-light);
         }
+
+        /* 实时输出模态框样式 */
+        .output-modal .modal-content {
+            max-width: 1000px;
+            max-height: 85vh;
+        }
+
+        .output-modal .modal-header {
+            background: linear-gradient(135deg, #10a37f 0%, #0d8b6c 100%);
+            padding: 16px 24px;
+            border-bottom: none;
+        }
+
+        .output-modal .modal-header h2 {
+            color: #fff;
+            font-size: 18px;
+        }
+
+        .output-modal .modal-header h2 i {
+            color: #fff;
+        }
+
+        .output-modal .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .output-modal .modal-body {
+            padding: 20px 24px;
+            background: var(--bg-light);
+        }
+
+        .output-modal .modal-footer {
+            background: var(--bg-light);
+        }
+
+        .output-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .output-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .meta-item i {
+            color: var(--primary-color);
+        }
+
+        .meta-label {
+            font-weight: 500;
+        }
+
+        .output-terminal {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            overflow: auto;
+            max-height: 500px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        #outputContent {
+            color: #00ff00;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 0;
+            min-height: 200px;
+        }
+
+        .output-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* 异步任务列表样式 */
+        .schedules-list-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .schedule-list-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+        .schedule-list-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .schedule-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .schedule-list-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--bg-light);
+            border-bottom: 2px solid var(--border-color);
+            font-weight: bold;
+            color: var(--text-secondary);
+        }
+
+        .schedule-list-col {
+            flex: 1;
+            padding: 0 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .schedule-list-col-name {
+            flex: 2;
+            min-width: 200px;
+        }
+
+        .schedule-list-col-status {
+            flex: 0.8;
+            min-width: 100px;
+        }
+
+        .schedule-list-col-command {
+            flex: 3;
+            min-width: 300px;
+        }
+
+        .schedule-list-col-created {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .schedule-list-col-actions {
+            flex: 1.2;
+            min-width: 200px;
+            text-align: right;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-pending { background: #f3f4f6; color: #6b7280; }
+        .status-scheduled { background: #e0e7ff; color: #3730a3; }
+        .status-running { background: #dbeafe; color: #1e40af; }
+        .status-completed { background: #dcfce7; color: #166534; }
+        .status-failed { background: #fee2e2; color: #dc2626; }
+        .status-cancelled { background: #f3f4f6; color: #6b7280; }
+
+        .btn-icon-sm {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            cursor: pointer;
+            margin-left: 4px;
+        }
+
+        .btn-icon-sm:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-icon-sm.edit:hover { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .btn-icon-sm.retry:hover { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .btn-icon-sm.delete:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+        .btn-icon-sm.output:hover { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
     </style>
 </head>
 <body>
@@ -903,7 +909,7 @@
                 </a>
                 <div class="nav-item active">
                     <i class="fas fa-clock"></i>
-                    <span>定时任务</span>
+                    <span>异步任务</span>
                 </div>
             </div>
             
@@ -920,11 +926,11 @@
                 <button class="sidebar-toggle" id="sidebarToggle">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1>定时任务</h1>
+                <h1>异步任务</h1>
                 <div class="header-actions">
                     <button class="btn btn-primary" id="createScheduleBtn">
                         <i class="fas fa-plus"></i>
-                        新建定时任务
+                        新建异步任务
                     </button>
                 </div>
             </header>
@@ -940,11 +946,11 @@
         </main>
     </div>
 
-    <!-- 创建/编辑定时任务模态框 -->
+    <!-- 创建/编辑异步任务模态框 -->
     <div class="modal schedule-modal" id="scheduleModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="scheduleModalTitle"><i class="fas fa-clock"></i> 新建定时任务</h2>
+                <h2 id="scheduleModalTitle"><i class="fas fa-clock"></i> 新建异步任务</h2>
                 <button class="modal-close" id="closeScheduleModal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -959,12 +965,12 @@
                         <label for="scheduleDescription"><i class="fas fa-align-left"></i> 描述</label>
                         <textarea id="scheduleDescription" name="description" rows="3" placeholder="请输入任务描述"></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="display: none;">
                         <label for="scheduleCron"><i class="fas fa-clock"></i> Cron 表达式</label>
                         <input type="text" id="scheduleCron" name="cron" required placeholder="例如：0 * * * *" pattern="\s*(\S+\s+){4}\S+\s*">
                         <small class="form-hint"><i class="fas fa-info-circle"></i> 标准的 cron 表达式，格式：分 时 日 月 周</small>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="display: none;">
                         <label for="schedulePreset"><i class="fas fa-bolt"></i> 快速设置</label>
                         <select id="schedulePreset" name="preset">
                             <option value="">自定义 Cron</option>
@@ -1003,10 +1009,15 @@
                         <small class="form-hint"><i class="fas fa-info-circle"></i> 选择预设会自动填充 cron 表达式</small>
                     </div>
                     <div class="form-group">
+                        <label for="scheduleDelay"><i class="fas fa-hourglass-half"></i> 延迟执行（分钟）</label>
+                        <input type="number" id="scheduleDelay" name="delay" min="0" step="1" value="0" placeholder="0 表示立即执行">
+                        <small class="form-hint"><i class="fas fa-info-circle"></i> 设置任务延迟执行的分钟数，0 表示立即执行</small>
+                    </div>
+                    <div class="form-group">
                         <label for="scheduleCommand"><i class="fas fa-terminal"></i> 执行命令</label>
                         <textarea id="scheduleCommand" name="command" rows="4" required placeholder="请输入要执行的命令或操作描述"></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="display: none;">
                         <label for="scheduleStatus"><i class="fas fa-toggle-on"></i> 状态</label>
                         <select id="scheduleStatus" name="status">
                             <option value="active">启用</option>
@@ -1036,7 +1047,7 @@
                 <div class="warning-icon">
                     <i class="fas fa-exclamation-triangle"></i>
                 </div>
-                <p id="deleteMessage">确定要删除这个定时任务吗？此操作不可撤销。</p>
+                <p id="deleteMessage">确定要删除这个异步任务吗？此操作不可撤销。</p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="cancelDeleteBtn">取消</button>
@@ -1049,7 +1060,7 @@
     <div class="modal executions-modal" id="executionsModal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
-                <h2 id="executionsModalTitle"><i class="fas fa-history"></i> 定时任务执行记录</h2>
+                <h2 id="executionsModalTitle"><i class="fas fa-history"></i> 异步任务执行记录</h2>
                 <button class="modal-close" id="closeExecutionsModal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -1066,7 +1077,7 @@
                     <div class="empty-state" id="executionsEmpty" style="display: none;">
                         <i class="fas fa-history"></i>
                         <h3>暂无执行记录</h3>
-                        <p>该定时任务还没有执行记录</p>
+                        <p>该异步任务还没有执行记录</p>
                     </div>
                 </div>
             </div>
@@ -1076,6 +1087,58 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/schedules.js') }}"></script>
+    <!-- 实时输出模态框 -->
+    <div class="modal output-modal" id="outputModal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2 id="outputModalTitle"><i class="fas fa-terminal"></i> 异步任务实时输出</h2>
+                <button class="modal-close" id="closeOutputModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="output-container">
+                    <div class="output-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-tag"></i>
+                            <span class="meta-label">任务名称：</span>
+                            <span id="outputTaskName">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            <span class="meta-label">状态：</span>
+                            <span id="outputTaskStatus">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-hourglass-half"></i>
+                            <span class="meta-label">开始时间：</span>
+                            <span id="outputTaskStarted">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-flag-checkered"></i>
+                            <span class="meta-label">完成时间：</span>
+                            <span id="outputTaskCompleted">-</span>
+                        </div>
+                    </div>
+                    <div class="output-terminal">
+                        <pre id="outputContent">等待输出...</pre>
+                    </div>
+                    <div class="output-actions">
+                        <button class="btn btn-secondary" id="copyOutputBtn">
+                            <i class="fas fa-copy"></i> 复制输出
+                        </button>
+                        <button class="btn btn-secondary" id="refreshOutputBtn">
+                            <i class="fas fa-sync-alt"></i> 手动刷新
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeOutputBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/async_tasks.js') }}"></script>
 </body>
 </html>

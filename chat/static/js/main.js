@@ -258,6 +258,11 @@ function initializeEventListeners() {
         window.location.href = '/schedules';
     });
 
+    // 打开异步任务
+    document.getElementById('openAsyncTasks')?.addEventListener('click', () => {
+        window.location.href = '/async_tasks';
+    });
+
     // 打开工作流管理
     document.getElementById('openWorkflows')?.addEventListener('click', () => {
         window.location.href = '/workflows';
