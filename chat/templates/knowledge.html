@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>知识库管理 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-card: #1e1e1e;
+            --text-primary: #ececec;
+            --text-secondary: #8e8e8e;
+            --border-color: #2d2d2d;
+            --bg-light: #2a2a2a;
+            --bg-hover: #333;
+            --sidebar-bg: #171717;
+            --primary-color: #10a37f;
+        }
+        body[data-theme="light"] {
+            --bg-card: #fff;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #e0e0e0;
+            --bg-light: #f5f5f5;
+            --bg-hover: #f0f0f0;
+            --sidebar-bg: #ffffff;
+        }
+        body[data-theme="dark"] {
+            --bg-card: #1e1e1e;
+            --text-primary: #ececec;
+            --text-secondary: #8e8e8e;
+            --border-color: #2d2d2d;
+            --bg-light: #2a2a2a;
+            --bg-hover: #333;
+            --sidebar-bg: #171717;
+        }
+        body[data-theme="blue"] {
+            --bg-card: #1e293b;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --bg-light: #0f172a;
+            --bg-hover: #1e293b;
+            --sidebar-bg: #1e293b;
+        }
+        body[data-theme="green"] {
+            --bg-card: #1a2e1a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #2d4d2d;
+            --bg-light: #0a0f0a;
+            --bg-hover: #1a2e1a;
+            --sidebar-bg: #0f1f0f;
+        }
+        body[data-theme="purple"] {
+            --bg-card: #2a1a3a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #4d2d6d;
+            --bg-light: #0f0a1a;
+            --bg-hover: #2a1a3a;
+            --sidebar-bg: #1f0f2f;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 16px;
+        }
+
+        .new-chat-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 16px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            opacity: 0.9;
+        }
+
+        .sidebar-nav {
+            padding: 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            min-height: 100vh;
+            background: var(--bg-color);
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--bg-hover);
+        }
+
+        .page-header h1 {
+            flex: 1;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background: var(--bg-light);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-icon {
+            padding: 8px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .btn-icon:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .search-container {
+            padding: 16px 24px;
+            background: var(--bg-card);
+        }
+
+        .search-box {
+            max-width: 600px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            color: var(--text-secondary);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 40px 12px 40px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .content-area {
+            padding: 24px;
+        }
+
+        .knowledge-container {
+            display: flex;
+            gap: 24px;
+        }
+
+        .kb-list-section {
+            width: 350px;
+            flex-shrink: 0;
+        }
+
+        .kb-detail-section {
+            flex: 1;
+        }
+
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .kb-list {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        .kb-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .kb-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .kb-item.active {
+            background: var(--bg-light);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .kb-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+
+        .kb-item-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .kb-item-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .kb-item:hover .kb-item-actions {
+            opacity: 1;
+        }
+
+        .kb-item-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .kb-item-meta {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state {
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .detail-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .detail-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .item-card {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .item-card:hover {
+            border-color: var(--primary-color);
+        }
+
+        .item-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .item-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .item-type {
+            font-size: 11px;
+            padding: 2px 8px;
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+            border-radius: 4px;
+        }
+
+        .item-content {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-content.wide {
+            max-width: 800px;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-help {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .relation-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .relation-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg-light);
+            border-radius: 6px;
+        }
+
+        .relation-type {
+            font-size: 12px;
+            padding: 2px 8px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+        }
+
+        .relation-source {
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .relation-target {
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            gap: 10px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+        }
+
+        .page-btn {
+            padding: 8px 16px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .knowledge-container {
+                flex-direction: column;
+            }
+            
+            .kb-list-section {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="new-chat-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>新对话</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>返回聊天</span>
+                </a>
+                <div class="nav-item active">
+                    <i class="fas fa-book"></i>
+                    <span>知识库管理</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="page-header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>知识库管理</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="createKbBtn">
+                        <i class="fas fa-plus"></i>
+                        新建知识库
+                    </button>
+                </div>
+            </header>
+
+            <div class="search-container">
+                <div class="search-box">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="searchInput" class="search-input" placeholder="搜索知识库、知识条目...">
+                        <button class="search-clear" id="searchClear" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <div class="knowledge-container">
+                    <div class="kb-list-section">
+                        <div class="section-card">
+                            <div class="section-header">
+                                <h3 class="section-title">知识库列表</h3>
+                                <span id="kbCount" style="font-size: 13px; color: var(--text-secondary);">0</span>
+                            </div>
+                            <div class="kb-list" id="kbList">
+                                <div class="loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span>加载中...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="kb-detail-section">
+                        <div class="section-card" id="detailCard">
+                            <div class="empty-state" id="emptyDetail">
+                                <i class="fas fa-folder-open"></i>
+                                <p>选择一个知识库查看详情</p>
+                            </div>
+                            <div id="detailContent" style="display: none; padding: 20px;">
+                                <div class="detail-header">
+                                    <h2 class="detail-title" id="detailTitle"></h2>
+                                    <div class="detail-actions">
+                                        <button class="btn btn-secondary btn-sm" id="editKbBtn">
+                                            <i class="fas fa-edit"></i>
+                                            编辑
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" id="deleteKbBtn">
+                                            <i class="fas fa-trash"></i>
+                                            删除
+                                        </button>
+                                    </div>
+                                </div>
+                                <p id="detailDesc" style="color: var(--text-secondary); margin-bottom: 20px;"></p>
+
+                                <div class="tabs">
+                                    <button class="tab active" data-tab="items">知识条目</button>
+                                    <button class="tab" data-tab="relations">知识关系</button>
+                                </div>
+
+                                <div class="tab-content" id="tabItems">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                        <span id="itemCount" style="color: var(--text-secondary); font-size: 14px;"></span>
+                                        <button class="btn btn-primary btn-sm" id="addItemBtn">
+                                            <i class="fas fa-plus"></i>
+                                            添加条目
+                                        </button>
+                                    </div>
+                                    <div class="item-list" id="itemList">
+                                        <div class="empty-state">
+                                            <i class="fas fa-file-alt"></i>
+                                            <p>暂无知识条目</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="tab-content" id="tabRelations" style="display: none;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                        <span id="relationCount" style="color: var(--text-secondary); font-size: 14px;"></span>
+                                        <button class="btn btn-primary btn-sm" id="addRelationBtn">
+                                            <i class="fas fa-plus"></i>
+                                            添加关系
+                                        </button>
+                                    </div>
+                                    <div class="relation-list" id="relationList">
+                                        <div class="empty-state">
+                                            <i class="fas fa-link"></i>
+                                            <p>暂无知识关系</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创建/编辑知识库模态框 -->
+    <div class="modal" id="kbModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="kbModalTitle">新建知识库</h2>
+                <button class="modal-close" id="closeKbModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="kbForm">
+                    <input type="hidden" id="kbId">
+                    <div class="form-group">
+                        <label for="kbName">知识库名称</label>
+                        <input type="text" id="kbName" class="form-control" required placeholder="请输入知识库名称">
+                    </div>
+                    <div class="form-group">
+                        <label for="kbDescription">描述</label>
+                        <textarea id="kbDescription" class="form-control" rows="3" placeholder="请输入知识库描述"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelKbBtn">取消</button>
+                <button class="btn btn-primary" id="saveKbBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建/编辑知识条目模态框 -->
+    <div class="modal" id="itemModal">
+        <div class="modal-content wide">
+            <div class="modal-header">
+                <h2 id="itemModalTitle">添加知识条目</h2>
+                <button class="modal-close" id="closeItemModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="itemForm">
+                    <input type="hidden" id="itemId">
+                    <div class="form-group">
+                        <label for="itemTitle">标题</label>
+                        <input type="text" id="itemTitle" class="form-control" required placeholder="请输入知识条目标题">
+                    </div>
+                    <div class="form-group">
+                        <label for="itemType">类型</label>
+                        <select id="itemType" class="form-control">
+                            <option value="text">文本</option>
+                            <option value="qa">问答</option>
+                            <option value="concept">概念</option>
+                            <option value="procedure">流程</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemContent">内容</label>
+                        <textarea id="itemContent" class="form-control" rows="8" placeholder="请输入知识条目内容"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelItemBtn">取消</button>
+                <button class="btn btn-primary" id="saveItemBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加关系模态框 -->
+    <div class="modal" id="relationModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>添加知识关系</h2>
+                <button class="modal-close" id="closeRelationModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="relationForm">
+                    <input type="hidden" id="relationId">
+                    <div class="form-group">
+                        <label for="sourceItem">源头条目</label>
+                        <select id="sourceItem" class="form-control">
+                            <option value="">请选择源头条目</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="relationType">关系类型</label>
+                        <select id="relationType" class="form-control">
+                            <option value="related">相关</option>
+                            <option value="parent">父级</option>
+                            <option value="child">子级</option>
+                            <option value="similar">相似</option>
+                            <option value="tag">标签</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="targetItem">目标条目</label>
+                        <select id="targetItem" class="form-control">
+                            <option value="">请选择目标条目</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelRelationBtn">取消</button>
+                <button class="btn btn-primary" id="saveRelationBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentKb = null;
+        let kbList = [];
+        let itemList = [];
+        let relationList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            loadKnowledgeBases();
+            initEventListeners();
+        });
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user', { credentials: 'same-origin' });
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('username').textContent = user.username;
+                    document.body.setAttribute('data-theme', user.theme || 'dark');
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+            }
+        }
+
+        function initEventListeners() {
+            document.getElementById('sidebarToggle').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            });
+
+            document.getElementById('createKbBtn').addEventListener('click', () => openKbModal());
+            document.getElementById('editKbBtn').addEventListener('click', () => openKbModal(currentKb));
+            document.getElementById('deleteKbBtn').addEventListener('click', () => deleteKnowledgeBase());
+            document.getElementById('saveKbBtn').addEventListener('click', () => saveKnowledgeBase());
+            document.getElementById('cancelKbBtn').addEventListener('click', () => closeKbModal());
+            document.getElementById('closeKbModal').addEventListener('click', () => closeKbModal());
+
+            document.getElementById('addItemBtn').addEventListener('click', () => openItemModal());
+            document.getElementById('saveItemBtn').addEventListener('click', () => saveItem());
+            document.getElementById('cancelItemBtn').addEventListener('click', () => closeItemModal());
+            document.getElementById('closeItemModal').addEventListener('click', () => closeItemModal());
+
+            document.getElementById('addRelationBtn').addEventListener('click', () => openRelationModal());
+            document.getElementById('saveRelationBtn').addEventListener('click', () => saveRelation());
+            document.getElementById('cancelRelationBtn').addEventListener('click', () => closeRelationModal());
+            document.getElementById('closeRelationModal').addEventListener('click', () => closeRelationModal());
+
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+
+            document.getElementById('searchInput').addEventListener('input', handleSearch);
+        }
+
+        async function loadKnowledgeBases() {
+            try {
+                const response = await fetch('/api/knowledge-bases', { credentials: 'same-origin' });
+                if (response.ok) {
+                    kbList = await response.json();
+                    renderKbList();
+                }
+            } catch (error) {
+                console.error('加载知识库失败:', error);
+                renderKbList();
+            }
+        }
+
+        function renderKbList() {
+            const kbListEl = document.getElementById('kbList');
+            document.getElementById('kbCount').textContent = kbList.length;
+
+            if (kbList.length === 0) {
+                kbListEl.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <p>暂无知识库</p>
+                    </div>
+                `;
+                return;
+            }
+
+            kbListEl.innerHTML = kbList.map(kb => `
+                <div class="kb-item ${currentKb && currentKb.id === kb.id ? 'active' : ''}" data-id="${kb.id}">
+                    <div class="kb-item-header">
+                        <span class="kb-item-name">${escapeHtml(kb.name)}</span>
+                        <div class="kb-item-actions">
+                            <button class="btn-icon" onclick="event.stopPropagation(); editKb(${kb.id})" title="编辑">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon" onclick="event.stopPropagation(); deleteKb(${kb.id})" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="kb-item-desc">${escapeHtml(kb.description || '暂无描述')}</div>
+                    <div class="kb-item-meta">
+                        <span><i class="fas fa-calendar"></i> ${formatDate(kb.created_at)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            kbListEl.querySelectorAll('.kb-item').forEach(item => {
+                item.addEventListener('click', () => selectKb(parseInt(item.dataset.id)));
+            });
+        }
+
+        async function selectKb(kbId) {
+            currentKb = kbList.find(kb => kb.id === kbId);
+            renderKbList();
+            renderKbDetail();
+            await Promise.all([loadItems(kbId), loadRelations(kbId)]);
+        }
+
+        function renderKbDetail() {
+            const emptyDetail = document.getElementById('emptyDetail');
+            const detailContent = document.getElementById('detailContent');
+
+            if (!currentKb) {
+                emptyDetail.style.display = 'block';
+                detailContent.style.display = 'none';
+                return;
+            }
+
+            emptyDetail.style.display = 'none';
+            detailContent.style.display = 'block';
+
+            document.getElementById('detailTitle').textContent = currentKb.name;
+            document.getElementById('detailDesc').textContent = currentKb.description || '暂无描述';
+        }
+
+        async function loadItems(kbId) {
+            try {
+                const response = await fetch(`/api/knowledge-bases/${kbId}/items`, { credentials: 'same-origin' });
+                if (response.ok) {
+                    itemList = await response.json();
+                    renderItemList();
+                }
+            } catch (error) {
+                console.error('加载知识条目失败:', error);
+                itemList = [];
+                renderItemList();
+            }
+        }
+
+        function renderItemList() {
+            const itemListEl = document.getElementById('itemList');
+            document.getElementById('itemCount').textContent = `${itemList.length} 个条目`;
+
+            if (itemList.length === 0) {
+                itemListEl.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-file-alt"></i>
+                        <p>暂无知识条目</p>
+                    </div>
+                `;
+                return;
+            }
+
+            itemListEl.innerHTML = itemList.map(item => `
+                <div class="item-card" data-id="${item.id}">
+                    <div class="item-card-header">
+                        <span class="item-title">${escapeHtml(item.title)}</span>
+                        <span class="item-type">${getTypeName(item.type)}</span>
+                    </div>
+                    <div class="item-content">${escapeHtml(item.content)}</div>
+                    <div class="item-meta">
+                        <span><i class="fas fa-clock"></i> ${formatDate(item.created_at)}</span>
+                        <div class="item-actions">
+                            <button class="btn-icon" onclick="event.stopPropagation(); editItem(${item.id})" title="编辑">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon" onclick="event.stopPropagation(); deleteItem(${item.id})" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadRelations(kbId) {
+            try {
+                const response = await fetch(`/api/knowledge-bases/${kbId}/relations`, { credentials: 'same-origin' });
+                if (response.ok) {
+                    relationList = await response.json();
+                    renderRelationList();
+                }
+            } catch (error) {
+                console.error('加载知识关系失败:', error);
+                relationList = [];
+                renderRelationList();
+            }
+        }
+
+        function renderRelationList() {
+            const relationListEl = document.getElementById('relationList');
+            document.getElementById('relationCount').textContent = `${relationList.length} 个关系`;
+
+            if (relationList.length === 0) {
+                relationListEl.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-link"></i>
+                        <p>暂无知识关系</p>
+                    </div>
+                `;
+                return;
+            }
+
+            relationListEl.innerHTML = relationList.map(rel => `
+                <div class="relation-item">
+                    <span class="relation-source">${escapeHtml(rel.source_title || '未知')}</span>
+                    <span class="relation-type">${getRelationName(rel.relation_type)}</span>
+                    <span class="relation-target">${escapeHtml(rel.target_title || '未知')}</span>
+                    <button class="btn-icon" onclick="deleteRelation(${rel.id})" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function openKbModal(kb = null) {
+            document.getElementById('kbModalTitle').textContent = kb ? '编辑知识库' : '新建知识库';
+            document.getElementById('kbId').value = kb ? kb.id : '';
+            document.getElementById('kbName').value = kb ? kb.name : '';
+            document.getElementById('kbDescription').value = kb ? kb.description : '';
+            document.getElementById('kbModal').classList.add('active');
+        }
+
+        function closeKbModal() {
+            document.getElementById('kbModal').classList.remove('active');
+        }
+
+        async function saveKnowledgeBase() {
+            const id = document.getElementById('kbId').value;
+            const name = document.getElementById('kbName').value.trim();
+            const description = document.getElementById('kbDescription').value.trim();
+
+            if (!name) {
+                alert('请输入知识库名称');
+                return;
+            }
+
+            const url = id ? `/api/knowledge-bases/${id}` : '/api/knowledge-bases';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ name, description })
+                });
+
+                if (response.ok) {
+                    closeKbModal();
+                    await loadKnowledgeBases();
+                    if (id) {
+                        currentKb = kbList.find(kb => kb.id === parseInt(id));
+                    }
+                } else {
+                    const data = await response.json();
+                    alert(data.error || '保存失败');
+                }
+            } catch (error) {
+                console.error('保存知识库失败:', error);
+                alert('保存失败');
+            }
+        }
+
+        async function deleteKnowledgeBase() {
+            if (!currentKb) return;
+            if (!confirm(`确定要删除知识库"${currentKb.name}"吗？此操作不可恢复。`)) return;
+
+            try {
+                const response = await fetch(`/api/knowledge-bases/${currentKb.id}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    currentKb = null;
+                    document.getElementById('detailContent').style.display = 'none';
+                    document.getElementById('emptyDetail').style.display = 'block';
+                    await loadKnowledgeBases();
+                } else {
+                    const data = await response.json();
+                    alert(data.error || '删除失败');
+                }
+            } catch (error) {
+                console.error('删除知识库失败:', error);
+                alert('删除失败');
+            }
+        }
+
+        function editKb(kbId) {
+            const kb = kbList.find(k => k.id === kbId);
+            openKbModal(kb);
+        }
+
+        async function deleteKb(kbId) {
+            if (!confirm('确定要删除这个知识库吗？')) return;
+            
+            try {
+                await fetch(`/api/knowledge-bases/${kbId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                await loadKnowledgeBases();
+            } catch (error) {
+                console.error('删除失败:', error);
+                alert('删除失败');
+            }
+        }
+
+        function openItemModal(item = null) {
+            document.getElementById('itemModalTitle').textContent = item ? '编辑知识条目' : '添加知识条目';
+            document.getElementById('itemId').value = item ? item.id : '';
+            document.getElementById('itemTitle').value = item ? item.title : '';
+            document.getElementById('itemType').value = item ? item.type : 'text';
+            document.getElementById('itemContent').value = item ? item.content : '';
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        function closeItemModal() {
+            document.getElementById('itemModal').classList.remove('active');
+        }
+
+        async function saveItem() {
+            if (!currentKb) return;
+
+            const id = document.getElementById('itemId').value;
+            const title = document.getElementById('itemTitle').value.trim();
+            const type = document.getElementById('itemType').value;
+            const content = document.getElementById('itemContent').value.trim();
+
+            if (!title || !content) {
+                alert('请输入标题和内容');
+                return;
+            }
+
+            const url = id ? `/api/knowledge-items/${id}` : `/api/knowledge-bases/${currentKb.id}/items`;
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ title, type, content })
+                });
+
+                if (response.ok) {
+                    closeItemModal();
+                    await loadItems(currentKb.id);
+                } else {
+                    const data = await response.json();
+                    alert(data.error || '保存失败');
+                }
+            } catch (error) {
+                console.error('保存知识条目失败:', error);
+                alert('保存失败');
+            }
+        }
+
+        function editItem(itemId) {
+            const item = itemList.find(i => i.id === itemId);
+            openItemModal(item);
+        }
+
+        async function deleteItem(itemId) {
+            if (!confirm('确定要删除这个知识条目吗？')) return;
+
+            try {
+                await fetch(`/api/knowledge-items/${itemId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                if (currentKb) {
+                    await loadItems(currentKb.id);
+                    await loadRelations(currentKb.id);
+                }
+            } catch (error) {
+                console.error('删除失败:', error);
+                alert('删除失败');
+            }
+        }
+
+        async function openRelationModal() {
+            const sourceSelect = document.getElementById('sourceItem');
+            const targetSelect = document.getElementById('targetItem');
+            sourceSelect.innerHTML = '<option value="">请选择源头条目</option>';
+            targetSelect.innerHTML = '<option value="">请选择目标条目</option>';
+            
+            itemList.forEach(item => {
+                sourceSelect.innerHTML += `<option value="${item.id}">${escapeHtml(item.title)}</option>`;
+                targetSelect.innerHTML += `<option value="${item.id}">${escapeHtml(item.title)}</option>`;
+            });
+
+            document.getElementById('relationModal').classList.add('active');
+        }
+
+        function closeRelationModal() {
+            document.getElementById('relationModal').classList.remove('active');
+        }
+
+        async function saveRelation() {
+            if (!currentKb) return;
+
+            const sourceItemId = document.getElementById('sourceItem').value;
+            const relationType = document.getElementById('relationType').value;
+            const targetItemId = document.getElementById('targetItem').value;
+
+            if (!sourceItemId) {
+                alert('请选择源头条目');
+                return;
+            }
+
+            if (!targetItemId) {
+                alert('请选择目标条目');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/knowledge-bases/${currentKb.id}/relations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ 
+                        source_item_id: parseInt(sourceItemId),
+                        target_item_id: parseInt(targetItemId),
+                        relation_type: relationType
+                    })
+                });
+
+                if (response.ok) {
+                    closeRelationModal();
+                    await loadRelations(currentKb.id);
+                } else {
+                    const data = await response.json();
+                    alert(data.error || '保存失败');
+                }
+            } catch (error) {
+                console.error('保存关系失败:', error);
+                alert('保存失败');
+            }
+        }
+
+        async function deleteRelation(relationId) {
+            if (!confirm('确定要删除这个关系吗？')) return;
+
+            try {
+                await fetch(`/api/knowledge-relations/${relationId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                if (currentKb) {
+                    await loadRelations(currentKb.id);
+                }
+            } catch (error) {
+                console.error('删除失败:', error);
+                alert('删除失败');
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = content.id === `tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}` ? 'block' : 'none';
+            });
+        }
+
+        async function handleSearch() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            const searchClear = document.getElementById('searchClear');
+            
+            searchClear.style.display = keyword ? 'block' : 'none';
+
+            if (keyword) {
+                try {
+                    const response = await fetch(`/api/knowledge-bases/search?q=${encodeURIComponent(keyword)}`, {
+                        credentials: 'same-origin'
+                    });
+                    if (response.ok) {
+                        kbList = await response.json();
+                        renderKbList();
+                    }
+                } catch (error) {
+                    console.error('搜索失败:', error);
+                }
+            } else {
+                await loadKnowledgeBases();
+            }
+        }
+
+        document.getElementById('searchClear').addEventListener('click', () => {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchClear').style.display = 'none';
+            loadKnowledgeBases();
+        });
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('zh-CN');
+        }
+
+        function getTypeName(type) {
+            const types = {
+                'text': '文本',
+                'qa': '问答',
+                'concept': '概念',
+                'procedure': '流程'
+            };
+            return types[type] || type;
+        }
+
+        function getRelationName(type) {
+            const types = {
+                'related': '相关',
+                'parent': '父级',
+                'child': '子级',
+                'similar': '相似',
+                'tag': '标签'
+            };
+            return types[type] || type;
+        }
+    </script>
+</body>
+</html>

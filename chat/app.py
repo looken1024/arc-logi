@@ -415,6 +415,55 @@ def init_database():
             except Exception as e:
                 print(f"修改 status 枚举失败: {e}")
             
+            # 创建知识库表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS knowledge_base (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    username VARCHAR(50) NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # 创建知识条目表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS knowledge_item (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    knowledge_base_id INT NOT NULL,
+                    title VARCHAR(200) NOT NULL,
+                    content TEXT NOT NULL,
+                    type ENUM('text', 'qa', 'concept', 'procedure') DEFAULT 'text',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_knowledge_base_id (knowledge_base_id),
+                    INDEX idx_type (type),
+                    INDEX idx_created_at (created_at),
+                    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # 创建知识关系表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS knowledge_relation (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    knowledge_base_id INT NOT NULL,
+                    source_item_id INT DEFAULT NULL,
+                    target_item_id INT NOT NULL,
+                    relation_type ENUM('related', 'parent', 'child', 'similar', 'tag') DEFAULT 'related',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_knowledge_base_id (knowledge_base_id),
+                    INDEX idx_source_item_id (source_item_id),
+                    INDEX idx_target_item_id (target_item_id),
+                    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id) ON DELETE CASCADE,
+                    FOREIGN KEY (source_item_id) REFERENCES knowledge_item(id) ON DELETE CASCADE,
+                    FOREIGN KEY (target_item_id) REFERENCES knowledge_item(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
             conn.commit()
             print("✅ 数据库表初始化完成")
 
@@ -1814,6 +1863,13 @@ def workflow_editor(workflow_id):
         return "工作流不存在或无权访问", 404
     
     return render_template('workflow_editor.html', workflow_id=workflow_id)
+
+@app.route('/knowledge')
+def knowledge_page():
+    """知识库管理页面"""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('knowledge.html')
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
@@ -4470,6 +4526,453 @@ def delete_agent(agent_id):
                 
                 if cursor.rowcount == 0:
                     return jsonify({'error': 'Agent不存在'}), 404
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== 知识库管理 API ====================
+
+@app.route('/api/knowledge-bases', methods=['GET'])
+def get_knowledge_bases():
+    """获取知识库列表"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    search = request.args.get('search', '')
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                if search:
+                    cursor.execute(
+                        """SELECT * FROM knowledge_base 
+                           WHERE username = %s AND (name LIKE %s OR description LIKE %s) 
+                           ORDER BY updated_at DESC""",
+                        (username, f'%{search}%', f'%{search}%')
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM knowledge_base WHERE username = %s ORDER BY updated_at DESC",
+                        (username,)
+                    )
+                kb_list = cursor.fetchall()
+                
+                for kb in kb_list:
+                    for field in ['created_at', 'updated_at']:
+                        if kb[field] and isinstance(kb[field], datetime):
+                            kb[field] = kb[field].isoformat()
+                
+                return jsonify(kb_list)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-bases', methods=['POST'])
+def create_knowledge_base():
+    """创建知识库"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    
+    if not name:
+        return jsonify({'error': '请输入知识库名称'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO knowledge_base (name, description, username) VALUES (%s, %s, %s)",
+                    (name, description, username)
+                )
+                conn.commit()
+                kb_id = cursor.lastrowid
+                
+                cursor.execute("SELECT * FROM knowledge_base WHERE id = %s", (kb_id,))
+                kb = cursor.fetchone()
+                
+                for field in ['created_at', 'updated_at']:
+                    if kb[field] and isinstance(kb[field], datetime):
+                        kb[field] = kb[field].isoformat()
+                
+                return jsonify(kb)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-bases/<int:kb_id>', methods=['PUT'])
+def update_knowledge_base(kb_id):
+    """更新知识库"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    
+    if not name:
+        return jsonify({'error': '请输入知识库名称'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE knowledge_base SET name = %s, description = %s WHERE id = %s AND username = %s",
+                    (name, description, kb_id, username)
+                )
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': '知识库不存在'}), 404
+                
+                cursor.execute("SELECT * FROM knowledge_base WHERE id = %s", (kb_id,))
+                kb = cursor.fetchone()
+                
+                for field in ['created_at', 'updated_at']:
+                    if kb[field] and isinstance(kb[field], datetime):
+                        kb[field] = kb[field].isoformat()
+                
+                return jsonify(kb)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-bases/<int:kb_id>', methods=['DELETE'])
+def delete_knowledge_base(kb_id):
+    """删除知识库"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM knowledge_base WHERE id = %s AND username = %s",
+                    (kb_id, username)
+                )
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': '知识库不存在'}), 404
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-bases/search', methods=['GET'])
+def search_knowledge_bases():
+    """搜索知识库"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    keyword = request.args.get('q', '').strip()
+    
+    if not keyword:
+        return jsonify([])
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT kb.*, ki.title as item_title, ki.content as item_content
+                       FROM knowledge_base kb
+                       LEFT JOIN knowledge_item ki ON kb.id = ki.knowledge_base_id
+                       WHERE kb.username = %s AND (kb.name LIKE %s OR kb.description LIKE %s OR ki.title LIKE %s OR ki.content LIKE %s)
+                       GROUP BY kb.id
+                       ORDER BY kb.updated_at DESC""",
+                    (username, f'%{keyword}%', f'%{keyword}%', f'%{keyword}%', f'%{keyword}%')
+                )
+                kb_list = cursor.fetchall()
+                
+                for kb in kb_list:
+                    for field in ['created_at', 'updated_at']:
+                        if kb[field] and isinstance(kb[field], datetime):
+                            kb[field] = kb[field].isoformat()
+                
+                return jsonify(kb_list)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 知识条目 API
+
+@app.route('/api/knowledge-bases/<int:kb_id>/items', methods=['GET'])
+def get_knowledge_items(kb_id):
+    """获取知识库的知识条目"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT ki.* FROM knowledge_item ki
+                       JOIN knowledge_base kb ON ki.knowledge_base_id = kb.id
+                       WHERE ki.knowledge_base_id = %s AND kb.username = %s
+                       ORDER BY ki.created_at DESC""",
+                    (kb_id, username)
+                )
+                items = cursor.fetchall()
+                
+                for item in items:
+                    for field in ['created_at', 'updated_at']:
+                        if item[field] and isinstance(item[field], datetime):
+                            item[field] = item[field].isoformat()
+                
+                return jsonify(items)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-bases/<int:kb_id>/items', methods=['POST'])
+def create_knowledge_item(kb_id):
+    """创建知识条目"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    item_type = data.get('type', 'text')
+    
+    if not title or not content:
+        return jsonify({'error': '请输入标题和内容'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM knowledge_base WHERE id = %s AND username = %s",
+                    (kb_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '知识库不存在'}), 404
+                
+                cursor.execute(
+                    "INSERT INTO knowledge_item (knowledge_base_id, title, content, type) VALUES (%s, %s, %s, %s)",
+                    (kb_id, title, content, item_type)
+                )
+                conn.commit()
+                item_id = cursor.lastrowid
+                
+                cursor.execute("SELECT * FROM knowledge_item WHERE id = %s", (item_id,))
+                item = cursor.fetchone()
+                
+                for field in ['created_at', 'updated_at']:
+                    if item[field] and isinstance(item[field], datetime):
+                        item[field] = item[field].isoformat()
+                
+                return jsonify(item)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-items/<int:item_id>', methods=['PUT'])
+def update_knowledge_item(item_id):
+    """更新知识条目"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    item_type = data.get('type', 'text')
+    
+    if not title or not content:
+        return jsonify({'error': '请输入标题和内容'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT ki.id FROM knowledge_item ki
+                       JOIN knowledge_base kb ON ki.knowledge_base_id = kb.id
+                       WHERE ki.id = %s AND kb.username = %s""",
+                    (item_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '知识条目不存在'}), 404
+                
+                cursor.execute(
+                    "UPDATE knowledge_item SET title = %s, content = %s, type = %s WHERE id = %s",
+                    (title, content, item_type, item_id)
+                )
+                conn.commit()
+                
+                cursor.execute("SELECT * FROM knowledge_item WHERE id = %s", (item_id,))
+                item = cursor.fetchone()
+                
+                for field in ['created_at', 'updated_at']:
+                    if item[field] and isinstance(item[field], datetime):
+                        item[field] = item[field].isoformat()
+                
+                return jsonify(item)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-items/<int:item_id>', methods=['DELETE'])
+def delete_knowledge_item(item_id):
+    """删除知识条目"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT ki.id FROM knowledge_item ki
+                       JOIN knowledge_base kb ON ki.knowledge_base_id = kb.id
+                       WHERE ki.id = %s AND kb.username = %s""",
+                    (item_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '知识条目不存在'}), 404
+                
+                cursor.execute("DELETE FROM knowledge_item WHERE id = %s", (item_id,))
+                conn.commit()
+                
+                return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 知识关系 API
+
+@app.route('/api/knowledge-bases/<int:kb_id>/relations', methods=['GET'])
+def get_knowledge_relations(kb_id):
+    """获取知识库的知识关系"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT kr.*, ki.title as target_title, ksi.title as source_title
+                       FROM knowledge_relation kr
+                       JOIN knowledge_base kb ON kr.knowledge_base_id = kb.id
+                       LEFT JOIN knowledge_item ki ON kr.target_item_id = ki.id
+                       LEFT JOIN knowledge_item ksi ON kr.source_item_id = ksi.id
+                       WHERE kr.knowledge_base_id = %s AND kb.username = %s
+                       ORDER BY kr.created_at DESC""",
+                    (kb_id, username)
+                )
+                relations = cursor.fetchall()
+                
+                for rel in relations:
+                    if rel['created_at'] and isinstance(rel['created_at'], datetime):
+                        rel['created_at'] = rel['created_at'].isoformat()
+                
+                return jsonify(relations)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-bases/<int:kb_id>/relations', methods=['POST'])
+def create_knowledge_relation(kb_id):
+    """创建知识关系"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    source_item_id = data.get('source_item_id')
+    target_item_id = data.get('target_item_id')
+    relation_type = data.get('relation_type', 'related')
+    
+    if not source_item_id:
+        return jsonify({'error': '请选择源头条目'}), 400
+    
+    if not target_item_id:
+        return jsonify({'error': '请选择目标条目'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM knowledge_base WHERE id = %s AND username = %s",
+                    (kb_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '知识库不存在'}), 404
+                
+                cursor.execute(
+                    "SELECT id FROM knowledge_item WHERE id = %s AND knowledge_base_id = %s",
+                    (source_item_id, kb_id)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '源头条目不存在'}), 404
+                
+                cursor.execute(
+                    "SELECT id FROM knowledge_item WHERE id = %s AND knowledge_base_id = %s",
+                    (target_item_id, kb_id)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '目标条目不存在'}), 404
+                
+                cursor.execute(
+                    "INSERT INTO knowledge_relation (knowledge_base_id, source_item_id, target_item_id, relation_type) VALUES (%s, %s, %s, %s)",
+                    (kb_id, source_item_id, target_item_id, relation_type)
+                )
+                conn.commit()
+                rel_id = cursor.lastrowid
+                
+                cursor.execute(
+                    """SELECT kr.*, ki.title as target_title, ksi.title as source_title
+                       FROM knowledge_relation kr
+                       LEFT JOIN knowledge_item ki ON kr.target_item_id = ki.id
+                       LEFT JOIN knowledge_item ksi ON kr.source_item_id = ksi.id
+                       WHERE kr.id = %s""",
+                    (rel_id,)
+                )
+                rel = cursor.fetchone()
+                
+                if rel['created_at'] and isinstance(rel['created_at'], datetime):
+                    rel['created_at'] = rel['created_at'].isoformat()
+                
+                return jsonify(rel)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-relations/<int:relation_id>', methods=['DELETE'])
+def delete_knowledge_relation(relation_id):
+    """删除知识关系"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT kr.id FROM knowledge_relation kr
+                       JOIN knowledge_base kb ON kr.knowledge_base_id = kb.id
+                       WHERE kr.id = %s AND kb.username = %s""",
+                    (relation_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '关系不存在'}), 404
+                
+                cursor.execute("DELETE FROM knowledge_relation WHERE id = %s", (relation_id,))
+                conn.commit()
                 
                 return jsonify({'success': True})
     except Exception as e:

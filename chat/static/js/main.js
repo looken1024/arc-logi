@@ -268,6 +268,11 @@ function initializeEventListeners() {
         window.location.href = '/workflows';
     });
 
+    // 打开知识库管理
+    document.getElementById('openKnowledge')?.addEventListener('click', () => {
+        window.location.href = '/knowledge';
+    });
+
     // 打开提示词管理
     document.getElementById('openPrompts')?.addEventListener('click', () => {
         window.location.href = '/prompts';
