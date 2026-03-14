@@ -223,19 +223,28 @@ function initializeEventListeners() {
         }, 300);
     });
 
-    // 无限滚动
+    // 无限滚动 - 使用滚动事件监听
     if (elements.schedulesList) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && hasMore && !isLoading) {
+        let scrollThrottle = null;
+        const handleScroll = () => {
+            if (scrollThrottle) return;
+            
+            scrollThrottle = setTimeout(() => {
+                scrollThrottle = null;
+                
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight;
+                const clientHeight = document.documentElement.clientHeight;
+                
+                const isAtBottom = scrollTop + clientHeight >= scrollHeight - 100;
+                
+                if (isAtBottom && hasMore && !isLoading) {
                     loadSchedules(false);
                 }
-            });
-        }, { threshold: 0.1 });
+            }, 100);
+        };
 
-        if (elements.loadMoreTrigger) {
-            observer.observe(elements.loadMoreTrigger);
-        }
+        window.addEventListener('scroll', handleScroll, { passive: true });
     }
 }
 
@@ -296,11 +305,31 @@ async function loadSchedules(reset = false) {
                     <button class="btn btn-primary" onclick="loadSchedules(true)">重试</button>
                 </div>
             `;
+        } else if (elements.loadingMore) {
+            elements.loadingMore.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                <span>加载失败，点击重试</span>
+            `;
+            elements.loadingMore.style.cursor = 'pointer';
+            elements.loadingMore.onclick = () => {
+                elements.loadingMore.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载更多...</span>
+                `;
+                elements.loadingMore.style.cursor = 'default';
+                elements.loadingMore.onclick = null;
+                loadSchedules(false);
+            };
         }
     } finally {
         isLoading = false;
-        if (elements.loadingMore) {
-            elements.loadingMore.style.display = 'none';
+        if (elements.loadingMore && hasMore) {
+            elements.loadingMore.innerHTML = `
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>加载更多...</span>
+            `;
+            elements.loadingMore.style.cursor = 'default';
+            elements.loadingMore.onclick = null;
         }
     }
 }
@@ -456,6 +485,15 @@ function renderSchedules(reset = false) {
             if (task) deleteTask(task);
         });
     });
+
+    // 显示"没有更多数据"提示
+    if (!reset && !hasMore && tasks.length > 0 && elements.loadingMore) {
+        elements.loadingMore.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            <span>已加载全部数据</span>
+        `;
+        elements.loadingMore.style.display = 'block';
+    }
 }
 
 // 编辑任务
