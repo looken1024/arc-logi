@@ -3,10 +3,17 @@
 // 全局状态
 let currentUser = null;
 let schedules = [];
-let filteredSchedules = [];
 let scheduleToDelete = null;
 let currentScheduleId = null;
 let currentTheme = 'dark';
+
+// 分页状态
+let currentPage = 1;
+let pageSize = 10;
+let totalPages = 1;
+let isLoading = false;
+let hasMore = true;
+let searchTerm = '';
 
 // DOM 元素
 const elements = {
@@ -40,14 +47,16 @@ const elements = {
     executionsModalTitle: document.getElementById('executionsModalTitle'),
     executionsLoading: document.getElementById('executionsLoading'),
     executionsList: document.getElementById('executionsList'),
-    executionsEmpty: document.getElementById('executionsEmpty')
+    executionsEmpty: document.getElementById('executionsEmpty'),
+    loadingMore: document.getElementById('loadingMore'),
+    loadMoreTrigger: document.getElementById('loadMoreTrigger')
 };
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
-    loadSchedules();
+    loadSchedules(true);
 });
 
 // 加载用户信息
@@ -63,7 +72,6 @@ async function loadUserInfo() {
             currentTheme = user.theme || 'dark';
             applyTheme(currentTheme);
         } else {
-            // 未登录,重定向到登录页
             window.location.href = '/login';
         }
     } catch (error) {
@@ -80,12 +88,10 @@ function applyTheme(theme) {
 function initializeEventListeners() {
     const mainContent = document.querySelector('.main-content');
 
-    // 侧边栏切换
     elements.sidebarToggle?.addEventListener('click', () => {
         elements.sidebar.classList.toggle('active');
     });
 
-    // 移动端点击主内容区关闭侧边栏
     mainContent?.addEventListener('click', (e) => {
         if (window.innerWidth <= 768 &&
             e.target.closest('.sidebar-toggle') === null &&
@@ -94,7 +100,6 @@ function initializeEventListeners() {
         }
     });
 
-    // 移动端左滑关闭侧边栏
     let touchStartX = 0;
     let touchEndX = 0;
     document.addEventListener('touchstart', (e) => {
@@ -109,19 +114,16 @@ function initializeEventListeners() {
         }
     });
 
-    // 窗口大小变化时更新侧边栏状态
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768 && elements.sidebar) {
             elements.sidebar.classList.add('active');
         }
     });
 
-    // 新建定时任务按钮
     elements.createScheduleBtn?.addEventListener('click', () => {
         openScheduleModal();
     });
 
-    // 关闭模态框按钮
     elements.closeScheduleModal?.addEventListener('click', () => {
         closeScheduleModal();
     });
@@ -129,17 +131,14 @@ function initializeEventListeners() {
         closeScheduleModal();
     });
 
-    // 保存定时任务按钮
     elements.saveScheduleBtn?.addEventListener('click', async () => {
         await saveSchedule();
     });
 
-    // 预设选择改变时更新 cron 表达式
     elements.schedulePreset?.addEventListener('change', () => {
         updateCronFromPreset();
     });
 
-    // 确认删除模态框
     elements.closeDeleteModal?.addEventListener('click', () => {
         closeDeleteModal();
     });
@@ -150,7 +149,6 @@ function initializeEventListeners() {
         await deleteSchedule();
     });
 
-    // 点击模态框背景关闭
     elements.scheduleModal?.addEventListener('click', (e) => {
         if (e.target === elements.scheduleModal) {
             closeScheduleModal();
@@ -162,13 +160,11 @@ function initializeEventListeners() {
         }
     });
 
-    // 表单提交
     elements.scheduleForm?.addEventListener('submit', (e) => {
         e.preventDefault();
         saveSchedule();
     });
 
-    // 执行记录模态框
     elements.closeExecutionsModal?.addEventListener('click', () => {
         closeExecutionsModal();
     });
@@ -181,99 +177,139 @@ function initializeEventListeners() {
         }
     });
 
-    // 搜索任务
+    // 防抖搜索
+    let searchTimeout;
     elements.searchScheduleInput?.addEventListener('input', (e) => {
-        filterSchedules(e.target.value);
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchTerm = e.target.value.trim();
+            currentPage = 1;
+            schedules = [];
+            loadSchedules(true);
+        }, 300);
     });
+
+    // 无限滚动
+    if (elements.schedulesList) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && hasMore && !isLoading) {
+                    loadSchedules(false);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        if (elements.loadMoreTrigger) {
+            observer.observe(elements.loadMoreTrigger);
+        }
+    }
 }
 
 // 加载定时任务列表
-async function loadSchedules() {
-    try {
-        elements.schedulesList.innerHTML = `
-            <div class="loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>加载中...</span>
-            </div>
-        `;
+async function loadSchedules(reset = false) {
+    if (isLoading) return;
+    isLoading = true;
 
-        const response = await fetch('/api/schedules', {
+    try {
+        if (reset) {
+            elements.schedulesList.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载中...</span>
+                </div>
+            `;
+        } else if (elements.loadingMore) {
+            elements.loadingMore.style.display = 'block';
+        }
+
+        const params = new URLSearchParams({
+            page: currentPage,
+            page_size: pageSize,
+            search: searchTerm
+        });
+
+        const response = await fetch(`/api/schedules?${params}`, {
             credentials: 'same-origin'
         });
+
         if (response.ok) {
-            schedules = await response.json();
-            filteredSchedules = schedules;
-            const searchValue = elements.searchScheduleInput?.value || '';
-            if (searchValue) {
-                filterSchedules(searchValue);
+            const data = await response.json();
+            
+            if (reset) {
+                schedules = data.schedules || [];
             } else {
-                renderSchedules();
+                schedules = [...schedules, ...(data.schedules || [])];
             }
+            
+            totalPages = data.total_pages || 1;
+            hasMore = currentPage < totalPages;
+            currentPage++;
+
+            renderSchedules(reset);
+        } else if (response.status === 401) {
+            window.location.href = '/login';
+        } else {
+            throw new Error('加载失败');
+        }
+    } catch (error) {
+        console.error('加载定时任务失败:', error);
+        if (reset) {
+            elements.schedulesList.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>加载失败</h3>
+                    <p>无法加载定时任务，请刷新页面重试</p>
+                    <button class="btn btn-primary" onclick="loadSchedules(true)">重试</button>
+                </div>
+            `;
+        }
+    } finally {
+        isLoading = false;
+        if (elements.loadingMore) {
+            elements.loadingMore.style.display = 'none';
+        }
+    }
+}
+
+// 渲染定时任务列表
+function renderSchedules(reset = false) {
+    if (!schedules || schedules.length === 0) {
+        if (searchTerm) {
+            elements.schedulesList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <h3>未找到匹配的任务</h3>
+                    <p>尝试使用其他关键词搜索</p>
+                </div>
+            `;
         } else {
             elements.schedulesList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-clock"></i>
                     <h3>暂无定时任务</h3>
-                    <p>点击“新建定时任务”按钮创建一个定时任务</p>
+                    <p>点击"新建定时任务"按钮创建一个定时任务</p>
                 </div>
             `;
         }
-    } catch (error) {
-        console.error('加载定时任务失败:', error);
-        elements.schedulesList.innerHTML = `
-            <div class="error-state">
-                <i class="fas fa-exclamation-triangle"></i>
-                <h3>加载失败</h3>
-                <p>无法加载定时任务，请刷新页面重试</p>
-            </div>
-        `;
-    }
-}
-
-// 过滤定时任务列表
-function filterSchedules(searchTerm) {
-    const term = searchTerm.toLowerCase().trim();
-    if (!term) {
-        filteredSchedules = schedules;
-    } else {
-        filteredSchedules = schedules.filter(schedule => 
-            (schedule.name && schedule.name.toLowerCase().includes(term)) ||
-            (schedule.description && schedule.description.toLowerCase().includes(term)) ||
-            (schedule.cron && schedule.cron.toLowerCase().includes(term)) ||
-            (schedule.command && schedule.command.toLowerCase().includes(term))
-        );
-    }
-    renderSchedules();
-}
-
-// 渲染定时任务列表
-function renderSchedules() {
-    const displaySchedules = filteredSchedules && filteredSchedules.length > 0 ? filteredSchedules : (schedules || []);
-    if (!displaySchedules || displaySchedules.length === 0) {
-        elements.schedulesList.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-clock"></i>
-                <h3>暂无定时任务</h3>
-                <p>点击"新建定时任务"按钮创建一个定时任务</p>
-            </div>
-        `;
         return;
     }
 
-    // 创建列表头部
-    const headerHtml = `
-        <div class="schedules-list-container">
-            <div class="schedule-list-header">
-                <div class="schedule-list-col schedule-list-col-name">任务名称</div>
-                <div class="schedule-list-col schedule-list-col-status">状态</div>
-                <div class="schedule-list-col schedule-list-col-command">命令</div>
-                <div class="schedule-list-col schedule-list-col-cron">执行周期</div>
-                <div class="schedule-list-col schedule-list-col-created">执行时间</div>
-                <div class="schedule-list-col schedule-list-col-actions">操作</div>
-            </div>
-    `;
+    if (reset) {
+        const headerHtml = `
+            <div class="schedules-list-container">
+                <div class="schedule-list-header">
+                    <div class="schedule-list-col schedule-list-col-name">任务名称</div>
+                    <div class="schedule-list-col schedule-list-col-status">状态</div>
+                    <div class="schedule-list-col schedule-list-col-command">命令</div>
+                    <div class="schedule-list-col schedule-list-col-cron">执行周期</div>
+                    <div class="schedule-list-col schedule-list-col-created">执行时间</div>
+                    <div class="schedule-list-col schedule-list-col-actions">操作</div>
+                </div>
+        `;
+        elements.schedulesList.innerHTML = headerHtml;
+    }
 
-    const rowsHtml = displaySchedules.map(schedule => {
+    const rowsHtml = schedules.map(schedule => {
         const createdAt = schedule.created_at ? new Date(schedule.created_at).toLocaleString('zh-CN') : '-';
         const lastRun = schedule.last_run_at ? new Date(schedule.last_run_at).toLocaleString('zh-CN') : '从未运行';
         const nextRun = schedule.next_run_at ? new Date(schedule.next_run_at).toLocaleString('zh-CN') : '-';
@@ -318,9 +354,17 @@ function renderSchedules() {
         `;
     }).join('');
 
-    const footerHtml = `</div>`;
-
-    elements.schedulesList.innerHTML = headerHtml + rowsHtml;
+    if (reset) {
+        const footerHtml = `</div>`;
+        elements.schedulesList.innerHTML += rowsHtml + footerHtml;
+    } else {
+        const container = elements.schedulesList.querySelector('.schedules-list-container');
+        if (container) {
+            const existingItems = container.querySelectorAll('.schedule-list-item');
+            existingItems.forEach(item => item.remove());
+            container.insertAdjacentHTML('beforeend', rowsHtml);
+        }
+    }
 
     // 绑定按钮事件
     document.querySelectorAll('.edit-schedule-btn').forEach(btn => {
@@ -345,7 +389,6 @@ function renderSchedules() {
         });
     });
 
-    // 绑定立即执行按钮事件
     document.querySelectorAll('.run-schedule-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const scheduleItem = e.target.closest('.schedule-list-item');
@@ -357,7 +400,6 @@ function renderSchedules() {
         });
     });
 
-    // 绑定执行记录按钮事件
     document.querySelectorAll('.executions-schedule-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const scheduleItem = e.target.closest('.schedule-list-item');
@@ -441,7 +483,6 @@ async function saveSchedule() {
         status: elements.scheduleStatus.value
     };
 
-    // 简单验证
     if (!scheduleData.name) {
         alert('请输入任务名称');
         return;
@@ -470,7 +511,9 @@ async function saveSchedule() {
 
         if (response.ok) {
             closeScheduleModal();
-            await loadSchedules();
+            currentPage = 1;
+            schedules = [];
+            await loadSchedules(true);
         } else {
             const error = await response.text();
             alert(`保存失败: ${error}`);
@@ -506,7 +549,9 @@ async function deleteSchedule() {
 
         if (response.ok) {
             closeDeleteModal();
-            await loadSchedules();
+            currentPage = 1;
+            schedules = [];
+            await loadSchedules(true);
         } else {
             const error = await response.text();
             alert(`删除失败: ${error}`);
@@ -535,7 +580,6 @@ async function runSchedule(schedule) {
         if (response.ok) {
             const data = await response.json();
             alert(`执行已启动: ${data.message}\n执行ID: ${data.execution_id}`);
-            // 可以在这里刷新执行记录或任务列表
         } else {
             const error = await response.text();
             alert(`执行失败: ${error}`);
@@ -557,12 +601,10 @@ async function showScheduleExecutions(schedule) {
     currentScheduleId = schedule.id;
     elements.executionsModalTitle.textContent = `定时任务 "${schedule.name}" 的执行记录`;
     
-    // 显示加载状态
     elements.executionsLoading.style.display = 'block';
     elements.executionsList.style.display = 'none';
     elements.executionsEmpty.style.display = 'none';
     
-    // 打开模态框
     elements.executionsModal.classList.add('active');
     
     try {
@@ -573,7 +615,6 @@ async function showScheduleExecutions(schedule) {
             const data = await response.json();
             const executions = data.executions || [];
             
-            // 隐藏加载状态
             elements.executionsLoading.style.display = 'none';
             
             if (executions.length === 0) {
@@ -581,7 +622,6 @@ async function showScheduleExecutions(schedule) {
                 return;
             }
             
-            // 渲染执行记录列表
             renderExecutionsList(executions);
             elements.executionsList.style.display = 'block';
         } else {
@@ -662,7 +702,6 @@ function renderExecutionsList(executions) {
     
     elements.executionsList.innerHTML = executionsHtml;
     
-    // 绑定展开/收起详情事件
     document.querySelectorAll('.toggle-details-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const executionItem = e.target.closest('.execution-item');
@@ -684,6 +723,7 @@ function renderExecutionsList(executions) {
 
 // HTML 转义辅助函数
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;

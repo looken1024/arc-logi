@@ -881,6 +881,25 @@
         .search-box input::placeholder {
             color: var(--text-secondary);
         }
+
+        .loading-more {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .loading-more i {
+            color: var(--primary-color);
+        }
+
+        #loadMoreTrigger {
+            height: 20px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -941,6 +960,11 @@
                         <span>加载中...</span>
                     </div>
                 </div>
+                <div class="loading-more" id="loadingMore" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载更多...</span>
+                </div>
+                <div id="loadMoreTrigger"></div>
             </div>
         </main>
     </div>

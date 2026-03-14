@@ -234,6 +234,7 @@ def init_database():
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     INDEX idx_username (username),
+                    INDEX idx_username_created (username, created_at),
                     INDEX idx_status (status),
                     INDEX idx_next_run_at (next_run_at)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -268,15 +269,17 @@ def init_database():
                     task_name VARCHAR(100) NOT NULL,
                     description TEXT,
                     command TEXT NOT NULL,
-                    status ENUM('pending', 'running', 'completed', 'failed') DEFAULT 'pending',
+                    status ENUM('pending', 'scheduled', 'running', 'completed', 'failed', 'cancelled') DEFAULT 'pending',
                     output TEXT,
                     error_message TEXT,
                     execution_id VARCHAR(64) NOT NULL,
+                    scheduled_at DATETIME,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     started_at DATETIME,
                     completed_at DATETIME,
                     INDEX idx_username (username),
+                    INDEX idx_username_created (username, created_at),
                     INDEX idx_status (status),
                     INDEX idx_execution_id (execution_id),
                     INDEX idx_created_at (created_at)
