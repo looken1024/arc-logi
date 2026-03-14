@@ -17,6 +17,7 @@ let totalPages = 1;
 let isLoading = false;
 let hasMore = true;
 let searchTerm = '';
+let scrollObserver = null;
 
 // DOM 元素
 const elements = {
@@ -223,28 +224,19 @@ function initializeEventListeners() {
         }, 300);
     });
 
-    // 无限滚动 - 使用滚动事件监听
-    if (elements.schedulesList) {
-        let scrollThrottle = null;
-        const handleScroll = () => {
-            if (scrollThrottle) return;
-            
-            scrollThrottle = setTimeout(() => {
-                scrollThrottle = null;
-                
-                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                const scrollHeight = document.documentElement.scrollHeight;
-                const clientHeight = document.documentElement.clientHeight;
-                
-                const isAtBottom = scrollTop + clientHeight >= scrollHeight - 100;
-                
-                if (isAtBottom && hasMore && !isLoading) {
+    // 无限滚动 - 使用 IntersectionObserver
+    if (elements.schedulesList && elements.loadMoreTrigger) {
+        elements.schedulesList.appendChild(elements.loadMoreTrigger);
+
+        scrollObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && hasMore && !isLoading) {
                     loadSchedules(false);
                 }
-            }, 100);
-        };
+            });
+        }, { threshold: 0.1 });
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
+        scrollObserver.observe(elements.loadMoreTrigger);
     }
 }
 
@@ -330,6 +322,10 @@ async function loadSchedules(reset = false) {
             `;
             elements.loadingMore.style.cursor = 'default';
             elements.loadingMore.onclick = null;
+        }
+        // 重新观察loadMoreTrigger
+        if (scrollObserver && elements.loadMoreTrigger) {
+            scrollObserver.observe(elements.loadMoreTrigger);
         }
     }
 }
