@@ -431,7 +431,11 @@ function renderSchedules(reset = false) {
 
     if (reset) {
         const footerHtml = `</div>`;
-        elements.schedulesList.innerHTML += rowsHtml + footerHtml;
+        elements.schedulesList.innerHTML = headerHtml + rowsHtml + footerHtml;
+        
+        if (elements.loadMoreTrigger && elements.schedulesList && !elements.schedulesList.contains(elements.loadMoreTrigger)) {
+            elements.schedulesList.appendChild(elements.loadMoreTrigger);
+        }
     } else {
         const container = elements.schedulesList.querySelector('.schedules-list-container');
         if (container) {
