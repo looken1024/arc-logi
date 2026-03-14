@@ -353,17 +353,18 @@ function renderSchedules(reset = false) {
         return;
     }
 
+    const headerHtml = `
+        <div class="schedules-list-container">
+            <div class="schedule-list-header">
+                <div class="schedule-list-col schedule-list-col-name">任务名称</div>
+                <div class="schedule-list-col schedule-list-col-status">状态</div>
+                <div class="schedule-list-col schedule-list-col-command">命令</div>
+                <div class="schedule-list-col schedule-list-col-created">创建/执行时间</div>
+                <div class="schedule-list-col schedule-list-col-actions">操作</div>
+            </div>
+    `;
+
     if (reset) {
-        const headerHtml = `
-            <div class="schedules-list-container">
-                <div class="schedule-list-header">
-                    <div class="schedule-list-col schedule-list-col-name">任务名称</div>
-                    <div class="schedule-list-col schedule-list-col-status">状态</div>
-                    <div class="schedule-list-col schedule-list-col-command">命令</div>
-                    <div class="schedule-list-col schedule-list-col-created">创建/执行时间</div>
-                    <div class="schedule-list-col schedule-list-col-actions">操作</div>
-                </div>
-        `;
         elements.schedulesList.innerHTML = headerHtml;
     }
 
