@@ -383,7 +383,7 @@ function renderSchedules(reset = false) {
         
         let statusExtra = '';
         if (task.status === 'failed' && task.error_message) {
-            const match = task.error_message.match(/Exit code: (-?\d+)/);
+            const match = task.error_message?.match(/Exit code: (-?\d+)/);
             if (match) {
                 statusExtra = ` (${match[1]})`;
             }
