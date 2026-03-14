@@ -1405,6 +1405,8 @@
         }
 
         function ansiToHtml(text) {
+            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            text = text.replace(/\x1b\[[0-9;]*[A-HJ-Za-z]/g, '');
             const styleMap = {
                 '0': { class: 'ansi-reset' },
                 '1': { class: 'ansi-bold' },

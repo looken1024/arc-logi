@@ -8,13 +8,13 @@
 :root {
     --primary-color: #10a37f;
     --secondary-color: #19c37d;
-    --bg-color: #0f0f0f;
-    --card-bg: #1a1a1a;
-    --border-color: #2d2d2d;
-    --text-color: #ececec;
-    --text-secondary: #8e8e8e;
+    --bg-color: #f5f5f7;
+    --card-bg: #ffffff;
+    --border-color: #e0e0e0;
+    --text-color: #333333;
+    --text-secondary: #666666;
     --error-color: #ff6b6b;
-    --input-bg: #1f1f1f;
+    --input-bg: #f9f9f9;
 }
 
 body {
@@ -44,7 +44,7 @@ body {
     border-radius: 16px;
     padding: 40px;
     border: 1px solid var(--border-color);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     position: relative;
     z-index: 2;
     animation: slideUp 0.5s ease;
@@ -262,7 +262,7 @@ body {
 
 .bubble {
     position: absolute;
-    background: radial-gradient(circle, rgba(16, 163, 127, 0.1), transparent);
+    background: radial-gradient(circle, rgba(16, 163, 127, 0.05), transparent);
     border-radius: 50%;
     animation: float 15s infinite;
 }

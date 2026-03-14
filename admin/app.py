@@ -88,6 +88,9 @@ def execute_command():
         env = os.environ.copy()
         env['TERM'] = 'xterm-256color'
         env['FORCE_COLOR'] = '1'
+        env['PYTHONUNBUFFERED'] = '1'
+        env['PYTHONIOENCODING'] = 'utf-8'
+        env['NODE_NO_WARNINGS'] = '1'
         result = subprocess.run(
             ['bash', '-i', '-c', command],
             cwd=workdir,
@@ -145,8 +148,11 @@ def execute_command_stream():
             env = os.environ.copy()
             env['TERM'] = 'xterm-256color'
             env['FORCE_COLOR'] = '1'
+            env['PYTHONUNBUFFERED'] = '1'
+            env['PYTHONIOENCODING'] = 'utf-8'
+            env['NODE_NO_WARNINGS'] = '1'
             process = subprocess.Popen(
-                ['bash', '-i', '-c', command],
+                ['script', '-q', '-c', command + ' 2>&1', '/dev/null'],
                 cwd=workdir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
