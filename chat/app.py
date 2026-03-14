@@ -3602,9 +3602,8 @@ def update_schedule(schedule_id):
                     )
                     schedule = cursor.fetchone()
                     if schedule and schedule['status'] == 'active':
-                        from croniter import croniter
-                        from datetime import datetime
                         try:
+                            from croniter import croniter
                             cron = croniter(schedule['cron'], datetime.now())
                             next_run = cron.get_next(datetime)
                             cursor.execute(
