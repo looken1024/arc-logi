@@ -3449,20 +3449,50 @@ def get_workflow_executions(workflow_id):
 
 @app.route('/api/schedules', methods=['GET'])
 def get_schedules():
-    """获取用户的定时任务列表"""
+    """获取用户的定时任务列表（支持分页和搜索）"""
     if 'username' not in session:
         return jsonify({'error': '未登录'}), 401
     
     username = session['username']
     
+    # 获取分页参数
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 10, type=int)
+    search = request.args.get('search', '', type=str)
+    
+    # 限制每页最大数量
+    page_size = min(page_size, 100)
+    
+    # 计算偏移量
+    offset = (page - 1) * page_size
+    
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT id, name, description, cron, preset, command, status, last_run_at, next_run_at, created_at, updated_at "
-                    "FROM schedules WHERE username = %s ORDER BY created_at DESC",
-                    (username,)
-                )
+                # 构建搜索条件
+                search_condition = ""
+                search_params = [username]
+                if search:
+                    search_condition = " AND (name LIKE %s OR description LIKE %s OR cron LIKE %s OR command LIKE %s)"
+                    search_pattern = f"%{search}%"
+                    search_params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
+                
+                # 查询总数
+                count_sql = f"SELECT COUNT(*) as total FROM schedules WHERE username = %s{search_condition}"
+                cursor.execute(count_sql, tuple(search_params))
+                total = cursor.fetchone()['total']
+                
+                # 查询数据
+                sql = f"""
+                    SELECT id, name, description, cron, preset, command, status, 
+                           last_run_at, next_run_at, created_at, updated_at 
+                    FROM schedules 
+                    WHERE username = %s{search_condition} 
+                    ORDER BY created_at DESC 
+                    LIMIT %s OFFSET %s
+                """
+                search_params.extend([page_size, offset])
+                cursor.execute(sql, tuple(search_params))
                 schedules = cursor.fetchall()
                 
                 # 转换日期格式
@@ -3471,7 +3501,13 @@ def get_schedules():
                         if schedule[field] and isinstance(schedule[field], datetime):
                             schedule[field] = schedule[field].isoformat()
                 
-                return jsonify(schedules)
+                return jsonify({
+                    'schedules': schedules,
+                    'total': total,
+                    'page': page,
+                    'page_size': page_size,
+                    'total_pages': (total + page_size - 1) // page_size
+                })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -3884,20 +3920,50 @@ def update_schedule_execution(schedule_id, execution_id):
 
 @app.route('/api/async_tasks', methods=['GET'])
 def get_async_tasks():
-    """获取用户的异步任务列表"""
+    """获取用户的异步任务列表（支持分页和搜索）"""
     if 'username' not in session:
         return jsonify({'error': '未登录'}), 401
     
     username = session['username']
     
+    # 获取分页参数
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 10, type=int)
+    search = request.args.get('search', '', type=str)
+    
+    # 限制每页最大数量
+    page_size = min(page_size, 100)
+    
+    # 计算偏移量
+    offset = (page - 1) * page_size
+    
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT id, task_name, description, command, status, output, error_message, execution_id, created_at, updated_at, started_at, completed_at "
-                    "FROM async_tasks WHERE username = %s ORDER BY created_at DESC LIMIT 50",
-                    (username,)
-                )
+                # 构建搜索条件
+                search_condition = ""
+                search_params = [username]
+                if search:
+                    search_condition = " AND (task_name LIKE %s OR description LIKE %s OR command LIKE %s OR status LIKE %s)"
+                    search_pattern = f"%{search}%"
+                    search_params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
+                
+                # 查询总数
+                count_sql = f"SELECT COUNT(*) as total FROM async_tasks WHERE username = %s{search_condition}"
+                cursor.execute(count_sql, tuple(search_params))
+                total = cursor.fetchone()['total']
+                
+                # 查询数据
+                sql = f"""
+                    SELECT id, task_name, description, command, status, output, error_message, 
+                           execution_id, created_at, updated_at, started_at, completed_at 
+                    FROM async_tasks 
+                    WHERE username = %s{search_condition} 
+                    ORDER BY created_at DESC 
+                    LIMIT %s OFFSET %s
+                """
+                search_params.extend([page_size, offset])
+                cursor.execute(sql, tuple(search_params))
                 tasks = cursor.fetchall()
                 
                 # 转换日期格式
@@ -3906,7 +3972,13 @@ def get_async_tasks():
                         if task[field] and isinstance(task[field], datetime):
                             task[field] = task[field].isoformat()
                 
-                return jsonify({'tasks': tasks})
+                return jsonify({
+                    'tasks': tasks,
+                    'total': total,
+                    'page': page,
+                    'page_size': page_size,
+                    'total_pages': (total + page_size - 1) // page_size
+                })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
