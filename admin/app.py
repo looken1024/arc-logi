@@ -285,8 +285,8 @@ def get_directories():
     
     prefix = request.args.get('prefix', '').strip()
     
-    current_dir = os.getcwd()
-    parent_dir = os.path.dirname(current_dir)
+    parent_dir = os.path.dirname(os.getcwd())
+    current_dir = os.path.join(parent_dir, 'chat')
     
     directories = []
     

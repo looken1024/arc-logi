@@ -258,6 +258,26 @@ body {
     color: #ff6b6b;
 }
 
+.setting-section .logout-btn {
+    opacity: 1;
+    background-color: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.setting-section .logout-btn:hover {
+    background-color: #ff6b6b;
+    color: white;
+    border-color: #ff6b6b;
+}
+
 /* 侧边栏导航 */
 .sidebar-nav {
     padding: 8px;
