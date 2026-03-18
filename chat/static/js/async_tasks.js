@@ -15,9 +15,12 @@ let currentPage = 1;
 let pageSize = 10;
 let totalPages = 1;
 let isLoading = false;
+let isRefreshing = false;
 let hasMore = true;
 let searchTerm = '';
 let scrollObserver = null;
+let autoRefreshEnabled = true;
+let refreshDebounceTimer = null;
 
 // DOM 元素
 const elements = {
@@ -27,6 +30,8 @@ const elements = {
     username: document.getElementById('username'),
     createScheduleBtn: document.getElementById('createScheduleBtn'),
     searchTaskInput: document.getElementById('searchTaskInput'),
+    refreshListBtn: document.getElementById('refreshListBtn'),
+    autoRefreshToggle: document.getElementById('autoRefreshToggle'),
     scheduleModal: document.getElementById('scheduleModal'),
     closeScheduleModal: document.getElementById('closeScheduleModal'),
     cancelScheduleBtn: document.getElementById('cancelScheduleBtn'),
@@ -139,6 +144,19 @@ function initializeEventListeners() {
 
     elements.createScheduleBtn?.addEventListener('click', () => {
         openScheduleModal();
+    });
+
+    elements.refreshListBtn?.addEventListener('click', () => {
+        refreshTaskList();
+    });
+
+    elements.autoRefreshToggle?.addEventListener('change', (e) => {
+        autoRefreshEnabled = e.target.checked;
+        if (autoRefreshEnabled) {
+            startGlobalPolling();
+        } else {
+            stopGlobalPolling();
+        }
     });
 
     elements.closeScheduleModal?.addEventListener('click', () => {
@@ -532,17 +550,17 @@ async function retryTask(task) {
             })
         });
         if (response.ok) {
-            alert('重试任务已创建');
+            showToast('重试任务已创建', 'success');
             currentPage = 1;
             tasks = [];
             await loadSchedules(true);
         } else {
             const error = await response.text();
-            alert(`重试失败: ${error}`);
+            showToast(`重试失败: ${error}`, 'error');
         }
     } catch (error) {
         console.error('重试任务失败:', error);
-        alert('重试失败，请检查网络连接');
+        showToast('重试失败，请检查网络连接', 'error');
     }
 }
 
@@ -646,16 +664,17 @@ async function saveSchedule() {
 
         if (response.ok) {
             closeScheduleModal();
+            showToast(scheduleId ? '任务已更新' : '任务已创建', 'success');
             currentPage = 1;
             tasks = [];
             await loadSchedules(true);
         } else {
             const error = await response.text();
-            alert(`保存失败: ${error}`);
+            showToast(`保存失败: ${error}`, 'error');
         }
     } catch (error) {
         console.error('保存异步任务失败:', error);
-        alert('保存失败，请检查网络连接');
+        showToast('保存失败，请检查网络连接', 'error');
     }
 }
 
@@ -684,16 +703,17 @@ async function deleteSchedule() {
 
         if (response.ok) {
             closeDeleteModal();
+            showToast('任务已删除', 'success');
             currentPage = 1;
             tasks = [];
             await loadSchedules(true);
         } else {
             const error = await response.text();
-            alert(`删除失败: ${error}`);
+            showToast(`删除失败: ${error}`, 'error');
         }
     } catch (error) {
         console.error('删除异步任务失败:', error);
-        alert('删除失败，请检查网络连接');
+        showToast('删除失败，请检查网络连接', 'error');
     }
 }
 
@@ -926,10 +946,10 @@ function closeOutputModal() {
 function copyOutputToClipboard() {
     const text = elements.outputContent.textContent;
     navigator.clipboard.writeText(text).then(() => {
-        alert('输出已复制到剪贴板');
+        showToast('输出已复制到剪贴板', 'success');
     }).catch(err => {
         console.error('复制失败:', err);
-        alert('复制失败');
+        showToast('复制失败', 'error');
     });
 }
 
@@ -957,6 +977,8 @@ function stopGlobalPolling() {
 
 // 检查是否有需要轮询的任务（scheduled 或 running）
 function checkTasksNeedPolling() {
+    if (!autoRefreshEnabled) return;
+    
     const hasActiveTasks = tasks.some(task => 
         task.status === 'scheduled' || task.status === 'running'
     );
@@ -980,14 +1002,77 @@ async function cancelTask(task) {
             body: JSON.stringify({ status: 'cancelled' })
         });
         if (response.ok) {
+            showToast('任务已取消', 'success');
             currentPage = 1;
             tasks = [];
             await loadSchedules(true);
         } else {
-            alert('取消失败');
+            showToast('取消失败', 'error');
         }
     } catch (error) {
         console.error('取消失败:', error);
-        alert('取消失败，请检查网络连接');
+        showToast('取消失败，请检查网络连接', 'error');
     }
+}
+
+// 刷新任务列表（带防抖）
+function refreshTaskList() {
+    if (isRefreshing) return;
+    
+    clearTimeout(refreshDebounceTimer);
+    refreshDebounceTimer = setTimeout(() => {
+        performRefresh();
+    }, 300);
+}
+
+// 执行刷新操作
+async function performRefresh() {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    
+    elements.refreshListBtn.classList.add('refreshing');
+    elements.refreshListBtn.disabled = true;
+    
+    try {
+        currentPage = 1;
+        tasks = [];
+        await loadSchedules(true);
+        showToast('刷新成功', 'success');
+    } catch (error) {
+        console.error('刷新失败:', error);
+        showToast('刷新失败，请重试', 'error');
+    } finally {
+        isRefreshing = false;
+        elements.refreshListBtn.classList.remove('refreshing');
+        elements.refreshListBtn.disabled = false;
+    }
+}
+
+// 显示提示消息
+function showToast(message, type = 'info') {
+    const existingToast = document.querySelector('.refresh-toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `refresh-toast ${type}`;
+    
+    const iconMap = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        info: 'fa-info-circle'
+    };
+    
+    toast.innerHTML = `
+        <i class="fas ${iconMap[type] || iconMap.info}"></i>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
