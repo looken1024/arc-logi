@@ -349,7 +349,7 @@ body {
 }
 
 .model-selector select {
-    padding: 8px 16px;
+    padding: 8px 40px 8px 16px;
     background-color: var(--input-bg);
     color: var(--text-color);
     border: 1px solid var(--border-color);
@@ -359,6 +359,16 @@ body {
     outline: none;
     width: auto;
     min-width: 120px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 17px center;
+}
+
+.model-selector select::-ms-expand {
+    display: none;
 }
 
 .model-selector select:hover {
