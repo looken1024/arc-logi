@@ -256,6 +256,82 @@
         .tags-input:focus {
             outline: none !important;
         }
+        .content-textarea-wrapper {
+            position: relative;
+        }
+        .content-textarea-wrapper textarea {
+            padding-right: 48px;
+        }
+        .copy-btn {
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            background: var(--bg-tertiary, #333);
+            border: 1px solid var(--border-color, #404040);
+            color: var(--text-muted, #888);
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .copy-btn:hover {
+            background: var(--primary-color, #4a90d9);
+            color: #fff;
+            border-color: var(--primary-color, #4a90d9);
+        }
+        .copy-btn.copied {
+            background: #27ae60;
+            color: #fff;
+            border-color: #27ae60;
+        }
+        .copy-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .copy-btn:disabled:hover {
+            background: var(--bg-tertiary, #333);
+            color: var(--text-muted, #888);
+            border-color: var(--border-color, #404040);
+        }
+        .copy-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .copy-toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .copy-toast.success {
+            background: #27ae60;
+        }
+        .copy-toast.error {
+            background: #e74c3c;
+        }
+        .prompt-detail-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .prompt-detail-actions .btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
     </style>
 
 </head>
@@ -342,7 +418,12 @@
                     </div>
                     <div class="form-group">
                         <label for="promptContent">提示词内容</label>
-                        <textarea id="promptContent" name="content" rows="10" required placeholder="请输入提示词内容"></textarea>
+                        <div class="content-textarea-wrapper">
+                            <textarea id="promptContent" name="content" rows="10" required placeholder="请输入提示词内容"></textarea>
+                            <button type="button" class="copy-btn" id="copyContentBtn" title="复制内容">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>标签</label>
@@ -389,16 +470,21 @@
                 </button>
             </div>
             <div class="modal-body">
+                <div class="prompt-detail-actions">
+                    <button class="btn btn-secondary" id="copyDetailBtn">
+                        <i class="fas fa-copy"></i> 复制内容
+                    </button>
+                </div>
                 <div class="prompt-detail-content" id="promptDetailContent">
                     <!-- 提示词内容将动态加载 -->
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="closeDetailBtn">关闭</button>
-                <button class="btn btn-primary" id="usePromptBtn">使用此提示词</button>
             </div>
         </div>
     </div>
+
+    <div class="copy-toast" id="copyToast"></div>
 
     <script src="{{ url_for('static', filename='js/prompts.js') }}"></script>
 </body>

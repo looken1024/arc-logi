@@ -19,7 +19,6 @@ let isRefreshing = false;
 let hasMore = true;
 let searchTerm = '';
 let scrollObserver = null;
-let autoRefreshEnabled = true;
 let refreshDebounceTimer = null;
 
 // DOM 元素
@@ -31,7 +30,7 @@ const elements = {
     createScheduleBtn: document.getElementById('createScheduleBtn'),
     searchTaskInput: document.getElementById('searchTaskInput'),
     refreshListBtn: document.getElementById('refreshListBtn'),
-    autoRefreshToggle: document.getElementById('autoRefreshToggle'),
+
     scheduleModal: document.getElementById('scheduleModal'),
     closeScheduleModal: document.getElementById('closeScheduleModal'),
     cancelScheduleBtn: document.getElementById('cancelScheduleBtn'),
@@ -75,11 +74,20 @@ const elements = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    applyThemeFromCache();
     loadUserInfo();
     initializeEventListeners();
     loadSchedules(true);
-    startGlobalPolling();
 });
+
+// 从 localStorage 应用主题色(早期加载，避免闪烁)
+function applyThemeFromCache() {
+    const cachedTheme = localStorage.getItem('user_theme');
+    if (cachedTheme) {
+        document.body.setAttribute('data-theme', cachedTheme);
+        currentTheme = cachedTheme;
+    }
+}
 
 // 加载用户信息
 async function loadUserInfo() {
@@ -91,8 +99,13 @@ async function loadUserInfo() {
             const user = await response.json();
             currentUser = user;
             elements.username.textContent = user.username;
-            currentTheme = user.theme || 'dark';
-            applyTheme(currentTheme);
+            const serverTheme = user.theme || 'dark';
+            // 同步主题色到 localStorage
+            localStorage.setItem('user_theme', serverTheme);
+            localStorage.setItem('theme_timestamp', Date.now().toString());
+            if (currentTheme !== serverTheme) {
+                applyTheme(serverTheme);
+            }
         } else {
             window.location.href = '/login';
         }
@@ -148,15 +161,6 @@ function initializeEventListeners() {
 
     elements.refreshListBtn?.addEventListener('click', () => {
         refreshTaskList();
-    });
-
-    elements.autoRefreshToggle?.addEventListener('change', (e) => {
-        autoRefreshEnabled = e.target.checked;
-        if (autoRefreshEnabled) {
-            startGlobalPolling();
-        } else {
-            stopGlobalPolling();
-        }
     });
 
     elements.closeScheduleModal?.addEventListener('click', () => {
@@ -977,8 +981,6 @@ function stopGlobalPolling() {
 
 // 检查是否有需要轮询的任务（scheduled 或 running）
 function checkTasksNeedPolling() {
-    if (!autoRefreshEnabled) return;
-    
     const hasActiveTasks = tasks.some(task => 
         task.status === 'scheduled' || task.status === 'running'
     );

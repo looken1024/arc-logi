@@ -44,6 +44,8 @@ const elements = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    applyThemeFromCache();
+    detectDevice();
     loadUserInfo();
     initializeEventListeners();
     loadAgentsForSelect();
@@ -53,6 +55,35 @@ document.addEventListener('DOMContentLoaded', () => {
     autoResizeTextarea();
     initSidebar();
 });
+
+// 从 localStorage 应用主题色(早期加载，避免闪烁)
+function applyThemeFromCache() {
+    const cachedTheme = localStorage.getItem('user_theme');
+    if (cachedTheme) {
+        document.body.setAttribute('data-theme', cachedTheme);
+        currentTheme = cachedTheme;
+    }
+}
+
+// 检测设备类型
+function detectDevice() {
+    const isMobile = window.innerWidth < 768 || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        document.body.classList.add('is-mobile-device');
+    } else {
+        document.body.classList.remove('is-mobile-device');
+    }
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            document.body.classList.add('is-mobile-device');
+        } else {
+            document.body.classList.remove('is-mobile-device');
+        }
+    });
+}
 
 // 初始化侧边栏状态
 function initSidebar() {
@@ -74,8 +105,13 @@ async function loadUserInfo() {
             if (elements.username) {
                 elements.username.textContent = user.username;
             }
-            currentTheme = user.theme || 'dark';
-            applyTheme(currentTheme);
+            const serverTheme = user.theme || 'dark';
+            // 同步主题色到 localStorage
+            localStorage.setItem('user_theme', serverTheme);
+            localStorage.setItem('theme_timestamp', Date.now().toString());
+            if (currentTheme !== serverTheme) {
+                applyTheme(serverTheme);
+            }
         } else {
             window.location.href = '/login';
         }
@@ -326,6 +362,8 @@ async function logout() {
         });
         
         if (response.ok) {
+            localStorage.removeItem('user_theme');
+            localStorage.removeItem('theme_timestamp');
             window.location.href = '/login';
         }
     } catch (error) {
@@ -347,6 +385,9 @@ async function updateTheme(theme) {
         
         if (response.ok) {
             applyTheme(theme);
+            // 同步更新 localStorage
+            localStorage.setItem('user_theme', theme);
+            localStorage.setItem('theme_timestamp', Date.now().toString());
         }
     } catch (error) {
         console.error('更新主题失败:', error);

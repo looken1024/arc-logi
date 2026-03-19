@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for, send_file
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context, session, redirect, url_for, send_file, make_response
 from flask_cors import CORS
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1994,6 +1994,260 @@ def update_theme():
         return jsonify({'success': True, 'theme': theme})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+THEME_CSS_VARS = {
+    'dark': {
+        '--primary-color': '#10a37f',
+        '--secondary-color': '#19c37d',
+        '--bg-color': '#0f0f0f',
+        '--sidebar-bg': '#171717',
+        '--message-bg': '#1a1a1a',
+        '--user-message-bg': '#2d2d2d',
+        '--border-color': '#2d2d2d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#2a2a2a',
+        '--input-bg': '#1f1f1f',
+        '--scrollbar-bg': '#2d2d2d',
+        '--scrollbar-thumb': '#4d4d4d',
+        '--card-bg': '#1e1e1e',
+        '--bg-card': '#1e1e1e',
+        '--bg-light': '#1a1a1a',
+        '--bg-hover': '#333'
+    },
+    'light': {
+        '--primary-color': '#10a37f',
+        '--secondary-color': '#19c37d',
+        '--bg-color': '#f5f5f5',
+        '--sidebar-bg': '#ffffff',
+        '--message-bg': '#e5e5e5',
+        '--user-message-bg': '#d5d5d5',
+        '--border-color': '#d0d0d0',
+        '--text-color': '#1a1a1a',
+        '--text-primary': '#1a1a1a',
+        '--text-secondary': '#666666',
+        '--hover-bg': '#e5e5e5',
+        '--input-bg': '#ffffff',
+        '--scrollbar-bg': '#d0d0d0',
+        '--scrollbar-thumb': '#a0a0a0',
+        '--card-bg': '#ffffff',
+        '--bg-card': '#ffffff',
+        '--bg-light': '#e5e5e5',
+        '--bg-hover': '#f0f0f0'
+    },
+    'blue': {
+        '--primary-color': '#3b82f6',
+        '--secondary-color': '#60a5fa',
+        '--bg-color': '#0f1419',
+        '--sidebar-bg': '#1e293b',
+        '--message-bg': '#1e293b',
+        '--user-message-bg': '#2d2d2d',
+        '--border-color': '#334155',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#334155',
+        '--input-bg': '#1e293b',
+        '--scrollbar-bg': '#334155',
+        '--scrollbar-thumb': '#4d5d75',
+        '--card-bg': '#1e293b',
+        '--bg-card': '#1e293b',
+        '--bg-light': '#1e293b',
+        '--bg-hover': '#334155'
+    },
+    'green': {
+        '--primary-color': '#22c55e',
+        '--secondary-color': '#4ade80',
+        '--bg-color': '#0a0f0a',
+        '--sidebar-bg': '#0f1f0f',
+        '--message-bg': '#1a2e1a',
+        '--user-message-bg': '#2d4d2d',
+        '--border-color': '#2d4d2d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#2d4d2d',
+        '--input-bg': '#1a2e1a',
+        '--scrollbar-bg': '#2d4d2d',
+        '--scrollbar-thumb': '#4d6d4d',
+        '--card-bg': '#1a2e1a',
+        '--bg-card': '#1a2e1a',
+        '--bg-light': '#1a2e1a',
+        '--bg-hover': '#2d4d2d'
+    },
+    'purple': {
+        '--primary-color': '#a855f7',
+        '--secondary-color': '#c084fc',
+        '--bg-color': '#0f0a1a',
+        '--sidebar-bg': '#1f0f2f',
+        '--message-bg': '#2a1a3a',
+        '--user-message-bg': '#4d2d6d',
+        '--border-color': '#4d2d6d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#4d2d6d',
+        '--input-bg': '#2a1a3a',
+        '--scrollbar-bg': '#4d2d6d',
+        '--scrollbar-thumb': '#6d4d8d',
+        '--card-bg': '#2a1a3a',
+        '--bg-card': '#2a1a3a',
+        '--bg-light': '#2a1a3a',
+        '--bg-hover': '#4d2d6d'
+    },
+    'red': {
+        '--primary-color': '#ef4444',
+        '--secondary-color': '#f87171',
+        '--bg-color': '#1a0a0a',
+        '--sidebar-bg': '#2a0f0f',
+        '--message-bg': '#3a1a1a',
+        '--user-message-bg': '#6d2d2d',
+        '--border-color': '#6d2d2d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#6d2d2d',
+        '--input-bg': '#3a1a1a',
+        '--scrollbar-bg': '#6d2d2d',
+        '--scrollbar-thumb': '#8d4d4d',
+        '--card-bg': '#3a1a1a',
+        '--bg-card': '#3a1a1a',
+        '--bg-light': '#3a1a1a',
+        '--bg-hover': '#6d2d2d'
+    },
+    'orange': {
+        '--primary-color': '#f97316',
+        '--secondary-color': '#fb923c',
+        '--bg-color': '#1a0f0a',
+        '--sidebar-bg': '#2a1a0f',
+        '--message-bg': '#3a2a1a',
+        '--user-message-bg': '#6d4d2d',
+        '--border-color': '#6d4d2d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#6d4d2d',
+        '--input-bg': '#3a2a1a',
+        '--scrollbar-bg': '#6d4d2d',
+        '--scrollbar-thumb': '#8d6d4d',
+        '--card-bg': '#3a2a1a',
+        '--bg-card': '#3a2a1a',
+        '--bg-light': '#3a2a1a',
+        '--bg-hover': '#6d4d2d'
+    },
+    'pink': {
+        '--primary-color': '#ec4899',
+        '--secondary-color': '#f472b6',
+        '--bg-color': '#1a0a14',
+        '--sidebar-bg': '#2a0f1f',
+        '--message-bg': '#3a1a2e',
+        '--user-message-bg': '#6d2d4d',
+        '--border-color': '#6d2d4d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#6d2d4d',
+        '--input-bg': '#3a1a2e',
+        '--scrollbar-bg': '#6d2d4d',
+        '--scrollbar-thumb': '#8d4d6d',
+        '--card-bg': '#3a1a2e',
+        '--bg-card': '#3a1a2e',
+        '--bg-light': '#3a1a2e',
+        '--bg-hover': '#6d2d4d'
+    },
+    'cyan': {
+        '--primary-color': '#06b6d4',
+        '--secondary-color': '#22d3ee',
+        '--bg-color': '#0a1a1a',
+        '--sidebar-bg': '#0f2a2a',
+        '--message-bg': '#1a3a3a',
+        '--user-message-bg': '#2d6d6d',
+        '--border-color': '#2d6d6d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#2d6d6d',
+        '--input-bg': '#1a3a3a',
+        '--scrollbar-bg': '#2d6d6d',
+        '--scrollbar-thumb': '#4d8d8d',
+        '--card-bg': '#1a3a3a',
+        '--bg-card': '#1a3a3a',
+        '--bg-light': '#1a3a3a',
+        '--bg-hover': '#2d6d6d'
+    },
+    'indigo': {
+        '--primary-color': '#6366f1',
+        '--secondary-color': '#818cf8',
+        '--bg-color': '#0a0a1a',
+        '--sidebar-bg': '#0f0f2a',
+        '--message-bg': '#1a1a3a',
+        '--user-message-bg': '#2d2d6d',
+        '--border-color': '#2d2d6d',
+        '--text-color': '#ececec',
+        '--text-primary': '#ececec',
+        '--text-secondary': '#8e8e8e',
+        '--hover-bg': '#2d2d6d',
+        '--input-bg': '#1a1a3a',
+        '--scrollbar-bg': '#2d2d6d',
+        '--scrollbar-thumb': '#4d4d8d',
+        '--card-bg': '#1a1a3a',
+        '--bg-card': '#1a1a3a',
+        '--bg-light': '#1a1a3a',
+        '--bg-hover': '#2d2d6d'
+    }
+}
+
+@app.route('/api/theme/css-vars')
+def get_theme_css_vars():
+    """获取当前用户主题的CSS变量"""
+    theme = 'dark'
+    if 'username' in session:
+        username = session['username']
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT theme FROM users WHERE username = %s", (username,))
+                    user = cursor.fetchone()
+                    if user:
+                        theme = user.get('theme', 'dark')
+        except Exception:
+            pass
+    
+    css_vars = THEME_CSS_VARS.get(theme, THEME_CSS_VARS['dark'])
+    
+    css_text = ':root {\n'
+    for key, value in css_vars.items():
+        css_text += f'    {key}: {value};\n'
+    css_text += '}'
+    
+    response = make_response(css_text)
+    response.headers['Content-Type'] = 'text/css; charset=utf-8'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+@app.route('/api/theme/vars')
+def get_theme_vars_json():
+    """获取当前用户主题的CSS变量（JSON格式）"""
+    theme = 'dark'
+    if 'username' in session:
+        username = session['username']
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT theme FROM users WHERE username = %s", (username,))
+                    user = cursor.fetchone()
+                    if user:
+                        theme = user.get('theme', 'dark')
+        except Exception:
+            pass
+    
+    return jsonify({
+        'theme': theme,
+        'css_vars': THEME_CSS_VARS.get(theme, THEME_CSS_VARS['dark'])
+    })
 
 def get_user_conversations(username):
     """获取用户的所有对话ID列表"""
@@ -5049,6 +5303,206 @@ def delete_knowledge_relation(relation_id):
                 conn.commit()
                 
                 return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================================================
+# 知识图谱 API
+# ==================================================
+
+@app.route('/api/knowledge-bases/<int:kb_id>/graph', methods=['GET'])
+def get_knowledge_graph(kb_id):
+    """获取知识库的图谱数据（节点和边）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    search = request.args.get('search', '')
+    relation_types = request.args.get('types', '')
+    node_limit = request.args.get('limit', 500, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, name FROM knowledge_base WHERE id = %s AND username = %s",
+                    (kb_id, username)
+                )
+                kb = cursor.fetchone()
+                if not kb:
+                    return jsonify({'error': '知识库不存在'}), 404
+                
+                # 构建节点查询
+                nodes_query = "SELECT id, title, content, type FROM knowledge_item WHERE knowledge_base_id = %s"
+                nodes_params = [kb_id]
+                
+                if search:
+                    nodes_query += " AND (title LIKE %s OR content LIKE %s)"
+                    nodes_params.extend([f'%{search}%', f'%{search}%'])
+                
+                nodes_query += " ORDER BY updated_at DESC LIMIT %s OFFSET %s"
+                nodes_params.extend([node_limit, offset])
+                
+                cursor.execute(nodes_query, nodes_params)
+                items = cursor.fetchall()
+                
+                # 构建节点列表
+                nodes = []
+                node_ids = []
+                for item in items:
+                    node_id = f"item_{item['id']}"
+                    node_ids.append(item['id'])
+                    content_preview = item['content'][:100] + '...' if len(item['content']) > 100 else item['content']
+                    nodes.append({
+                        'id': node_id,
+                        'label': item['title'],
+                        'type': item['type'],
+                        'title': item['title'],
+                        'content': content_preview,
+                        'fullContent': item['content']
+                    })
+                
+                # 构建边查询
+                edges_query = """
+                    SELECT kr.id, kr.source_item_id, kr.target_item_id, kr.relation_type,
+                           ksi.title as source_title, ki.title as target_title
+                    FROM knowledge_relation kr
+                    LEFT JOIN knowledge_item ksi ON kr.source_item_id = ksi.id
+                    LEFT JOIN knowledge_item ki ON kr.target_item_id = ki.id
+                    WHERE kr.knowledge_base_id = %s
+                """
+                edges_params = [kb_id]
+                
+                if relation_types:
+                    types_list = [t.strip() for t in relation_types.split(',')]
+                    placeholders = ', '.join(['%s'] * len(types_list))
+                    edges_query += f" AND kr.relation_type IN ({placeholders})"
+                    edges_params.extend(types_list)
+                
+                if search:
+                    edges_query += """ AND (
+                        ksi.title LIKE %s OR ki.title LIKE %s OR 
+                        ksi.content LIKE %s OR ki.content LIKE %s
+                    )"""
+                    edges_params.extend([f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%'])
+                
+                cursor.execute(edges_query, edges_params)
+                relations = cursor.fetchall()
+                
+                # 构建边列表
+                edges = []
+                relation_type_counts = {}
+                
+                relation_type_labels = {
+                    'related': '相关',
+                    'parent': '包含',
+                    'child': '从属',
+                    'similar': '相似',
+                    'tag': '标签'
+                }
+                
+                for rel in relations:
+                    if rel['source_item_id'] and rel['target_item_id']:
+                        from_id = f"item_{rel['source_item_id']}"
+                        to_id = f"item_{rel['target_item_id']}"
+                        
+                        # 统计关系类型
+                        rel_type = rel['relation_type']
+                        relation_type_counts[rel_type] = relation_type_counts.get(rel_type, 0) + 1
+                        
+                        edges.append({
+                            'id': f"relation_{rel['id']}",
+                            'from': from_id,
+                            'to': to_id,
+                            'relationType': rel_type,
+                            'label': relation_type_labels.get(rel_type, rel_type),
+                            'sourceTitle': rel['source_title'],
+                            'targetTitle': rel['target_title']
+                        })
+                
+                # 获取统计数据
+                cursor.execute(
+                    "SELECT COUNT(*) as count FROM knowledge_item WHERE knowledge_base_id = %s",
+                    (kb_id,)
+                )
+                total_nodes = cursor.fetchone()['count']
+                
+                cursor.execute(
+                    "SELECT COUNT(*) as count FROM knowledge_relation WHERE knowledge_base_id = %s",
+                    (kb_id,)
+                )
+                total_edges = cursor.fetchone()['count']
+                
+                return jsonify({
+                    'nodes': nodes,
+                    'edges': edges,
+                    'statistics': {
+                        'totalNodes': total_nodes,
+                        'totalEdges': total_edges,
+                        'displayedNodes': len(nodes),
+                        'displayedEdges': len(edges),
+                        'relationTypes': relation_type_counts
+                    }
+                })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/knowledge-bases/<int:kb_id>/graph/export', methods=['POST'])
+def export_knowledge_graph(kb_id):
+    """导出知识图谱（PNG/SVG）"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    data = request.json
+    
+    export_format = data.get('format', 'png')
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM knowledge_base WHERE id = %s AND username = %s",
+                    (kb_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'error': '知识库不存在'}), 404
+                
+                # 获取完整图谱数据用于导出
+                cursor.execute(
+                    """SELECT id, title, type FROM knowledge_item WHERE knowledge_base_id = %s""",
+                    (kb_id,)
+                )
+                items = cursor.fetchall()
+                
+                nodes = [{'id': f"item_{item['id']}", 'label': item['title'], 'type': item['type']} for item in items]
+                
+                cursor.execute(
+                    """SELECT source_item_id, target_item_id, relation_type
+                       FROM knowledge_relation WHERE knowledge_base_id = %s""",
+                    (kb_id,)
+                )
+                relations = cursor.fetchall()
+                
+                edges = []
+                for rel in relations:
+                    if rel['source_item_id'] and rel['target_item_id']:
+                        edges.append({
+                            'from': f"item_{rel['source_item_id']}",
+                            'to': f"item_{rel['target_item_id']}",
+                            'relationType': rel['relation_type']
+                        })
+                
+                return jsonify({
+                    'success': True,
+                    'format': export_format,
+                    'data': {
+                        'nodes': nodes,
+                        'edges': edges
+                    }
+                })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

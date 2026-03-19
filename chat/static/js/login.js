@@ -33,7 +33,11 @@ loginForm.addEventListener('submit', async (e) => {
         const data = await response.json();
         
         if (response.ok) {
-            // 登录成功
+            // 登录成功，保存主题色到 localStorage
+            if (data.theme) {
+                localStorage.setItem('user_theme', data.theme);
+                localStorage.setItem('theme_timestamp', Date.now().toString());
+            }
             submitBtn.querySelector('span').textContent = '登录成功!';
             setTimeout(() => {
                 window.location.href = '/';

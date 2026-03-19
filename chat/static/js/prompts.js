@@ -35,14 +35,27 @@ const elements = {
     closeDetailBtn: document.getElementById('closeDetailBtn'),
     promptDetailTitle: document.getElementById('promptDetailTitle'),
     promptDetailContent: document.getElementById('promptDetailContent'),
-    usePromptBtn: document.getElementById('usePromptBtn')
+    usePromptBtn: document.getElementById('usePromptBtn'),
+    copyContentBtn: document.getElementById('copyContentBtn'),
+    copyDetailBtn: document.getElementById('copyDetailBtn'),
+    copyToast: document.getElementById('copyToast')
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    applyThemeFromCache();
     loadUserInfo();
     initializeEventListeners();
     loadPrompts();
 });
+
+// 从 localStorage 应用主题色(早期加载，避免闪烁)
+function applyThemeFromCache() {
+    const cachedTheme = localStorage.getItem('user_theme');
+    if (cachedTheme) {
+        document.body.setAttribute('data-theme', cachedTheme);
+        currentTheme = cachedTheme;
+    }
+}
 
 let currentTheme = 'dark';
 
@@ -55,8 +68,13 @@ async function loadUserInfo() {
             const user = await response.json();
             currentUser = user;
             elements.username.textContent = user.username;
-            currentTheme = user.theme || 'dark';
-            applyTheme(currentTheme);
+            const serverTheme = user.theme || 'dark';
+            // 同步主题色到 localStorage
+            localStorage.setItem('user_theme', serverTheme);
+            localStorage.setItem('theme_timestamp', Date.now().toString());
+            if (currentTheme !== serverTheme) {
+                applyTheme(serverTheme);
+            }
         } else {
             window.location.href = '/login';
         }
@@ -143,6 +161,17 @@ function initializeEventListeners() {
     });
     elements.usePromptBtn?.addEventListener('click', () => {
         usePrompt();
+    });
+
+    elements.copyContentBtn?.addEventListener('click', () => {
+        copyToClipboard(elements.promptContent.value);
+    });
+
+    elements.copyDetailBtn?.addEventListener('click', () => {
+        const prompt = prompts.find(p => p.id === currentDetailPromptId);
+        if (prompt) {
+            copyToClipboard(prompt.content);
+        }
     });
 
     elements.searchInput?.addEventListener('input', debounce(() => {
@@ -498,3 +527,125 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+let copyHistory = [];
+const MAX_COPY_HISTORY = 10;
+
+async function copyToClipboard(text) {
+    if (!text) {
+        showToast('没有内容可复制', 'error');
+        return;
+    }
+
+    const copyBtn = elements.copyContentBtn;
+    const originalIcon = copyBtn?.innerHTML;
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            handleCopySuccess(text, copyBtn, originalIcon);
+        } else {
+            fallbackCopy(text, copyBtn, originalIcon);
+        }
+    } catch (error) {
+        console.error('复制失败:', error);
+        fallbackCopy(text, copyBtn, originalIcon);
+    }
+}
+
+function fallbackCopy(text, copyBtn, originalIcon) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (successful) {
+            handleCopySuccess(text, copyBtn, originalIcon);
+        } else {
+            throw new Error('execCommand返回false');
+        }
+    } catch (err) {
+        document.body.removeChild(textarea);
+        handleCopyError(copyBtn, originalIcon);
+    }
+}
+
+function handleCopySuccess(text, copyBtn, originalIcon) {
+    addToCopyHistory(text);
+    
+    showToast('复制成功！', 'success');
+    
+    if (copyBtn) {
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+        
+        setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            copyBtn.innerHTML = originalIcon;
+        }, 2000);
+    }
+}
+
+function handleCopyError(copyBtn, originalIcon) {
+    showToast('复制失败，请手动复制', 'error');
+    
+    if (copyBtn) {
+        copyBtn.innerHTML = '<i class="fas fa-times"></i>';
+        setTimeout(() => {
+            copyBtn.innerHTML = originalIcon;
+        }, 2000);
+    }
+}
+
+function showToast(message, type = 'info') {
+    const toast = elements.copyToast;
+    if (!toast) return;
+    
+    toast.textContent = message;
+    toast.className = 'copy-toast show ' + type;
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2500);
+}
+
+function addToCopyHistory(text) {
+    const preview = text.substring(0, 50).replace(/\s+/g, ' ');
+    const historyItem = {
+        content: text,
+        preview: preview + (text.length > 50 ? '...' : ''),
+        timestamp: new Date().toISOString()
+    };
+    
+    copyHistory.unshift(historyItem);
+    
+    if (copyHistory.length > MAX_COPY_HISTORY) {
+        copyHistory = copyHistory.slice(0, MAX_COPY_HISTORY);
+    }
+    
+    try {
+        localStorage.setItem('promptCopyHistory', JSON.stringify(copyHistory));
+    } catch (e) {
+        console.warn('无法保存复制历史:', e);
+    }
+}
+
+function loadCopyHistory() {
+    try {
+        const stored = localStorage.getItem('promptCopyHistory');
+        if (stored) {
+            copyHistory = JSON.parse(stored);
+        }
+    } catch (e) {
+        console.warn('无法加载复制历史:', e);
+    }
+}
+
+loadCopyHistory();

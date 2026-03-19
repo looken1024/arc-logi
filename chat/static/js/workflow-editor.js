@@ -230,6 +230,7 @@ const nodeTypes = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+    applyThemeFromCache();
     loadUserInfo();
     initializeEventListeners();
     
@@ -258,6 +259,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadWorkflow();
 });
 
+// 从 localStorage 应用主题色(早期加载，避免闪烁)
+function applyThemeFromCache() {
+    const cachedTheme = localStorage.getItem('user_theme');
+    if (cachedTheme) {
+        document.body.setAttribute('data-theme', cachedTheme);
+        currentTheme = cachedTheme;
+    }
+}
+
 // 加载用户信息
 async function loadUserInfo() {
     try {
@@ -266,8 +276,13 @@ async function loadUserInfo() {
             const user = await response.json();
             currentUser = user;
             elements.username.textContent = user.username;
-            currentTheme = user.theme || 'dark';
-            applyTheme(currentTheme);
+            const serverTheme = user.theme || 'dark';
+            // 同步主题色到 localStorage
+            localStorage.setItem('user_theme', serverTheme);
+            localStorage.setItem('theme_timestamp', Date.now().toString());
+            if (currentTheme !== serverTheme) {
+                applyTheme(serverTheme);
+            }
         } else {
             window.location.href = '/login';
         }

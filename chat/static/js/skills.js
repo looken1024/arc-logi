@@ -2,11 +2,21 @@ let currentTheme = 'dark';
 let allSkills = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+    applyThemeFromCache();
     await loadUserInfo();
     initializeEventListeners();
     await loadSkills();
     initializeSearch();
 });
+
+// 从 localStorage 应用主题色(早期加载，避免闪烁)
+function applyThemeFromCache() {
+    const cachedTheme = localStorage.getItem('user_theme');
+    if (cachedTheme) {
+        document.body.setAttribute('data-theme', cachedTheme);
+        currentTheme = cachedTheme;
+    }
+}
 
 async function loadUserInfo() {
     try {
@@ -15,8 +25,13 @@ async function loadUserInfo() {
         });
         if (response.ok) {
             const user = await response.json();
-            currentTheme = user.theme || 'dark';
-            applyTheme(currentTheme);
+            const serverTheme = user.theme || 'dark';
+            // 同步主题色到 localStorage
+            localStorage.setItem('user_theme', serverTheme);
+            localStorage.setItem('theme_timestamp', Date.now().toString());
+            if (currentTheme !== serverTheme) {
+                applyTheme(serverTheme);
+            }
         }
     } catch (error) {
         console.error('加载用户信息失败:', error);

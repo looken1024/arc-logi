@@ -54,10 +54,74 @@ const elements = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    applyThemeFromCache();
     loadUserInfo();
     initializeEventListeners();
     loadSchedules(true);
+    startThemeSync();
 });
+
+// 从 localStorage 应用主题色(早期加载，避免闪烁)
+function applyThemeFromCache() {
+    const cachedTheme = localStorage.getItem('user_theme');
+    if (cachedTheme) {
+        document.body.setAttribute('data-theme', cachedTheme);
+        currentTheme = cachedTheme;
+    }
+}
+
+// 定时同步主题（每5分钟执行一次）
+let themeSyncInterval = null;
+let themeVarsCache = null;
+let themeVarsElement = null;
+
+function startThemeSync() {
+    if (themeSyncInterval) {
+        clearInterval(themeSyncInterval);
+    }
+    loadThemeVars();
+    themeSyncInterval = setInterval(async () => {
+        await syncTheme();
+        await loadThemeVars();
+    }, 5 * 60 * 1000);
+}
+
+async function loadThemeVars() {
+    try {
+        const response = await fetch('/api/theme/css-vars', {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const cssText = await response.text();
+            if (!themeVarsElement) {
+                themeVarsElement = document.createElement('style');
+                themeVarsElement.id = 'theme-vars-dynamic';
+                document.head.appendChild(themeVarsElement);
+            }
+            themeVarsElement.textContent = cssText;
+            themeVarsCache = cssText;
+        }
+    } catch (error) {
+        console.error('加载主题变量失败:', error);
+    }
+}
+
+async function syncTheme() {
+    try {
+        const response = await fetch('/api/user', {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const user = await response.json();
+            const newTheme = user.theme || 'dark';
+            if (newTheme !== currentTheme) {
+                applyTheme(newTheme);
+            }
+        }
+    } catch (error) {
+        console.error('同步主题失败:', error);
+    }
+}
 
 // 加载用户信息
 async function loadUserInfo() {
@@ -69,8 +133,14 @@ async function loadUserInfo() {
             const user = await response.json();
             currentUser = user;
             elements.username.textContent = user.username;
-            currentTheme = user.theme || 'dark';
-            applyTheme(currentTheme);
+            const serverTheme = user.theme || 'dark';
+            // 同步主题色到 localStorage
+            localStorage.setItem('user_theme', serverTheme);
+            localStorage.setItem('theme_timestamp', Date.now().toString());
+            if (currentTheme !== serverTheme) {
+                applyTheme(serverTheme);
+            }
+            await loadThemeVars();
         } else {
             window.location.href = '/login';
         }
