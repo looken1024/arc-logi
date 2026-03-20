@@ -74,18 +74,19 @@ const elements = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    applyThemeFromCache();
+    currentTheme = document.body.getAttribute('data-theme') || 'dark';
+    syncThemeToLocalStorage();
     loadUserInfo();
     initializeEventListeners();
     loadSchedules(true);
 });
 
-// 从 localStorage 应用主题色(早期加载，避免闪烁)
-function applyThemeFromCache() {
+// 同步主题到 localStorage
+function syncThemeToLocalStorage() {
     const cachedTheme = localStorage.getItem('user_theme');
-    if (cachedTheme) {
-        document.body.setAttribute('data-theme', cachedTheme);
-        currentTheme = cachedTheme;
+    if (cachedTheme !== currentTheme) {
+        localStorage.setItem('user_theme', currentTheme);
+        localStorage.setItem('theme_timestamp', Date.now().toString());
     }
 }
 
