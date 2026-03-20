@@ -2037,6 +2037,53 @@ def get_user_profile():
         'preferences': preferences
     })
 
+def get_user_info_for_context(username):
+    """获取用户信息，用于注入到对话context中"""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM user_profile WHERE username = %s", (username,))
+            profile = cursor.fetchone()
+            
+            cursor.execute("SELECT * FROM user_preferences WHERE username = %s", (username,))
+            preferences = cursor.fetchone()
+    
+    user_info_parts = []
+    
+    if profile:
+        nickname = profile.get('nickname', '').strip()
+        real_name = profile.get('real_name', '').strip()
+        gender = profile.get('gender', 'unknown')
+        age = profile.get('age')
+        occupation = profile.get('occupation', '').strip()
+        bio = profile.get('bio', '').strip()
+        
+        if nickname:
+            user_info_parts.append(f"用户昵称: {nickname}")
+        if real_name:
+            user_info_parts.append(f"真实姓名: {real_name}")
+        if gender and gender != 'unknown':
+            gender_map = {'male': '男', 'female': '女'}
+            user_info_parts.append(f"性别: {gender_map.get(gender, gender)}")
+        if age:
+            user_info_parts.append(f"年龄: {age}")
+        if occupation:
+            user_info_parts.append(f"职业: {occupation}")
+        if bio:
+            user_info_parts.append(f"个人简介: {bio}")
+    
+    if preferences:
+        personality = preferences.get('ai_personality', 'friendly')
+        personalized = preferences.get('personalized_responses', True)
+        
+        if personality and personality != 'friendly':
+            user_info_parts.append(f"期望的AI性格: {personality}")
+        if personalized:
+            user_info_parts.append("用户偏好: 希望获得个性化回复")
+    
+    if user_info_parts:
+        return "【用户信息】\n" + "\n".join(user_info_parts)
+    return None
+
 @app.route('/api/user/profile', methods=['PUT'])
 def update_user_profile():
     """更新用户个人信息"""
@@ -2445,6 +2492,15 @@ def chat():
         
         # 获取对话历史
         messages = get_conversation_from_db(conversation_id, username)
+        
+        # 获取用户信息并注入到context中
+        user_info = get_user_info_for_context(username)
+        if user_info:
+            messages.insert(0, {
+                'role': 'system',
+                'content': user_info,
+                'timestamp': datetime.now().isoformat()
+            })
         
         # 如果有system_prompt，添加到消息开头
         if system_prompt:
