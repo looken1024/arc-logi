@@ -71,11 +71,14 @@ async function loadUserInfo() {
             currentUser = user;
             elements.username.textContent = user.username;
             const serverTheme = user.theme || 'dark';
-            // 同步主题色到 localStorage
-            localStorage.setItem('user_theme', serverTheme);
-            localStorage.setItem('theme_timestamp', Date.now().toString());
-            if (currentTheme !== serverTheme) {
-                applyTheme(serverTheme);
+            const cachedTheme = localStorage.getItem('user_theme');
+            if (cachedTheme !== serverTheme) {
+                localStorage.setItem('user_theme', serverTheme);
+                localStorage.setItem('theme_timestamp', Date.now().toString());
+                const appliedTheme = document.body.getAttribute('data-theme');
+                if (appliedTheme !== serverTheme) {
+                    applyTheme(serverTheme);
+                }
             }
         } else {
             window.location.href = '/login';

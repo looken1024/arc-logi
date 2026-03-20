@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <script>
+        (function() {
+            var cachedTheme = localStorage.getItem('user_theme');
+            if (cachedTheme) {
+                document.body.setAttribute('data-theme', cachedTheme);
+            }
+        })();
+    </script>
     <title>Skills 管理 - AI Chat Platform</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
