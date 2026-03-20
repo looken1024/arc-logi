@@ -260,6 +260,81 @@
                     </div>
                 </div>
                 <div class="setting-section">
+                    <h3>个人信息</h3>
+                    <p class="setting-description">设置您的个人称呼和信息，让AI更好地与您交流</p>
+                    <div class="profile-form">
+                        <div class="form-group">
+                            <label for="nickname">个人称呼（昵称）</label>
+                            <input type="text" id="nickname" placeholder="请输入昵称或姓名" maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="realName">真实姓名</label>
+                            <input type="text" id="realName" placeholder="可选" maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="gender">性别</label>
+                            <select id="gender">
+                                <option value="unknown">保密</option>
+                                <option value="male">男</option>
+                                <option value="female">女</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="age">年龄</label>
+                            <input type="number" id="age" placeholder="可选" min="1" max="150">
+                        </div>
+                        <div class="form-group">
+                            <label for="occupation">职业</label>
+                            <input type="text" id="occupation" placeholder="可选，如：软件工程师" maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="bio">个人简介</label>
+                            <textarea id="bio" placeholder="介绍一下自己，帮助AI更好地了解您" rows="3" maxlength="500"></textarea>
+                        </div>
+                        <button class="btn-primary" id="saveProfileBtn">
+                            <i class="fas fa-save"></i>
+                            <span>保存个人信息</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <h3>AI 交互偏好</h3>
+                    <p class="setting-description">自定义AI与您的交互方式</p>
+                    <div class="preferences-form">
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" id="useNickname" checked>
+                                <span>使用昵称称呼我</span>
+                            </label>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" id="rememberContext" checked>
+                                <span>记住对话上下文和偏好</span>
+                            </label>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" id="personalizedResponses" checked>
+                                <span>提供个性化回答</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="aiPersonality">AI 对话风格</label>
+                            <select id="aiPersonality">
+                                <option value="friendly">友好型</option>
+                                <option value="professional">专业型</option>
+                                <option value="casual">轻松型</option>
+                                <option value="humorous">幽默型</option>
+                            </select>
+                        </div>
+                        <button class="btn-primary" id="savePreferencesBtn">
+                            <i class="fas fa-save"></i>
+                            <span>保存偏好设置</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="setting-section">
                     <h3>账户</h3>
                     <p class="setting-description">管理您的账户设置</p>
                     <button class="logout-btn" onclick="logout()" style="margin-top: 10px;">

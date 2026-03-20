@@ -1,0 +1,10 @@
+{
+  "permission": {
+    "read": [
+      { "pattern": "*", "action": "allow" },
+      { "pattern": "*.env", "action": "allow" }
+    ],
+    "edit": "allow",
+    "bash": "allow"
+  }
+}

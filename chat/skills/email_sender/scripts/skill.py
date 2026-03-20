@@ -12,15 +12,21 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 from typing import Dict, Any
 
-# Add project root to path for local testing
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Try to import BaseSkill with fallback for standalone execution
 try:
     from skills.base import BaseSkill
 except ImportError:
-    # Fallback for standalone execution
     from base import BaseSkill
+
+# 默认SMTP配置 (163邮箱)
+DEFAULT_SMTP_CONFIG = {
+    'smtp_server': 'smtp.163.com',
+    'smtp_port': 465,
+    'sender_email': '18518007500@163.com',
+    'sender_password': 'MCpMHHpUu2AadQLh',
+    'use_ssl': True
+}
 
 
 class EmailSenderSkill(BaseSkill):
@@ -38,19 +44,19 @@ class EmailSenderSkill(BaseSkill):
             "properties": {
                 "smtp_server": {
                     "type": "string",
-                    "description": "SMTP服务器地址",
+                    "description": "SMTP服务器地址（默认: smtp.163.com）",
                 },
                 "smtp_port": {
                     "type": "integer",
-                    "description": "SMTP服务器端口",
+                    "description": "SMTP服务器端口（默认: 465）",
                 },
                 "sender_email": {
                     "type": "string",
-                    "description": "发送者邮箱地址",
+                    "description": "发送者邮箱地址（默认: 18518007500@163.com）",
                 },
                 "sender_password": {
                     "type": "string",
-                    "description": "发送者邮箱密码或授权码",
+                    "description": "发送者邮箱密码或授权码（默认使用系统配置）",
                 },
                 "receiver_email": {
                     "type": "string",
@@ -75,7 +81,7 @@ class EmailSenderSkill(BaseSkill):
                     "default": True
                 }
             },
-            "required": ["smtp_server", "smtp_port", "sender_email", "sender_password", "receiver_email", "subject", "content"]
+            "required": ["receiver_email", "subject", "content"]
         }
 
     def execute(self, **kwargs) -> Dict[str, Any]:
@@ -83,24 +89,26 @@ class EmailSenderSkill(BaseSkill):
         执行邮件发送
 
         Args:
-            **kwargs: 包含 smtp_server, smtp_port, sender_email, sender_password, 
-                     receiver_email, subject, content, content_type, use_ssl 等参数
+            **kwargs: 包含 receiver_email, subject, content 等必需参数，
+                     以及可选参数 smtp_server, smtp_port, sender_email, 
+                     sender_password, content_type, use_ssl
+                     如果未提供 SMTP 配置，将使用系统默认配置（163邮箱）
 
         Returns:
             Dict[str, Any]: 发送结果
         """
-        smtp_server = kwargs.get('smtp_server')
-        smtp_port = kwargs.get('smtp_port')
-        sender_email = kwargs.get('sender_email')
-        sender_password = kwargs.get('sender_password')
+        smtp_server = kwargs.get('smtp_server', DEFAULT_SMTP_CONFIG['smtp_server'])
+        smtp_port = kwargs.get('smtp_port', DEFAULT_SMTP_CONFIG['smtp_port'])
+        sender_email = kwargs.get('sender_email', DEFAULT_SMTP_CONFIG['sender_email'])
+        sender_password = kwargs.get('sender_password', DEFAULT_SMTP_CONFIG['sender_password'])
         receiver_email = kwargs.get('receiver_email')
         subject = kwargs.get('subject')
         content = kwargs.get('content')
         content_type = kwargs.get('content_type', 'plain')
-        use_ssl = kwargs.get('use_ssl', True)
+        use_ssl = kwargs.get('use_ssl', DEFAULT_SMTP_CONFIG['use_ssl'])
         
         # 参数验证
-        required_params = ['smtp_server', 'smtp_port', 'sender_email', 'sender_password', 'receiver_email', 'subject', 'content']
+        required_params = ['receiver_email', 'subject', 'content']
         for param in required_params:
             if not kwargs.get(param):
                 return {

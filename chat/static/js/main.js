@@ -120,6 +120,48 @@ async function loadUserInfo() {
     }
 }
 
+// 加载用户个人信息和偏好设置
+async function loadUserProfile() {
+    try {
+        const response = await fetch('/api/user/profile', {
+            credentials: 'same-origin'
+        });
+        if (response.ok) {
+            const data = await response.json();
+            
+            // 填充个人信息表单
+            const profile = data.profile || {};
+            const nicknameEl = document.getElementById('nickname');
+            const realNameEl = document.getElementById('realName');
+            const genderEl = document.getElementById('gender');
+            const ageEl = document.getElementById('age');
+            const occupationEl = document.getElementById('occupation');
+            const bioEl = document.getElementById('bio');
+            
+            if (nicknameEl) nicknameEl.value = profile.nickname || '';
+            if (realNameEl) realNameEl.value = profile.real_name || '';
+            if (genderEl) genderEl.value = profile.gender || 'unknown';
+            if (ageEl) ageEl.value = profile.age || '';
+            if (occupationEl) occupationEl.value = profile.occupation || '';
+            if (bioEl) bioEl.value = profile.bio || '';
+            
+            // 填充偏好设置表单
+            const prefs = data.preferences || {};
+            const useNicknameEl = document.getElementById('useNickname');
+            const rememberContextEl = document.getElementById('rememberContext');
+            const personalizedResponsesEl = document.getElementById('personalizedResponses');
+            const aiPersonalityEl = document.getElementById('aiPersonality');
+            
+            if (useNicknameEl) useNicknameEl.checked = prefs.use_nickname === 1;
+            if (rememberContextEl) rememberContextEl.checked = prefs.remember_context === 1;
+            if (personalizedResponsesEl) personalizedResponsesEl.checked = prefs.personalized_responses === 1;
+            if (aiPersonalityEl) aiPersonalityEl.value = prefs.ai_personality || 'friendly';
+        }
+    } catch (error) {
+        console.error('加载用户 profile 失败:', error);
+    }
+}
+
 // 应用主题
 function applyTheme(theme) {
     document.body.setAttribute('data-theme', theme);
@@ -260,8 +302,9 @@ function initializeEventListeners() {
     elements.logoutBtn?.addEventListener('click', logout);
 
     // 设置按钮
-    elements.settingsBtn?.addEventListener('click', () => {
+    elements.settingsBtn?.addEventListener('click', async () => {
         elements.settingsModal?.classList.add('active');
+        await loadUserProfile();
     });
 
     // 关闭设置
@@ -330,6 +373,81 @@ function initializeEventListeners() {
             const theme = option.dataset.theme;
             await updateTheme(theme);
         });
+    });
+
+    // 保存个人信息
+    document.getElementById('saveProfileBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('saveProfileBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        
+        try {
+            const profileData = {
+                nickname: document.getElementById('nickname')?.value || '',
+                real_name: document.getElementById('realName')?.value || '',
+                gender: document.getElementById('gender')?.value || 'unknown',
+                age: document.getElementById('age')?.value || null,
+                occupation: document.getElementById('occupation')?.value || '',
+                bio: document.getElementById('bio')?.value || ''
+            };
+
+            const response = await fetch('/api/user/profile', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(profileData)
+            });
+
+            if (response.ok) {
+                alert('个人信息保存成功');
+            } else {
+                const error = await response.json();
+                alert('保存失败: ' + (error.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('保存个人信息失败:', error);
+            alert('保存失败，请检查网络连接');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i><span>保存个人信息</span>';
+        }
+    });
+
+    // 保存偏好设置
+    document.getElementById('savePreferencesBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('savePreferencesBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        
+        try {
+            const prefsData = {
+                greeting_enabled: true,
+                use_nickname: document.getElementById('useNickname')?.checked ?? true,
+                remember_context: document.getElementById('rememberContext')?.checked ?? true,
+                personalized_responses: document.getElementById('personalizedResponses')?.checked ?? true,
+                ai_personality: document.getElementById('aiPersonality')?.value || 'friendly'
+            };
+
+            const response = await fetch('/api/user/preferences', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(prefsData)
+            });
+
+            if (response.ok) {
+                alert('偏好设置保存成功');
+            } else {
+                const error = await response.json();
+                alert('保存失败: ' + (error.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('保存偏好设置失败:', error);
+            alert('保存失败，请检查网络连接');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i><span>保存偏好设置</span>';
+        }
     });
 
     // 语音输入

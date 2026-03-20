@@ -1995,6 +1995,126 @@ def update_theme():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/user/profile', methods=['GET'])
+def get_user_profile():
+    """获取用户个人信息"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM user_profile WHERE username = %s", (username,))
+            profile = cursor.fetchone()
+            
+            cursor.execute("SELECT * FROM user_preferences WHERE username = %s", (username,))
+            preferences = cursor.fetchone()
+    
+    if not profile:
+        profile = {
+            'username': username,
+            'nickname': '',
+            'real_name': '',
+            'gender': 'unknown',
+            'age': None,
+            'occupation': '',
+            'bio': '',
+            'preferences': {}
+        }
+    
+    if not preferences:
+        preferences = {
+            'username': username,
+            'greeting_enabled': True,
+            'use_nickname': True,
+            'remember_context': True,
+            'personalized_responses': True,
+            'ai_personality': 'friendly'
+        }
+    
+    return jsonify({
+        'profile': profile,
+        'preferences': preferences
+    })
+
+@app.route('/api/user/profile', methods=['PUT'])
+def update_user_profile():
+    """更新用户个人信息"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        
+        profile_data = {
+            'username': username,
+            'nickname': data.get('nickname', ''),
+            'real_name': data.get('real_name', ''),
+            'gender': data.get('gender', 'unknown'),
+            'age': data.get('age'),
+            'occupation': data.get('occupation', ''),
+            'bio': data.get('bio', ''),
+            'preferences': json.dumps(data.get('preferences', {}), ensure_ascii=False)
+        }
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO user_profile (username, nickname, real_name, gender, age, occupation, bio, preferences)
+                    VALUES (%(username)s, %(nickname)s, %(real_name)s, %(gender)s, %(age)s, %(occupation)s, %(bio)s, %(preferences)s)
+                    ON DUPLICATE KEY UPDATE
+                    nickname = VALUES(nickname),
+                    real_name = VALUES(real_name),
+                    gender = VALUES(gender),
+                    age = VALUES(age),
+                    occupation = VALUES(occupation),
+                    bio = VALUES(bio),
+                    preferences = VALUES(preferences)
+                """, profile_data)
+                conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/preferences', methods=['PUT'])
+def update_user_preferences():
+    """更新用户偏好设置"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        
+        pref_data = {
+            'username': username,
+            'greeting_enabled': int(data.get('greeting_enabled', True)),
+            'use_nickname': int(data.get('use_nickname', True)),
+            'remember_context': int(data.get('remember_context', True)),
+            'personalized_responses': int(data.get('personalized_responses', True)),
+            'ai_personality': data.get('ai_personality', 'friendly')
+        }
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO user_preferences (username, greeting_enabled, use_nickname, remember_context, personalized_responses, ai_personality)
+                    VALUES (%(username)s, %(greeting_enabled)s, %(use_nickname)s, %(remember_context)s, %(personalized_responses)s, %(ai_personality)s)
+                    ON DUPLICATE KEY UPDATE
+                    greeting_enabled = VALUES(greeting_enabled),
+                    use_nickname = VALUES(use_nickname),
+                    remember_context = VALUES(remember_context),
+                    personalized_responses = VALUES(personalized_responses),
+                    ai_personality = VALUES(ai_personality)
+                """, pref_data)
+                conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 THEME_CSS_VARS = {
     'dark': {
         '--primary-color': '#10a37f',

@@ -6,6 +6,8 @@
 
 此技能用于通过SMTP协议发送电子邮件。支持发送纯文本邮件和HTML格式邮件，可添加附件（未来扩展）。
 
+**系统默认配置**：发件人邮箱和授权码已预设为163邮箱配置，用户只需提供收件人、主题和内容即可发送邮件。
+
 ## 使用场景
 
 - 发送系统通知："发送服务器监控告警邮件"
@@ -14,27 +16,21 @@
 - 发送定时提醒："向与会者发送会议提醒邮件"
 - 发送数据报告："向管理层发送每日销售数据报告"
 
+## 默认配置
+
+系统已预配置以下163邮箱作为默认发件人：
+
+| 配置项 | 默认值 |
+|--------|--------|
+| SMTP服务器 | smtp.163.com |
+| SMTP端口 | 465 (SSL) |
+| 发件人邮箱 | 18518007500@163.com |
+| 授权码 | 系统预配置 |
+| 使用SSL | true |
+
+**注意**：如需使用其他邮箱账户，可以在调用时覆盖SMTP配置参数。
+
 ## 参数说明
-
-### smtp_server (必需)
-- **类型**: string
-- **描述**: SMTP服务器地址
-- **示例**: "smtp.qq.com", "smtp.163.com", "smtp.gmail.com"
-
-### smtp_port (必需)
-- **类型**: integer
-- **描述**: SMTP服务器端口
-- **示例**: 465 (SSL), 587 (TLS), 25 (普通)
-
-### sender_email (必需)
-- **类型**: string
-- **描述**: 发送者邮箱地址
-- **示例**: "user@example.com"
-
-### sender_password (必需)
-- **类型**: string
-- **描述**: 发送者邮箱密码或授权码（建议使用授权码而非直接密码）
-- **示例**: "your_authorization_code"
 
 ### receiver_email (必需)
 - **类型**: string
@@ -50,6 +46,30 @@
 - **类型**: string
 - **描述**: 邮件内容
 - **示例**: "这是一封测试邮件"
+
+### smtp_server (可选)
+- **类型**: string
+- **描述**: SMTP服务器地址
+- **示例**: "smtp.qq.com", "smtp.163.com", "smtp.gmail.com"
+- **默认值**: "smtp.163.com"
+
+### smtp_port (可选)
+- **类型**: integer
+- **描述**: SMTP服务器端口
+- **示例**: 465 (SSL), 587 (TLS), 25 (普通)
+- **默认值**: 465
+
+### sender_email (可选)
+- **类型**: string
+- **描述**: 发送者邮箱地址
+- **示例**: "user@example.com"
+- **默认值**: "18518007500@163.com"
+
+### sender_password (可选)
+- **类型**: string
+- **描述**: 发送者邮箱密码或授权码（建议使用授权码而非直接密码）
+- **示例**: "your_authorization_code"
+- **默认值**: 系统预配置
 
 ### content_type (可选)
 - **类型**: string
@@ -83,7 +103,7 @@
 
 ## 使用示例
 
-### 示例 1: 发送纯文本邮件（QQ邮箱示例）
+### 示例 1: 使用默认配置发送纯文本邮件（推荐）
 
 **用户**: 发送一封测试邮件到个人邮箱
 
@@ -92,15 +112,9 @@
 {
   "function": "email_sender",
   "arguments": {
-    "smtp_server": "smtp.qq.com",
-    "smtp_port": 465,
-    "sender_email": "123456789@qq.com",
-    "sender_password": "your_authorization_code",
     "receiver_email": "receiver@example.com",
     "subject": "测试邮件",
-    "content": "这是一封测试邮件",
-    "content_type": "plain",
-    "use_ssl": true
+    "content": "这是一封测试邮件"
   }
 }
 ```
@@ -114,7 +128,7 @@
 }
 ```
 
-### 示例 2: 发送HTML格式邮件
+### 示例 2: 使用默认配置发送HTML格式邮件
 
 **用户**: 发送一封带格式的邮件给团队
 
@@ -123,15 +137,39 @@
 {
   "function": "email_sender",
   "arguments": {
-    "smtp_server": "smtp.163.com",
-    "smtp_port": 465,
-    "sender_email": "sender@163.com",
-    "sender_password": "your_authorization_code",
     "receiver_email": "team1@example.com,team2@example.com",
     "subject": "项目周报",
     "content": "<h2>项目周报</h2><p>本周完成了以下工作：</p><ul><li>完成模块A开发</li><li>开始模块B测试</li></ul>",
-    "content_type": "html",
-    "use_ssl": true
+    "content_type": "html"
+  }
+}
+```
+
+**返回**:
+```json
+{
+  "success": true,
+  "message": "邮件发送成功",
+  "response": null
+}
+```
+
+### 示例 3: 使用自定义SMTP配置发送邮件
+
+**用户**: 使用QQ邮箱发送邮件
+
+**AI 调用**:
+```json
+{
+  "function": "email_sender",
+  "arguments": {
+    "smtp_server": "smtp.qq.com",
+    "smtp_port": 465,
+    "sender_email": "123456789@qq.com",
+    "sender_password": "your_authorization_code",
+    "receiver_email": "receiver@example.com",
+    "subject": "测试邮件",
+    "content": "这是一封测试邮件"
   }
 }
 ```
@@ -151,8 +189,11 @@
 - **API 调用**: 使用Python的`smtplib`和`email`库发送邮件
 - **主脚本**: `skill.py` - 技能核心实现
 - **依赖**: Python标准库`smtplib`、`email`（无需额外安装）
+- **默认配置**: 系统预配置163邮箱（smtp.163.com）作为默认发件人
 - **错误处理**: 连接失败、认证失败、发送失败等情况都有相应处理
-- **安全建议**: 建议使用邮箱授权码而非直接密码，避免敏感信息泄露
+- **安全建议**: 
+  - 授权码存储在代码中，生产环境建议使用环境变量或配置中心管理
+  - 建议使用邮箱授权码而非直接密码，避免敏感信息泄露
 
 ### SMTP 常见配置
 
@@ -214,6 +255,12 @@
   ```
 
 ## 版本历史
+
+- **v1.1** (2026-03-20): 默认配置更新
+  - 预配置163邮箱（18518007500@163.com）作为默认发件人
+  - 简化调用参数，只需提供收件人、主题和内容即可发送
+  - 可选SMTP配置参数支持自定义邮箱发送
+  - 更新文档和使用示例
 
 - **v1.0** (2026-03-13): 初始版本
   - 支持发送纯文本邮件

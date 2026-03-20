@@ -49,3 +49,33 @@ CREATE TABLE IF NOT EXISTS short_urls (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_short_code (short_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 用户个人信息表
+CREATE TABLE IF NOT EXISTS user_profile (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    nickname VARCHAR(50) DEFAULT '',
+    real_name VARCHAR(50) DEFAULT '',
+    gender ENUM('unknown', 'male', 'female') DEFAULT 'unknown',
+    age INT DEFAULT NULL,
+    occupation VARCHAR(100) DEFAULT '',
+    bio TEXT,
+    preferences JSON,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 用户偏好设置表
+CREATE TABLE IF NOT EXISTS user_preferences (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    greeting_enabled TINYINT(1) DEFAULT 1,
+    use_nickname TINYINT(1) DEFAULT 1,
+    remember_context TINYINT(1) DEFAULT 1,
+    personalized_responses TINYINT(1) DEFAULT 1,
+    ai_personality VARCHAR(50) DEFAULT 'friendly',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
