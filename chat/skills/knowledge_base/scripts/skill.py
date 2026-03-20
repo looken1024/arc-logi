@@ -260,9 +260,12 @@ class KnowledgeBaseSkill(BaseSkill):
                     tag = cursor.fetchone()
                     if tag:
                         cursor.execute(
-                            "INSERT INTO knowledge_relation (knowledge_base_id, source_item_id, target_item_id, relation_type) "
-                            "VALUES (%s, %s, %s, 'tag')",
-                            (knowledge_base_id, item_id, tag['id'])
+                            "INSERT IGNORE INTO knowledge_item_tag (item_id, tag_id) VALUES (%s, %s)",
+                            (item_id, tag['id'])
+                        )
+                        cursor.execute(
+                            "UPDATE knowledge_tag SET usage_count = usage_count + 1 WHERE id = %s",
+                            (tag['id'],)
                         )
             
             if category:

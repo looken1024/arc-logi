@@ -5429,22 +5429,35 @@ def create_knowledge_relation(kb_id):
                     "SELECT id FROM knowledge_item WHERE id = %s AND knowledge_base_id = %s",
                     (source_item_id, kb_id)
                 )
-                if not cursor.fetchone():
+                source_item = cursor.fetchone()
+                if not source_item:
                     return jsonify({'error': '源头条目不存在'}), 404
                 
                 cursor.execute(
                     "SELECT id FROM knowledge_item WHERE id = %s AND knowledge_base_id = %s",
                     (target_item_id, kb_id)
                 )
-                if not cursor.fetchone():
+                target_item = cursor.fetchone()
+                if not target_item:
                     return jsonify({'error': '目标条目不存在'}), 404
                 
                 cursor.execute(
-                    "INSERT INTO knowledge_relation (knowledge_base_id, source_item_id, target_item_id, relation_type) VALUES (%s, %s, %s, %s)",
+                    """INSERT INTO knowledge_relation (knowledge_base_id, source_item_id, target_item_id, relation_type) 
+                       VALUES (%s, %s, %s, %s)
+                       ON DUPLICATE KEY UPDATE relation_type = VALUES(relation_type)""",
                     (kb_id, source_item_id, target_item_id, relation_type)
                 )
                 conn.commit()
                 rel_id = cursor.lastrowid
+                
+                if rel_id == 0:
+                    cursor.execute(
+                        """SELECT id FROM knowledge_relation 
+                           WHERE knowledge_base_id = %s AND source_item_id = %s AND target_item_id = %s""",
+                        (kb_id, source_item_id, target_item_id)
+                    )
+                    existing = cursor.fetchone()
+                    rel_id = existing['id'] if existing else 0
                 
                 cursor.execute(
                     """SELECT kr.*, ki.title as target_title, ksi.title as source_title

@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS knowledge_category (
 CREATE TABLE IF NOT EXISTS knowledge_relation (
     id INT AUTO_INCREMENT PRIMARY KEY,
     knowledge_base_id INT NOT NULL,
-    source_item_id INT,
+    source_item_id INT DEFAULT NULL,
     target_item_id INT NOT NULL,
     relation_type ENUM('related', 'parent', 'child', 'similar', 'tag', 'reference') DEFAULT 'related',
     weight FLOAT DEFAULT 1.0,
@@ -73,7 +73,22 @@ CREATE TABLE IF NOT EXISTS knowledge_relation (
     INDEX idx_target (target_item_id),
     INDEX idx_type (relation_type),
     INDEX idx_kb (knowledge_base_id),
-    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id) ON DELETE CASCADE
+    UNIQUE KEY uk_relation (knowledge_base_id, source_item_id, target_item_id, relation_type),
+    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id) ON DELETE CASCADE,
+    FOREIGN KEY (source_item_id) REFERENCES knowledge_item(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_item_id) REFERENCES knowledge_item(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 知识条目-标签关联表
+CREATE TABLE IF NOT EXISTS knowledge_item_tag (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    item_id INT NOT NULL,
+    tag_id INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_item_tag (item_id, tag_id),
+    INDEX idx_tag (tag_id),
+    FOREIGN KEY (item_id) REFERENCES knowledge_item(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES knowledge_tag(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 知识版本表
