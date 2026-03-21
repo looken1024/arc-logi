@@ -85,12 +85,10 @@ function detectDevice() {
     });
 }
 
-// 初始化侧边栏状态
+// 初始化侧边栏状态（默认收起，与其他管理页面保持一致）
 function initSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    if (window.innerWidth > 768 && sidebar) {
-        sidebar.classList.add('active');
-    }
+    // 所有页面的侧边栏默认状态统一为收起
+    // 用户可以通过点击切换按钮来展开/收起侧边栏
 }
 
 // 加载用户信息
@@ -252,10 +250,7 @@ function initializeEventListeners() {
 
     // 窗口大小变化时更新侧边栏状态
     window.addEventListener('resize', () => {
-        const sidebar = document.getElementById('sidebar');
-        if (window.innerWidth > 768 && sidebar) {
-            sidebar.classList.add('active');
-        }
+        // 侧边栏状态保持不变，由用户手动控制
     });
 
     // 新对话按钮
@@ -532,6 +527,12 @@ function createNewConversation() {
     elements.welcomeScreen.style.display = 'flex';
     elements.messageInput.value = '';
     elements.sendBtn.disabled = true;
+    
+    // 收起侧边栏（移动端和桌面端）
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.classList.remove('active');
+    }
     
     // 更新对话列表选中状态
     document.querySelectorAll('.conversation-item').forEach(item => {

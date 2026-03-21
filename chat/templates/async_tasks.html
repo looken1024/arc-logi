@@ -1138,11 +1138,14 @@
                         <label for="scheduleCommand"><i class="fas fa-terminal"></i> 执行命令</label>
                         <textarea id="scheduleCommand" name="command" rows="4" required placeholder="请输入要执行的命令或操作描述"></textarea>
                     </div>
-                    <div class="form-group" style="display: none;">
+                    <div class="form-group">
                         <label for="scheduleStatus"><i class="fas fa-toggle-on"></i> 状态</label>
                         <select id="scheduleStatus" name="status">
-                            <option value="active">启用</option>
-                            <option value="paused">暂停</option>
+                            <option value="pending">等待中</option>
+                            <option value="running">运行中</option>
+                            <option value="completed">已完成</option>
+                            <option value="failed">失败</option>
+                            <option value="cancelled">已取消</option>
                         </select>
                     </div>
                     <input type="hidden" id="scheduleId" name="id" value="">

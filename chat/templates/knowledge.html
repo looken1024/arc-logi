@@ -13,6 +13,7 @@
     </script>
     <title>知识库管理 - AI Chat Platform</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tools.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.css">
     <script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
@@ -163,18 +164,20 @@
 
         .main-content {
             flex: 1;
-            margin-left: 240px;
+            margin-left: 0;
             min-height: 100vh;
             background: var(--bg-color);
+            transition: margin-left 0.3s ease;
         }
 
         .page-header {
+            height: 60px;
+            padding: 0 24px;
             display: flex;
             align-items: center;
             gap: 16px;
-            padding: 16px 24px;
-            background: var(--bg-card);
             border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-color);
             position: sticky;
             top: 0;
             z-index: 50;
@@ -205,6 +208,41 @@
         .header-actions {
             display: flex;
             gap: 12px;
+            margin-left: auto;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 8px 14px;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+
+        .search-box i {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            width: 240px;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-secondary);
         }
 
         .btn {
@@ -266,58 +304,11 @@
             color: var(--text-primary);
         }
 
-        .search-container {
-            padding: 16px 24px;
-            background: var(--bg-card);
-        }
-
-        .search-box {
-            max-width: 600px;
-        }
-
-        .search-input-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 14px;
-            color: var(--text-secondary);
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 12px 40px 12px 40px;
-            background: var(--bg-light);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 14px;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        .search-clear {
-            position: absolute;
-            right: 12px;
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-        }
-
-        .content-area {
-            padding: 24px;
-        }
-
         .knowledge-container {
             display: flex;
             gap: 24px;
+            padding: 24px;
+            box-sizing: border-box;
         }
 
         .kb-list-section {
@@ -909,9 +900,35 @@
             
             .knowledge-container {
                 flex-direction: column;
+                padding: 16px;
             }
             
             .kb-list-section {
+                width: 100%;
+            }
+            
+            .page-header {
+                padding: 0 16px;
+                flex-wrap: wrap;
+                height: auto;
+                gap: 12px;
+            }
+            
+            .page-header h1 {
+                width: 100%;
+                font-size: 18px;
+            }
+            
+            .header-actions {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .search-box input {
                 width: 100%;
             }
         }
@@ -957,6 +974,10 @@
                 </button>
                 <h1>知识库管理</h1>
                 <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="搜索知识库、知识条目...">
+                    </div>
                     <button class="btn btn-primary" id="createKbBtn">
                         <i class="fas fa-plus"></i>
                         新建知识库
@@ -964,19 +985,7 @@
                 </div>
             </header>
 
-            <div class="search-container">
-                <div class="search-box">
-                    <div class="search-input-wrapper">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="searchInput" class="search-input" placeholder="搜索知识库、知识条目...">
-                        <button class="search-clear" id="searchClear" style="display: none;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="content-area">
+            <div class="tools-container">
                 <div class="knowledge-container">
                     <div class="kb-list-section">
                         <div class="section-card">
@@ -1261,7 +1270,30 @@
 
         function initEventListeners() {
             document.getElementById('sidebarToggle').addEventListener('click', () => {
-                document.getElementById('sidebar').classList.toggle('active');
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.querySelector('.main-content');
+                sidebar.classList.toggle('active');
+                if (window.innerWidth > 768) {
+                    if (sidebar.classList.contains('active')) {
+                        mainContent.style.marginLeft = '240px';
+                    } else {
+                        mainContent.style.marginLeft = '0';
+                    }
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.querySelector('.main-content');
+                if (window.innerWidth <= 768) {
+                    mainContent.style.marginLeft = '0';
+                } else {
+                    if (sidebar.classList.contains('active')) {
+                        mainContent.style.marginLeft = '240px';
+                    } else {
+                        mainContent.style.marginLeft = '0';
+                    }
+                }
             });
 
             document.getElementById('createKbBtn').addEventListener('click', () => openKbModal());
@@ -1721,9 +1753,6 @@
 
         async function handleSearch() {
             const keyword = document.getElementById('searchInput').value.trim();
-            const searchClear = document.getElementById('searchClear');
-            
-            searchClear.style.display = keyword ? 'block' : 'none';
 
             if (keyword) {
                 try {
@@ -1741,12 +1770,6 @@
                 await loadKnowledgeBases();
             }
         }
-
-        document.getElementById('searchClear').addEventListener('click', () => {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('searchClear').style.display = 'none';
-            loadKnowledgeBases();
-        });
 
         function escapeHtml(text) {
             if (!text) return '';

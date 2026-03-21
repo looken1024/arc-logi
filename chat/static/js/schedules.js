@@ -188,9 +188,7 @@ function initializeEventListeners() {
     });
 
     window.addEventListener('resize', () => {
-        if (window.innerWidth > 768 && elements.sidebar) {
-            elements.sidebar.classList.add('active');
-        }
+        // 侧边栏状态保持不变，由用户手动控制
     });
 
     elements.createScheduleBtn?.addEventListener('click', () => {

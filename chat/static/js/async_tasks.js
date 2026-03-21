@@ -154,9 +154,7 @@ function initializeEventListeners() {
     });
 
     window.addEventListener('resize', () => {
-        if (window.innerWidth > 768 && elements.sidebar) {
-            elements.sidebar.classList.add('active');
-        }
+        // 侧边栏状态保持不变，由用户手动控制
     });
 
     elements.createScheduleBtn?.addEventListener('click', () => {
@@ -594,7 +592,7 @@ function openScheduleModal(schedule = null) {
         elements.scheduleDelay.value = schedule.delay || 0;
     } else {
         elements.scheduleModalTitle.textContent = '新建异步任务';
-        elements.scheduleStatus.value = 'active';
+        elements.scheduleStatus.value = 'pending';
         elements.scheduleDelay.value = 0;
     }
 
@@ -645,7 +643,8 @@ async function saveSchedule() {
         task_name: elements.scheduleName.value.trim(),
         description: elements.scheduleDescription.value.trim(),
         command: elements.scheduleCommand.value.trim(),
-        delay_minutes: parseInt(elements.scheduleDelay.value) || 0
+        delay_minutes: parseInt(elements.scheduleDelay.value) || 0,
+        status: elements.scheduleStatus.value
     };
 
     if (!scheduleData.task_name) {
