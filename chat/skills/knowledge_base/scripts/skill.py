@@ -1,11 +1,54 @@
 import sys
 import os
+import json
+import hashlib
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime
-import json
-import hashlib
+from datetime import datetime, date
+from decimal import Decimal
+
+
+def _get_username(kwargs: Dict[str, Any]) -> str:
+    """
+    统一获取 username 的函数
+    
+    优先级：
+    1. kwargs 中的 'username' 参数
+    2. kwargs 中的 '_username' 参数（app.py 传递的参数）
+    3. 环境变量 DEFAULT_USERNAME
+    4. 默认值 'default'
+    
+    这样确保了从 app.py 调用和直接调用都能正确获取 username
+    """
+    username = kwargs.get('username') or kwargs.get('_username')
+    if username:
+        return username
+    
+    env_username = os.getenv('DEFAULT_USERNAME')
+    if env_username:
+        return env_username
+    
+    return 'default'
+
+
+def _serialize_datetime(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, date):
+        return obj.isoformat()
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
+
+
+def _convert_datetime_fields(data):
+    if isinstance(data, dict):
+        return {k: _convert_datetime_fields(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_convert_datetime_fields(item) for item in data]
+    else:
+        return _serialize_datetime(data)
 
 try:
     from skills.base import BaseSkill
@@ -149,17 +192,17 @@ class KnowledgeBaseSkill(BaseSkill):
         except Exception as e:
             return {"success": False, "error": str(e)}
     
-    def _get_or_create_default_knowledge_base(self, username: str) -> int:
+    def _get_or_create_default_knowledge_base(self, username: str) -> Dict[str, Any]:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
+                "SELECT id, name FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
                 (username,)
             )
             result = cursor.fetchone()
             
             if result:
-                return result['id']
+                return {'id': result['id'], 'name': result['name'], 'is_default': True}
             
             cursor.execute(
                 "INSERT INTO knowledge_base (name, description, username, created_at, updated_at) "
@@ -167,7 +210,7 @@ class KnowledgeBaseSkill(BaseSkill):
                 ('默认知识库', '用户默认知识库', username)
             )
             conn.commit()
-            return cursor.lastrowid
+            return {'id': cursor.lastrowid, 'name': '默认知识库', 'is_default': True}
     
     def _ensure_tables_exist(self):
         with get_db_connection() as conn:
@@ -225,9 +268,11 @@ class KnowledgeBaseSkill(BaseSkill):
     def _write_knowledge(self, content: str, title: Optional[str] = None,
                          tags: Optional[List[str]] = None, category: Optional[str] = None,
                          item_type: str = "text", knowledge_base_id: Optional[int] = None,
-                         username: str = "default", **kwargs) -> Dict[str, Any]:
+                         **kwargs) -> Dict[str, Any]:
         
         self._ensure_tables_exist()
+        
+        username = _get_username(kwargs)
         
         if not content:
             return {"success": False, "error": "知识内容不能为空"}
@@ -235,8 +280,17 @@ class KnowledgeBaseSkill(BaseSkill):
         if not title:
             title = content[:50] + "..." if len(content) > 50 else content
         
+        kb_info = None
         if not knowledge_base_id:
-            knowledge_base_id = self._get_or_create_default_knowledge_base(username)
+            kb_info = self._get_or_create_default_knowledge_base(username)
+            knowledge_base_id = kb_info['id']
+        else:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM knowledge_base WHERE id = %s", (knowledge_base_id,))
+                result = cursor.fetchone()
+                if result:
+                    kb_info = {'id': knowledge_base_id, 'name': result['name'], 'is_default': False}
         
         content_hash = hashlib.md5(content.encode()).hexdigest()
         
@@ -302,6 +356,12 @@ class KnowledgeBaseSkill(BaseSkill):
             
             conn.commit()
             
+            message = ""
+            if kb_info and kb_info.get('is_default'):
+                message = f"已写入主知识库「{kb_info['name']}」。如需写入其他知识库，请指定knowledge_base_id参数。"
+            elif kb_info:
+                message = f"已写入知识库「{kb_info['name']}」（ID: {knowledge_base_id}）。"
+            
             return {
                 "success": True,
                 "data": {
@@ -313,27 +373,42 @@ class KnowledgeBaseSkill(BaseSkill):
                     "type": item_type,
                     "version": 1,
                     "knowledge_base_id": knowledge_base_id,
+                    "knowledge_base_name": kb_info['name'] if kb_info else None,
+                    "is_default_knowledge_base": kb_info.get('is_default', False) if kb_info else False,
                     "created_at": datetime.now().isoformat()
-                }
+                },
+                "message": message
             }
     
     def _search_knowledge(self, query: Optional[str] = None,
                           knowledge_base_id: Optional[int] = None,
                           filters: Optional[Dict] = None,
                           page: int = 1, page_size: int = 20,
-                          username: str = "default", **kwargs) -> Dict[str, Any]:
+                          **kwargs) -> Dict[str, Any]:
+        
+        username = _get_username(kwargs)
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            kb_name = None
+            is_default_kb = False
+            
             if not knowledge_base_id:
                 cursor.execute(
-                    "SELECT id FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
+                    "SELECT id, name FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
                     (username,)
                 )
                 result = cursor.fetchone()
                 if result:
                     knowledge_base_id = result['id']
+                    kb_name = result['name']
+                    is_default_kb = True
+            elif knowledge_base_id:
+                cursor.execute("SELECT name FROM knowledge_base WHERE id = %s", (knowledge_base_id,))
+                result = cursor.fetchone()
+                if result:
+                    kb_name = result['name']
             
             where_clauses = []
             params = []
@@ -403,6 +478,8 @@ class KnowledgeBaseSkill(BaseSkill):
                     item['tags'] = []
                 item.pop('tag_names', None)
             
+            items = _convert_datetime_fields(items)
+            
             suggestions = []
             if query and total == 0:
                 cursor.execute(
@@ -410,6 +487,15 @@ class KnowledgeBaseSkill(BaseSkill):
                     (f"%{query}%",)
                 )
                 suggestions = [r['name'] for r in cursor.fetchall()]
+            
+            search_info = ""
+            if kb_name:
+                if is_default_kb:
+                    search_info = f"正在搜索主知识库「{kb_name}」"
+                else:
+                    search_info = f"正在搜索知识库「{kb_name}」（ID: {knowledge_base_id}）"
+            else:
+                search_info = "未指定知识库，将搜索所有知识库"
             
             return {
                 "success": True,
@@ -419,24 +505,40 @@ class KnowledgeBaseSkill(BaseSkill):
                     "page": page,
                     "page_size": page_size,
                     "total_pages": (total + page_size - 1) // page_size,
-                    "suggestions": suggestions
-                }
+                    "suggestions": suggestions,
+                    "knowledge_base_id": knowledge_base_id,
+                    "knowledge_base_name": kb_name,
+                    "is_default_knowledge_base": is_default_kb
+                },
+                "message": search_info
             }
     
     def _analyze_knowledge(self, knowledge_base_id: Optional[int] = None,
-                           username: str = "default", **kwargs) -> Dict[str, Any]:
+                           **kwargs) -> Dict[str, Any]:
+        
+        username = _get_username(kwargs)
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            kb_name = None
+            is_default_kb = False
+            
             if not knowledge_base_id:
                 cursor.execute(
-                    "SELECT id FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
+                    "SELECT id, name FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
                     (username,)
                 )
                 result = cursor.fetchone()
                 if result:
                     knowledge_base_id = result['id']
+                    kb_name = result['name']
+                    is_default_kb = True
+            elif knowledge_base_id:
+                cursor.execute("SELECT name FROM knowledge_base WHERE id = %s", (knowledge_base_id,))
+                result = cursor.fetchone()
+                if result:
+                    kb_name = result['name']
             
             cursor.execute(
                 """
@@ -498,6 +600,15 @@ class KnowledgeBaseSkill(BaseSkill):
             )
             overview = cursor.fetchone()
             
+            analyze_info = ""
+            if kb_name:
+                if is_default_kb:
+                    analyze_info = f"正在分析主知识库「{kb_name}」"
+                else:
+                    analyze_info = f"正在分析知识库「{kb_name}」（ID: {knowledge_base_id}）"
+            else:
+                analyze_info = "未指定知识库，将分析默认知识库"
+            
             return {
                 "success": True,
                 "data": {
@@ -506,8 +617,12 @@ class KnowledgeBaseSkill(BaseSkill):
                     "growth_trend": growth_trend,
                     "top_tags": top_tags,
                     "content_stats": content_stats,
-                    "insights": self._generate_insights(type_distribution, growth_trend, top_tags, content_stats)
-                }
+                    "insights": self._generate_insights(type_distribution, growth_trend, top_tags, content_stats),
+                    "knowledge_base_id": knowledge_base_id,
+                    "knowledge_base_name": kb_name,
+                    "is_default_knowledge_base": is_default_kb
+                },
+                "message": analyze_info
             }
     
     def _generate_insights(self, type_dist: Dict, growth: List, tags: List, content: Dict) -> List[str]:
@@ -535,7 +650,8 @@ class KnowledgeBaseSkill(BaseSkill):
         
         return insights
     
-    def _list_knowledge_bases(self, username: str = "default", **kwargs) -> Dict[str, Any]:
+    def _list_knowledge_bases(self, **kwargs) -> Dict[str, Any]:
+        username = _get_username(kwargs)
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -550,6 +666,7 @@ class KnowledgeBaseSkill(BaseSkill):
                 (username,)
             )
             bases = cursor.fetchall()
+            bases = _convert_datetime_fields(bases)
             
             return {
                 "success": True,
@@ -560,19 +677,31 @@ class KnowledgeBaseSkill(BaseSkill):
             }
     
     def _get_stats(self, knowledge_base_id: Optional[int] = None,
-                   username: str = "default", **kwargs) -> Dict[str, Any]:
+                   **kwargs) -> Dict[str, Any]:
+        
+        username = _get_username(kwargs)
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            kb_name = None
+            is_default_kb = False
+            
             if not knowledge_base_id:
                 cursor.execute(
-                    "SELECT id FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
+                    "SELECT id, name FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
                     (username,)
                 )
                 result = cursor.fetchone()
                 if result:
                     knowledge_base_id = result['id']
+                    kb_name = result['name']
+                    is_default_kb = True
+            elif knowledge_base_id:
+                cursor.execute("SELECT name FROM knowledge_base WHERE id = %s", (knowledge_base_id,))
+                result = cursor.fetchone()
+                if result:
+                    kb_name = result['name']
             
             stats = {}
             
@@ -617,11 +746,16 @@ class KnowledgeBaseSkill(BaseSkill):
                     "GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 10",
                     (knowledge_base_id,)
                 )
-                stats['recent_activity'] = cursor.fetchall()
+                stats['recent_activity'] = _convert_datetime_fields(cursor.fetchall())
+            
+            stats['knowledge_base_id'] = knowledge_base_id
+            stats['knowledge_base_name'] = kb_name
+            stats['is_default_knowledge_base'] = is_default_kb
             
             return {"success": True, "data": stats}
     
-    def _delete_knowledge(self, item_id: int, username: str = "default", **kwargs) -> Dict[str, Any]:
+    def _delete_knowledge(self, item_id: int, **kwargs) -> Dict[str, Any]:
+        username = _get_username(kwargs)
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
@@ -642,7 +776,9 @@ class KnowledgeBaseSkill(BaseSkill):
     
     def _update_knowledge(self, item_id: int, content: Optional[str] = None,
                           title: Optional[str] = None, tags: Optional[List[str]] = None,
-                          username: str = "default", **kwargs) -> Dict[str, Any]:
+                          **kwargs) -> Dict[str, Any]:
+        
+        username = _get_username(kwargs)
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -706,19 +842,31 @@ class KnowledgeBaseSkill(BaseSkill):
             }
     
     def _get_knowledge_graph(self, knowledge_base_id: Optional[int] = None,
-                             username: str = "default", **kwargs) -> Dict[str, Any]:
+                              **kwargs) -> Dict[str, Any]:
+        
+        username = _get_username(kwargs)
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            kb_name = None
+            is_default_kb = False
+            
             if not knowledge_base_id:
                 cursor.execute(
-                    "SELECT id FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
+                    "SELECT id, name FROM knowledge_base WHERE username = %s AND name = '默认知识库' LIMIT 1",
                     (username,)
                 )
                 result = cursor.fetchone()
                 if result:
                     knowledge_base_id = result['id']
+                    kb_name = result['name']
+                    is_default_kb = True
+            elif knowledge_base_id:
+                cursor.execute("SELECT name FROM knowledge_base WHERE id = %s", (knowledge_base_id,))
+                result = cursor.fetchone()
+                if result:
+                    kb_name = result['name']
             
             cursor.execute(
                 """
@@ -775,11 +923,15 @@ class KnowledgeBaseSkill(BaseSkill):
                 "success": True,
                 "data": {
                     "nodes": nodes,
-                    "edges": edges
+                    "edges": edges,
+                    "knowledge_base_id": knowledge_base_id,
+                    "knowledge_base_name": kb_name,
+                    "is_default_knowledge_base": is_default_kb
                 }
             }
     
     def _get_versions(self, item_id: int, **kwargs) -> Dict[str, Any]:
+        username = _get_username(kwargs)
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -792,6 +944,7 @@ class KnowledgeBaseSkill(BaseSkill):
                 (item_id,)
             )
             versions = cursor.fetchall()
+            versions = _convert_datetime_fields(versions)
             
             return {
                 "success": True,
@@ -803,7 +956,9 @@ class KnowledgeBaseSkill(BaseSkill):
             }
     
     def _rollback_version(self, item_id: int, version_number: int,
-                          username: str = "default", **kwargs) -> Dict[str, Any]:
+                          **kwargs) -> Dict[str, Any]:
+        
+        username = _get_username(kwargs)
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -859,4 +1014,4 @@ if __name__ == "__main__":
     print(f"Parameters: {json.dumps(skill.get_parameters(), indent=2, ensure_ascii=False)}")
     
     result = skill.execute(action="stats", username="test")
-    print(f"\nStats Result: {json.dumps(result, indent=2, ensure_ascii=False)}")
+    print(f"\nStats Result: {json.dumps(_convert_datetime_fields(result), indent=2, ensure_ascii=False)}")

@@ -2876,6 +2876,8 @@ def execute_skill_api(skill_name):
 
     try:
         data = request.json or {}
+        username = session['username']
+        data['username'] = username
         result = skill_registry.execute_skill(skill_name, **data)
         return jsonify(result)
     except Exception as e:
@@ -5060,14 +5062,14 @@ def get_knowledge_bases():
             with conn.cursor() as cursor:
                 if search:
                     cursor.execute(
-                        """SELECT * FROM knowledge_base 
+                        """SELECT *, (name = '默认知识库') as is_default FROM knowledge_base 
                            WHERE username = %s AND (name LIKE %s OR description LIKE %s) 
-                           ORDER BY updated_at DESC""",
+                           ORDER BY is_default DESC, updated_at DESC""",
                         (username, f'%{search}%', f'%{search}%')
                     )
                 else:
                     cursor.execute(
-                        "SELECT * FROM knowledge_base WHERE username = %s ORDER BY updated_at DESC",
+                        "SELECT *, (name = '默认知识库') as is_default FROM knowledge_base WHERE username = %s ORDER BY is_default DESC, updated_at DESC",
                         (username,)
                     )
                 kb_list = cursor.fetchall()

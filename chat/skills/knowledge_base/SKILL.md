@@ -46,7 +46,7 @@
 | title | string | 否 | 知识标题 |
 | tags | array | 否 | 标签列表 |
 | category | string | 否 | 分类 |
-| knowledge_base_id | integer | 否 | 知识库ID（默认使用用户主知识库） |
+| knowledge_base_id | integer | 否 | 知识库ID（不指定则使用主知识库"默认知识库"） |
 | query | string | 否 | 搜索关键词（search时使用） |
 | filters | object | 否 | 筛选条件 |
 
@@ -100,8 +100,12 @@
     "content": "...",
     "tags": ["python", "best-practices"],
     "version": 1,
+    "knowledge_base_id": 1,
+    "knowledge_base_name": "默认知识库",
+    "is_default_knowledge_base": true,
     "created_at": "2026-03-19T10:00:00Z"
-  }
+  },
+  "message": "已写入主知识库「默认知识库」。如需写入其他知识库，请指定knowledge_base_id参数。"
 }
 ```
 
@@ -114,8 +118,12 @@
     "total": 10,
     "page": 1,
     "page_size": 20,
-    "suggestions": ["python", "practices"]
-  }
+    "suggestions": ["python", "practices"],
+    "knowledge_base_id": 1,
+    "knowledge_base_name": "默认知识库",
+    "is_default_knowledge_base": true
+  },
+  "message": "正在搜索主知识库「默认知识库」"
 }
 ```
 
@@ -140,3 +148,37 @@
 2. **版本控制**：每次修改都会创建新版本，支持回滚
 3. **性能优化**：使用索引和缓存提升查询效率
 4. **容量限制**：单知识库最大10000条记录
+
+## 主知识库
+
+### 什么是主知识库？
+
+主知识库（又称"默认知识库"）是系统为每个用户自动创建的知识库。当用户通过skill写入知识但未指定`knowledge_base_id`时，内容会自动写入主知识库。
+
+### 主知识库的特点
+
+- **自动创建**：首次使用skill写入时会自动创建
+- **名称固定**：名为"默认知识库"
+- **始终可用**：不会被删除，确保有地方存放知识
+- **AI写入**：通过AI助手写入的内容默认存放于此
+
+### 如何区分主知识库？
+
+在知识库管理页面，主知识库会有以下标识：
+- 带有⭐图标和"主知识库"标签
+- 带有"AI助手默认写入"提示
+- 显示在列表最顶部
+
+### 最佳实践
+
+1. **重要知识**：建议创建专门的知识库存放
+2. **临时知识**：可写入主知识库，稍后整理
+3. **指定知识库**：写入时明确指定`knowledge_base_id`，避免混淆
+
+### 返回信息
+
+所有操作（write/search/analyze等）的返回结果中会包含：
+- `knowledge_base_id`：知识库ID
+- `knowledge_base_name`：知识库名称
+- `is_default_knowledge_base`：是否为默认知识库
+- `message`：友好的提示信息
