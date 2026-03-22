@@ -2170,6 +2170,305 @@ def update_user_preferences():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/preset-groups', methods=['GET'])
+def get_preset_groups():
+    """获取用户的所有预设分组"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    username = session['username']
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT pg.*, 
+                       GROUP_CONCAT(JSON_OBJECT('id', pi.id, 'content', pi.content, 'display_order', pi.display_order) ORDER BY pi.display_order) as items
+                FROM preset_groups pg
+                LEFT JOIN preset_items pi ON pg.id = pi.group_id
+                WHERE pg.username = %s
+                GROUP BY pg.id
+                ORDER BY pg.display_order
+            """, (username,))
+            groups = cursor.fetchall()
+    
+    result = []
+    for group in groups:
+        items = []
+        if group['items']:
+            import json
+            items_str = group['items']
+            if isinstance(items_str, str):
+                items = json.loads(f'[{items_str}]')
+            else:
+                items = items_str
+        
+        result.append({
+            'id': group['id'],
+            'name': group['name'],
+            'enabled': bool(group['enabled']),
+            'display_order': group['display_order'],
+            'items': items,
+            'created_at': group['created_at'].isoformat() if group['created_at'] else '',
+            'updated_at': group['updated_at'].isoformat() if group['updated_at'] else ''
+        })
+    
+    return jsonify({'groups': result})
+
+@app.route('/api/preset-groups', methods=['POST'])
+def create_preset_group():
+    """创建预设分组"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        name = data.get('name', '').strip()
+        enabled = int(data.get('enabled', True))
+        
+        if not name:
+            return jsonify({'error': '分组名称不能为空'}), 400
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT MAX(display_order) as max_order FROM preset_groups WHERE username = %s", (username,))
+                result = cursor.fetchone()
+                max_order = result['max_order'] if result['max_order'] else 0
+                
+                cursor.execute("""
+                    INSERT INTO preset_groups (username, name, enabled, display_order)
+                    VALUES (%s, %s, %s, %s)
+                """, (username, name, enabled, max_order + 1))
+                conn.commit()
+                group_id = cursor.lastrowid
+        
+        return jsonify({'success': True, 'id': group_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/preset-groups/<int:group_id>', methods=['PUT'])
+def update_preset_group(group_id):
+    """更新预设分组"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id FROM preset_groups WHERE id = %s AND username = %s", (group_id, username))
+                if not cursor.fetchone():
+                    return jsonify({'error': '分组不存在'}), 404
+                
+                name = data.get('name')
+                enabled = data.get('enabled')
+                display_order = data.get('display_order')
+                
+                updates = []
+                params = []
+                if name is not None:
+                    updates.append("name = %s")
+                    params.append(name.strip())
+                if enabled is not None:
+                    updates.append("enabled = %s")
+                    params.append(int(enabled))
+                if display_order is not None:
+                    updates.append("display_order = %s")
+                    params.append(display_order)
+                
+                if updates:
+                    params.append(group_id)
+                    cursor.execute(f"UPDATE preset_groups SET {', '.join(updates)} WHERE id = %s", params)
+                    conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/preset-groups/<int:group_id>', methods=['DELETE'])
+def delete_preset_group(group_id):
+    """删除预设分组"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        username = session['username']
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id FROM preset_groups WHERE id = %s AND username = %s", (group_id, username))
+                if not cursor.fetchone():
+                    return jsonify({'error': '分组不存在'}), 404
+                
+                cursor.execute("DELETE FROM preset_items WHERE group_id = %s", (group_id,))
+                cursor.execute("DELETE FROM preset_groups WHERE id = %s", (group_id,))
+                conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/preset-items', methods=['POST'])
+def create_preset_item():
+    """创建预设项"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        group_id = data.get('group_id')
+        content = data.get('content', '').strip()
+        
+        if not content:
+            return jsonify({'error': '预设内容不能为空'}), 400
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id FROM preset_groups WHERE id = %s AND username = %s", (group_id, username))
+                if not cursor.fetchone():
+                    return jsonify({'error': '分组不存在'}), 404
+                
+                cursor.execute("SELECT MAX(display_order) as max_order FROM preset_items WHERE group_id = %s", (group_id,))
+                result = cursor.fetchone()
+                max_order = result['max_order'] if result['max_order'] else 0
+                
+                cursor.execute("""
+                    INSERT INTO preset_items (group_id, username, content, display_order)
+                    VALUES (%s, %s, %s, %s)
+                """, (group_id, username, content, max_order + 1))
+                conn.commit()
+                item_id = cursor.lastrowid
+        
+        return jsonify({'success': True, 'id': item_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/preset-items/<int:item_id>', methods=['PUT'])
+def update_preset_item(item_id):
+    """更新预设项"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT pi.id FROM preset_items pi
+                    JOIN preset_groups pg ON pi.group_id = pg.id
+                    WHERE pi.id = %s AND pi.username = %s
+                """, (item_id, username))
+                if not cursor.fetchone():
+                    return jsonify({'error': '预设项不存在'}), 404
+                
+                content = data.get('content')
+                display_order = data.get('display_order')
+                
+                updates = []
+                params = []
+                if content is not None:
+                    updates.append("content = %s")
+                    params.append(content.strip())
+                if display_order is not None:
+                    updates.append("display_order = %s")
+                    params.append(display_order)
+                
+                if updates:
+                    params.append(item_id)
+                    cursor.execute(f"UPDATE preset_items SET {', '.join(updates)} WHERE id = %s", params)
+                    conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/preset-items/<int:item_id>', methods=['DELETE'])
+def delete_preset_item(item_id):
+    """删除预设项"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        username = session['username']
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT pi.id FROM preset_items pi
+                    JOIN preset_groups pg ON pi.group_id = pg.id
+                    WHERE pi.id = %s AND pi.username = %s
+                """, (item_id, username))
+                if not cursor.fetchone():
+                    return jsonify({'error': '预设项不存在'}), 404
+                
+                cursor.execute("DELETE FROM preset_items WHERE id = %s", (item_id,))
+                conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/preset-items/reorder', methods=['PUT'])
+def reorder_preset_items():
+    """批量更新预设项排序"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        items = data.get('items', [])
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                for item in items:
+                    item_id = item.get('id')
+                    display_order = item.get('display_order')
+                    if item_id and display_order is not None:
+                        cursor.execute("""
+                            UPDATE preset_items pi
+                            JOIN preset_groups pg ON pi.group_id = pg.id
+                            SET pi.display_order = %s
+                            WHERE pi.id = %s AND pi.username = %s
+                        """, (display_order, item_id, username))
+                conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/preset-groups/reorder', methods=['PUT'])
+def reorder_preset_groups():
+    """批量更新预设分组排序"""
+    if 'username' not in session:
+        return jsonify({'error': '未登录'}), 401
+    
+    try:
+        data = request.json
+        username = session['username']
+        groups = data.get('groups', [])
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                for group in groups:
+                    group_id = group.get('id')
+                    display_order = group.get('display_order')
+                    if group_id and display_order is not None:
+                        cursor.execute("""
+                            UPDATE preset_groups
+                            SET display_order = %s
+                            WHERE id = %s AND username = %s
+                        """, (display_order, group_id, username))
+                conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 THEME_CSS_VARS = {
     'dark': {
         '--primary-color': '#10a37f',

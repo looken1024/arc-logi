@@ -896,9 +896,15 @@ body {
 
 /* 输入区域 */
 .input-container {
-    padding: 16px 24px 24px;
+    padding: 0;
     background-color: var(--bg-color);
     border-top: 1px solid var(--border-color);
+}
+
+.preset-input-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 12px 16px 0;
 }
 
 .input-wrapper {
@@ -1615,6 +1621,286 @@ body {
 
 .btn-primary i {
     font-size: 14px;
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background-color: var(--bg-hover);
+    color: var(--text-color);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-secondary:hover {
+    background-color: var(--border-color);
+    transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary i {
+    font-size: 14px;
+}
+
+.preset-input-container {
+    padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    background-color: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border-color);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.preset-input-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.preset-input-container::-webkit-scrollbar-track {
+    background: var(--scrollbar-bg);
+}
+
+.preset-input-container::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+}
+
+.preset-input-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.preset-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    font-size: 13px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.preset-tag:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.preset-tag.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.preset-tag.disabled:hover {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.preset-groups-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preset-group-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.preset-group-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.preset-group-card.disabled {
+    opacity: 0.6;
+}
+
+.preset-group-card.disabled .preset-group-name {
+    text-decoration: line-through;
+}
+
+.preset-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.preset-group-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.preset-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.preset-group-toggle .switch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+}
+
+.preset-group-toggle .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.preset-group-toggle .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: 0.3s;
+    border-radius: 22px;
+}
+
+.preset-group-toggle .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.preset-group-toggle input:checked + .slider {
+    background-color: var(--primary-color);
+}
+
+.preset-group-toggle input:checked + .slider:before {
+    transform: translateX(18px);
+}
+
+.preset-group-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.preset-items-section {
+    margin-top: 20px;
+}
+
+.preset-items-section h4 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.preset-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.preset-item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.preset-item-row:hover {
+    border-color: var(--primary-color);
+    background-color: var(--hover-bg);
+}
+
+.preset-item-row .drag-handle {
+    color: var(--text-secondary);
+    cursor: grab;
+}
+
+.preset-item-row .drag-handle:active {
+    cursor: grabbing;
+}
+
+.preset-item-content {
+    flex: 1;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.preset-item-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.preset-item-row:hover .preset-item-actions {
+    opacity: 1;
+}
+
+.preset-item-actions button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.preset-item-actions button:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.preset-item-actions button.delete:hover {
+    color: #ff4444;
+}
+
+.preset-management .empty-state {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
+}
+
+.preset-management .empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: var(--border-color);
 }
 
 /* 主题变量 */

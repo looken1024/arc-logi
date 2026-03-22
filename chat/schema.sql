@@ -79,3 +79,31 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 预设输入分组表
+CREATE TABLE IF NOT EXISTS preset_groups (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    enabled TINYINT(1) DEFAULT 1,
+    display_order INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_username (username),
+    INDEX idx_display_order (username, display_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 预设输入项表
+CREATE TABLE IF NOT EXISTS preset_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    group_id INT NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    display_order INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_group_id (group_id),
+    INDEX idx_username (username),
+    INDEX idx_display_order (group_id, display_order),
+    FOREIGN KEY (group_id) REFERENCES preset_groups(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

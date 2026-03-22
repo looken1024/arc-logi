@@ -154,6 +154,9 @@
 
             <!-- 输入区域 -->
             <div class="input-container">
+                <div class="preset-input-container" id="presetInputContainer">
+                    <!-- 预设输入将动态加载 -->
+                </div>
                 <div class="input-wrapper">
                     <textarea 
                         id="messageInput" 
@@ -348,6 +351,91 @@
                     <button class="logout-btn" onclick="logout()" style="margin-top: 10px;">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>退出登录</span>
+                    </button>
+                </div>
+                <div class="setting-section">
+                    <h3>预设输入</h3>
+                    <p class="setting-description">管理聊天预设输入，快速填充常用语句</p>
+                    <div class="preset-management" id="presetManagement">
+                        <div class="preset-groups-list" id="presetGroupsList">
+                            <!-- 预设分组将动态加载 -->
+                        </div>
+                        <button class="btn-primary" id="addPresetGroupBtn" style="margin-top: 15px;">
+                            <i class="fas fa-plus"></i>
+                            <span>添加预设组</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预设组编辑模态框 -->
+    <div class="modal" id="presetGroupModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="presetGroupModalTitle"><i class="fas fa-layer-group"></i> 编辑预设组</h2>
+                <button class="modal-close" id="closePresetGroupModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="presetGroupName">组名称</label>
+                    <input type="text" id="presetGroupName" placeholder="请输入预设组名称" maxlength="100">
+                </div>
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="presetGroupEnabled" checked>
+                        <span>启用此预设组</span>
+                    </label>
+                </div>
+                <div class="preset-items-section">
+                    <h4>预设项</h4>
+                    <div class="preset-items-list" id="presetItemsList">
+                        <!-- 预设项将动态加载 -->
+                    </div>
+                    <button class="btn-secondary" id="addPresetItemBtn" style="margin-top: 10px;">
+                        <i class="fas fa-plus"></i>
+                        <span>添加预设项</span>
+                    </button>
+                </div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button class="btn-primary" id="savePresetGroupBtn">
+                        <i class="fas fa-save"></i>
+                        <span>保存</span>
+                    </button>
+                    <button class="btn-secondary" id="deletePresetGroupBtn" style="margin-left: 10px;">
+                        <i class="fas fa-trash"></i>
+                        <span>删除</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预设项编辑模态框 -->
+    <div class="modal" id="presetItemModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="presetItemModalTitle"><i class="fas fa-edit"></i> 编辑预设项</h2>
+                <button class="modal-close" id="closePresetItemModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="presetItemContent">预设内容</label>
+                    <textarea id="presetItemContent" placeholder="请输入预设内容" rows="4" maxlength="2000"></textarea>
+                </div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button class="btn-primary" id="savePresetItemBtn">
+                        <i class="fas fa-save"></i>
+                        <span>保存</span>
+                    </button>
+                    <button class="btn-secondary" id="deletePresetItemBtn" style="margin-left: 10px;">
+                        <i class="fas fa-trash"></i>
+                        <span>删除</span>
                     </button>
                 </div>
             </div>

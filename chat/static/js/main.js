@@ -49,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
     loadAgentsForSelect();
+    loadPresetInputs();
+    initPresetEventListeners();
     if (document.getElementById('conversationsList')) {
         loadConversations();
     }
@@ -303,6 +305,7 @@ function initializeEventListeners() {
     elements.settingsBtn?.addEventListener('click', async () => {
         elements.settingsModal?.classList.add('active');
         await loadUserProfile();
+        await loadPresetManagement();
     });
 
     // 关闭设置
@@ -1175,6 +1178,480 @@ function sendAudioToServer(audioBlob) {
     .catch(error => {
         console.error('上传音频失败:', error);
         showError('语音识别失败: ' + error.message);
+    });
+}
+
+// 预设输入相关变量
+let presetGroups = [];
+let currentEditingGroupId = null;
+let currentEditingItemId = null;
+let draggedItem = null;
+
+// 加载预设输入显示
+async function loadPresetInputs() {
+    try {
+        const response = await fetch('/api/preset-groups', {
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            presetGroups = data.groups || [];
+            renderPresetInputContainer();
+        }
+    } catch (error) {
+        console.error('加载预设输入失败:', error);
+    }
+}
+
+// 渲染预设输入显示区域
+function renderPresetInputContainer() {
+    const container = document.getElementById('presetInputContainer');
+    if (!container) return;
+    
+    const enabledGroups = presetGroups.filter(g => g.enabled);
+    
+    if (enabledGroups.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    for (const group of enabledGroups) {
+        if (group.items && group.items.length > 0) {
+            for (const item of group.items) {
+                html += `<button class="preset-tag" data-content="${escapeHtml(item.content)}" onclick="fillPresetInput(this)">${escapeHtml(item.content)}</button>`;
+            }
+        }
+    }
+    
+    container.innerHTML = html;
+}
+
+// 填充预设输入到输入框
+function fillPresetInput(btn) {
+    const content = btn.dataset.content;
+    elements.messageInput.value = content;
+    elements.sendBtn.disabled = false;
+    elements.messageInput.focus();
+    autoResizeTextarea();
+}
+
+// 加载预设管理列表
+async function loadPresetManagement() {
+    try {
+        const response = await fetch('/api/preset-groups', {
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            presetGroups = data.groups || [];
+            renderPresetGroupsList();
+        }
+    } catch (error) {
+        console.error('加载预设管理失败:', error);
+    }
+}
+
+// 渲染预设分组列表
+function renderPresetGroupsList() {
+    const container = document.getElementById('presetGroupsList');
+    if (!container) return;
+    
+    if (presetGroups.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-layer-group"></i>
+                <p>暂无预设组</p>
+                <p style="font-size: 12px; margin-top: 8px;">点击上方按钮添加预设组</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    for (const group of presetGroups) {
+        const itemCount = group.items ? group.items.length : 0;
+        html += `
+            <div class="preset-group-card ${group.enabled ? '' : 'disabled'}" data-id="${group.id}" onclick="openPresetGroupModal(${group.id})">
+                <div class="preset-group-header">
+                    <span class="preset-group-name">${escapeHtml(group.name)}</span>
+                    <div class="preset-group-toggle" onclick="event.stopPropagation();">
+                        <label class="switch">
+                            <input type="checkbox" ${group.enabled ? 'checked' : ''} onchange="togglePresetGroup(${group.id}, this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="preset-group-info">${itemCount} 个预设项</div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+// 打开预设组编辑模态框
+function openPresetGroupModal(groupId) {
+    currentEditingGroupId = groupId;
+    const group = presetGroups.find(g => g.id === groupId);
+    
+    if (!group) return;
+    
+    document.getElementById('presetGroupModalTitle').innerHTML = '<i class="fas fa-layer-group"></i> 编辑预设组';
+    document.getElementById('presetGroupName').value = group.name;
+    document.getElementById('presetGroupEnabled').checked = group.enabled;
+    
+    renderPresetItemsList(group.items || []);
+    
+    document.getElementById('presetGroupModal').classList.add('active');
+}
+
+// 渲染预设项列表
+function renderPresetItemsList(items) {
+    const container = document.getElementById('presetItemsList');
+    if (!container) return;
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="padding: 20px; color: var(--text-secondary);"><p>暂无预设项，点击下方按钮添加</p></div>';
+        return;
+    }
+    
+    let html = '';
+    for (const item of items) {
+        html += `
+            <div class="preset-item-row" data-id="${item.id}" draggable="true">
+                <span class="drag-handle"><i class="fas fa-bars"></i></span>
+                <span class="preset-item-content">${escapeHtml(item.content)}</span>
+                <div class="preset-item-actions">
+                    <button onclick="openPresetItemModal(${item.id})" title="编辑">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="delete" onclick="deletePresetItem(${item.id})" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // 拖拽排序
+    container.querySelectorAll('.preset-item-row').forEach(row => {
+        row.addEventListener('dragstart', handleDragStart);
+        row.addEventListener('dragend', handleDragEnd);
+        row.addEventListener('dragover', handleDragOver);
+        row.addEventListener('drop', handleDrop);
+    });
+}
+
+function handleDragStart(e) {
+    draggedItem = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd() {
+    this.classList.remove('dragging');
+    draggedItem = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    if (this !== draggedItem) {
+        const container = document.getElementById('presetItemsList');
+        const items = [...container.querySelectorAll('.preset-item-row:not(.dragging)')];
+        const draggedIdx = items.indexOf(draggedItem);
+        const dropIdx = items.indexOf(this);
+        
+        if (draggedIdx < dropIdx) {
+            container.insertBefore(draggedItem, this.nextSibling);
+        } else {
+            container.insertBefore(draggedItem, this);
+        }
+        
+        // 更新排序
+        updateItemsOrder();
+    }
+}
+
+function updateItemsOrder() {
+    const container = document.getElementById('presetItemsList');
+    const rows = container.querySelectorAll('.preset-item-row');
+    const items = [];
+    
+    rows.forEach((row, idx) => {
+        items.push({
+            id: parseInt(row.dataset.id),
+            display_order: idx
+        });
+    });
+    
+    fetch('/api/preset-items/reorder', {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadPresetManagement();
+            loadPresetInputs();
+        }
+    })
+    .catch(error => {
+        console.error('更新排序失败:', error);
+    });
+}
+
+// 切换预设组启用状态
+async function togglePresetGroup(groupId, enabled) {
+    try {
+        const response = await fetch(`/api/preset-groups/${groupId}`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        
+        if (response.ok) {
+            loadPresetManagement();
+            loadPresetInputs();
+        }
+    } catch (error) {
+        console.error('切换预设组状态失败:', error);
+    }
+}
+
+// 添加预设组
+async function addPresetGroup() {
+    try {
+        const response = await fetch('/api/preset-groups', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: '新预设组', enabled: true })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            loadPresetManagement();
+            openPresetGroupModal(data.id);
+        }
+    } catch (error) {
+        console.error('添加预设组失败:', error);
+    }
+}
+
+// 保存预设组
+async function savePresetGroup() {
+    const name = document.getElementById('presetGroupName').value.trim();
+    const enabled = document.getElementById('presetGroupEnabled').checked;
+    
+    if (!name) {
+        alert('请输入预设组名称');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/preset-groups/${currentEditingGroupId}`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, enabled })
+        });
+        
+        if (response.ok) {
+            loadPresetManagement();
+            loadPresetInputs();
+            document.getElementById('presetGroupModal').classList.remove('active');
+        }
+    } catch (error) {
+        console.error('保存预设组失败:', error);
+    }
+}
+
+// 删除预设组
+async function deletePresetGroup() {
+    if (!confirm('确定要删除此预设组吗？组内的所有预设项也会被删除。')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/preset-groups/${currentEditingGroupId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            loadPresetManagement();
+            loadPresetInputs();
+            document.getElementById('presetGroupModal').classList.remove('active');
+        }
+    } catch (error) {
+        console.error('删除预设组失败:', error);
+    }
+}
+
+// 添加预设项
+async function addPresetItem() {
+    try {
+        const response = await fetch('/api/preset-items', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ group_id: currentEditingGroupId, content: '新预设项' })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            openPresetItemModal(data.id, true);
+        }
+    } catch (error) {
+        console.error('添加预设项失败:', error);
+    }
+}
+
+// 打开预设项编辑模态框
+function openPresetItemModal(itemId, isNew = false) {
+    currentEditingItemId = itemId;
+    
+    if (isNew) {
+        document.getElementById('presetItemModalTitle').innerHTML = '<i class="fas fa-plus"></i> 新建预设项';
+        document.getElementById('presetItemContent').value = '';
+    } else {
+        const group = presetGroups.find(g => g.id === currentEditingGroupId);
+        if (!group) return;
+        
+        const item = group.items.find(i => i.id === itemId);
+        if (!item) {
+            document.getElementById('presetItemModalTitle').innerHTML = '<i class="fas fa-edit"></i> 编辑预设项';
+            document.getElementById('presetItemContent').value = '';
+        } else {
+            document.getElementById('presetItemModalTitle').innerHTML = '<i class="fas fa-edit"></i> 编辑预设项';
+            document.getElementById('presetItemContent').value = item.content;
+        }
+    }
+    
+    document.getElementById('presetItemModal').classList.add('active');
+}
+
+// 保存预设项
+async function savePresetItem() {
+    const content = document.getElementById('presetItemContent').value.trim();
+    
+    if (!content) {
+        alert('请输入预设内容');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/preset-items/${currentEditingItemId}`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        
+        if (response.ok) {
+            loadPresetManagement();
+            loadPresetInputs();
+            
+            // 刷新当前编辑的组
+            const group = presetGroups.find(g => g.id === currentEditingGroupId);
+            if (group) {
+                const updatedGroup = await fetch(`/api/preset-groups/${currentEditingGroupId}`, {
+                    credentials: 'same-origin'
+                }).then(r => r.json());
+                if (updatedGroup.groups && updatedGroup.groups[0]) {
+                    renderPresetItemsList(updatedGroup.groups[0].items || []);
+                }
+            }
+            
+            document.getElementById('presetItemModal').classList.remove('active');
+        }
+    } catch (error) {
+        console.error('保存预设项失败:', error);
+    }
+}
+
+// 删除预设项
+async function deletePresetItem(itemId) {
+    if (!confirm('确定要删除此预设项吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/preset-items/${itemId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            loadPresetManagement();
+            loadPresetInputs();
+            
+            // 刷新当前编辑的组
+            const group = presetGroups.find(g => g.id === currentEditingGroupId);
+            if (group) {
+                const updatedGroup = await fetch(`/api/preset-groups/${currentEditingGroupId}`, {
+                    credentials: 'same-origin'
+                }).then(r => r.json());
+                if (updatedGroup.groups && updatedGroup.groups[0]) {
+                    renderPresetItemsList(updatedGroup.groups[0].items || []);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('删除预设项失败:', error);
+    }
+}
+
+// 初始化预设输入事件监听器
+function initPresetEventListeners() {
+    // 添加预设组按钮
+    document.getElementById('addPresetGroupBtn')?.addEventListener('click', addPresetGroup);
+    
+    // 预设组模态框
+    document.getElementById('closePresetGroupModal')?.addEventListener('click', () => {
+        document.getElementById('presetGroupModal').classList.remove('active');
+    });
+    
+    document.getElementById('presetGroupModal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('presetGroupModal')) {
+            document.getElementById('presetGroupModal').classList.remove('active');
+        }
+    });
+    
+    document.getElementById('savePresetGroupBtn')?.addEventListener('click', savePresetGroup);
+    document.getElementById('deletePresetGroupBtn')?.addEventListener('click', deletePresetGroup);
+    
+    // 添加预设项按钮
+    document.getElementById('addPresetItemBtn')?.addEventListener('click', addPresetItem);
+    
+    // 预设项模态框
+    document.getElementById('closePresetItemModal')?.addEventListener('click', () => {
+        document.getElementById('presetItemModal').classList.remove('active');
+    });
+    
+    document.getElementById('presetItemModal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('presetItemModal')) {
+            document.getElementById('presetItemModal').classList.remove('active');
+        }
+    });
+    
+    document.getElementById('savePresetItemBtn')?.addEventListener('click', savePresetItem);
+    document.getElementById('deletePresetItemBtn')?.addEventListener('click', () => {
+        deletePresetItem(currentEditingItemId);
+        document.getElementById('presetItemModal').classList.remove('active');
     });
 }
 
