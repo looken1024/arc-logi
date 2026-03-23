@@ -1443,7 +1443,7 @@ async function addPresetGroup() {
         
         if (response.ok) {
             const data = await response.json();
-            loadPresetManagement();
+            await loadPresetManagement();
             openPresetGroupModal(data.id);
         }
     } catch (error) {

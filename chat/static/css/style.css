@@ -898,7 +898,6 @@ body {
 .input-container {
     padding: 0;
     background-color: var(--bg-color);
-    border-top: 1px solid var(--border-color);
 }
 
 .preset-input-container {
@@ -1657,8 +1656,7 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    background-color: var(--sidebar-bg);
-    border-bottom: 1px solid var(--border-color);
+    background-color: transparent;
     max-height: 150px;
     overflow-y: auto;
 }
@@ -1693,7 +1691,8 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
-    max-width: 200px;
+    min-width: 60px;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
 }
