@@ -942,41 +942,6 @@
         .btn-icon-sm.delete:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
         .btn-icon-sm.output:hover { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
 
-        /* 搜索框样式 */
-        .search-box {
-            display: flex;
-            align-items: center;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 8px 14px;
-            gap: 8px;
-            transition: all 0.2s;
-        }
-
-        .search-box:focus-within {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
-        }
-
-        .search-box i {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        .search-box input {
-            border: none;
-            background: transparent;
-            color: var(--text-primary);
-            font-size: 14px;
-            outline: none;
-            width: 200px;
-        }
-
-        .search-box input::placeholder {
-            color: var(--text-secondary);
-        }
-
         .loading-more {
             text-align: center;
             padding: 20px;
@@ -994,6 +959,277 @@
         #loadMoreTrigger {
             height: 20px;
             margin-bottom: 20px;
+        }
+
+        /* 头部布局样式 - 与Agent管理页面保持一致 */
+        .async-tasks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            max-width: 100%;
+            min-width: 0;
+        }
+        .async-tasks-header .search-wrapper {
+            flex: 1;
+            max-width: 350px;
+            min-width: 150px;
+            width: 100%;
+        }
+        .async-tasks-header .btn-primary {
+            padding: 8px 14px;
+            height: 36px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            min-width: auto;
+        }
+        .async-tasks-header .btn-primary span {
+            display: inline;
+        }
+        .async-tasks-header .btn-icon {
+            padding: 8px;
+            height: 36px;
+            width: 36px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 1024px) {
+            .page-header {
+                height: auto;
+                min-height: 60px;
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .page-header h1 {
+                width: 100%;
+                flex-shrink: 0;
+            }
+            .async-tasks-header {
+                gap: 10px;
+                flex-wrap: wrap;
+                width: 100%;
+                min-width: 0;
+            }
+            .async-tasks-header .search-wrapper {
+                max-width: none;
+                flex: 1;
+                min-width: 200px;
+            }
+            .async-tasks-header .btn-primary {
+                padding: 8px 12px;
+                font-size: 13px;
+                flex-shrink: 0;
+            }
+            .async-tasks-header .btn-icon {
+                padding: 8px;
+                width: 36px;
+                height: 36px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header {
+                padding: 12px 16px;
+            }
+            .page-header h1 {
+                font-size: 18px;
+            }
+            .async-tasks-header {
+                flex-wrap: wrap;
+                gap: 10px;
+                width: 100%;
+                min-width: 0;
+            }
+            .async-tasks-header .search-wrapper {
+                order: 2;
+                max-width: 100%;
+                flex: 1;
+                min-width: 0;
+            }
+            .async-tasks-header .btn-primary {
+                order: 1;
+                padding: 8px 12px;
+                font-size: 13px;
+                flex-shrink: 0;
+                min-width: auto;
+            }
+            .async-tasks-header .btn-icon {
+                order: 3;
+                padding: 8px;
+                width: 36px;
+                height: 36px;
+            }
+            .async-tasks-header .btn-primary i {
+                margin-right: 4px;
+                flex-shrink: 0;
+            }
+            .async-tasks-header .btn-primary span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: inline-block;
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .page-header h1 {
+                font-size: 16px;
+            }
+            .sidebar-toggle {
+                padding: 6px 8px;
+            }
+            .async-tasks-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .async-tasks-header .search-wrapper {
+                order: 1;
+                width: 100%;
+                max-width: 100%;
+                min-width: 120px;
+            }
+            .async-tasks-header .btn-primary {
+                order: 2;
+                width: 100%;
+                justify-content: center;
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+            .async-tasks-header .btn-icon {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .async-tasks-header .btn-primary {
+                padding: 7px 8px;
+                font-size: 11px;
+            }
+            .async-tasks-header .search-wrapper {
+                min-width: 100px;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .async-tasks-header .btn-primary {
+                padding: 8px 10px;
+            }
+            .async-tasks-header .btn-primary span {
+                display: none;
+            }
+            .async-tasks-header .btn-primary::after {
+                content: "新建";
+            }
+            .page-header h1 {
+                font-size: 15px;
+            }
+            .sidebar-toggle {
+                padding: 5px 6px;
+                font-size: 14px;
+            }
+        }
+
+        /* 搜索框样式 - 与Agent管理页面保持一致 */
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            border: 1px solid var(--border-color, #d0d0d0);
+            border-radius: 8px;
+            padding: 5px 12px;
+            width: 100%;
+            height: 36px;
+            box-sizing: border-box;
+        }
+        .search-box i {
+            color: #888;
+            flex-shrink: 0;
+        }
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: #333333;
+            flex: 1;
+            min-width: 0;
+            outline: none;
+            font-size: 14px;
+        }
+        .search-box input::placeholder {
+            color: #888;
+        }
+        .search-box:focus-within {
+            border-color: var(--primary-color, #10a37f);
+            box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.15);
+        }
+
+        body[data-theme="light"] .search-box {
+            background: #ffffff;
+            border-color: #d0d0d0;
+        }
+        body[data-theme="light"] .search-box input {
+            color: #333333;
+        }
+        body[data-theme="light"] .search-box i,
+        body[data-theme="light"] .search-box input::placeholder {
+            color: #888;
+        }
+
+        body[data-theme="dark"] .search-box,
+        body[data-theme="blue"] .search-box,
+        body[data-theme="green"] .search-box,
+        body[data-theme="purple"] .search-box,
+        body[data-theme="red"] .search-box,
+        body[data-theme="orange"] .search-box,
+        body[data-theme="pink"] .search-box,
+        body[data-theme="cyan"] .search-box,
+        body[data-theme="indigo"] .search-box {
+            background: #2a2a2a;
+            border-color: #404040;
+        }
+        body[data-theme="dark"] .search-box input,
+        body[data-theme="blue"] .search-box input,
+        body[data-theme="green"] .search-box input,
+        body[data-theme="purple"] .search-box input,
+        body[data-theme="red"] .search-box input,
+        body[data-theme="orange"] .search-box input,
+        body[data-theme="pink"] .search-box input,
+        body[data-theme="cyan"] .search-box input,
+        body[data-theme="indigo"] .search-box input {
+            color: #e0e0e0;
+        }
+        body[data-theme="dark"] .search-box i,
+        body[data-theme="dark"] .search-box input::placeholder,
+        body[data-theme="blue"] .search-box i,
+        body[data-theme="blue"] .search-box input::placeholder,
+        body[data-theme="green"] .search-box i,
+        body[data-theme="green"] .search-box input::placeholder,
+        body[data-theme="purple"] .search-box i,
+        body[data-theme="purple"] .search-box input::placeholder,
+        body[data-theme="red"] .search-box i,
+        body[data-theme="red"] .search-box input::placeholder,
+        body[data-theme="orange"] .search-box i,
+        body[data-theme="orange"] .search-box input::placeholder,
+        body[data-theme="pink"] .search-box i,
+        body[data-theme="pink"] .search-box input::placeholder,
+        body[data-theme="cyan"] .search-box i,
+        body[data-theme="cyan"] .search-box input::placeholder,
+        body[data-theme="indigo"] .search-box i,
+        body[data-theme="indigo"] .search-box input::placeholder {
+            color: #888;
         }
     </style>
 </head>
@@ -1036,17 +1272,19 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <h1>异步任务</h1>
-                <div class="header-actions">
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchTaskInput" placeholder="搜索任务名称...">
+                <div class="header-actions async-tasks-header">
+                    <div class="search-wrapper">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchTaskInput" placeholder="搜索任务名称...">
+                        </div>
                     </div>
                     <button class="btn btn-icon" id="refreshListBtn" title="刷新列表">
                         <i class="fas fa-sync-alt"></i>
                     </button>
                     <button class="btn btn-primary" id="createScheduleBtn">
                         <i class="fas fa-plus"></i>
-                        新建异步任务
+                        <span>新建异步任务</span>
                     </button>
                 </div>
             </header>

@@ -41,6 +41,253 @@
             --text-primary: #ececec;
             --bg-tertiary: #4d2d6d;
         }
+
+        /* 头部布局样式 - 与Agent管理页面保持一致 */
+        .workflows-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            max-width: 100%;
+            min-width: 0;
+        }
+        .workflows-header .search-wrapper {
+            flex: 1;
+            max-width: 350px;
+            min-width: 150px;
+            width: 100%;
+        }
+        .workflows-header .btn-primary {
+            padding: 8px 14px;
+            height: 36px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            min-width: auto;
+        }
+        .workflows-header .btn-primary span {
+            display: inline;
+        }
+
+        @media (max-width: 1024px) {
+            .page-header {
+                height: auto;
+                min-height: 60px;
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .page-header h1 {
+                width: 100%;
+                flex-shrink: 0;
+            }
+            .workflows-header {
+                gap: 10px;
+                flex-wrap: wrap;
+                width: 100%;
+                min-width: 0;
+            }
+            .workflows-header .search-wrapper {
+                max-width: none;
+                flex: 1;
+                min-width: 200px;
+            }
+            .workflows-header .btn-primary {
+                padding: 8px 12px;
+                font-size: 13px;
+                flex-shrink: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header {
+                padding: 12px 16px;
+            }
+            .page-header h1 {
+                font-size: 18px;
+            }
+            .workflows-header {
+                flex-wrap: wrap;
+                gap: 10px;
+                width: 100%;
+                min-width: 0;
+            }
+            .workflows-header .search-wrapper {
+                order: 2;
+                max-width: 100%;
+                flex: 1;
+                min-width: 0;
+            }
+            .workflows-header .btn-primary {
+                order: 1;
+                padding: 8px 12px;
+                font-size: 13px;
+                flex-shrink: 0;
+                min-width: auto;
+            }
+            .workflows-header .btn-primary i {
+                margin-right: 4px;
+                flex-shrink: 0;
+            }
+            .workflows-header .btn-primary span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: inline-block;
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .page-header h1 {
+                font-size: 16px;
+            }
+            .sidebar-toggle {
+                padding: 6px 8px;
+            }
+            .workflows-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .workflows-header .search-wrapper {
+                order: 1;
+                width: 100%;
+                max-width: 100%;
+                min-width: 120px;
+            }
+            .workflows-header .btn-primary {
+                order: 2;
+                width: 100%;
+                justify-content: center;
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .workflows-header .btn-primary {
+                padding: 7px 8px;
+                font-size: 11px;
+            }
+            .workflows-header .search-wrapper {
+                min-width: 100px;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .workflows-header .btn-primary {
+                padding: 8px 10px;
+            }
+            .workflows-header .btn-primary span {
+                display: none;
+            }
+            .workflows-header .btn-primary::after {
+                content: "新建";
+            }
+            .page-header h1 {
+                font-size: 15px;
+            }
+            .sidebar-toggle {
+                padding: 5px 6px;
+                font-size: 14px;
+            }
+        }
+
+        /* 搜索框样式 - 与Agent管理页面保持一致 */
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #ffffff;
+            border: 1px solid var(--border-color, #d0d0d0);
+            border-radius: 8px;
+            padding: 5px 12px;
+            width: 100%;
+            height: 36px;
+            box-sizing: border-box;
+        }
+        .search-box i {
+            color: #888;
+            flex-shrink: 0;
+        }
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: #333333;
+            flex: 1;
+            min-width: 0;
+            outline: none;
+            font-size: 14px;
+        }
+        .search-box input::placeholder {
+            color: #888;
+        }
+        .search-box:focus-within {
+            border-color: var(--primary-color, #10a37f);
+            box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.15);
+        }
+
+        body[data-theme="light"] .search-box {
+            background: #ffffff;
+            border-color: #d0d0d0;
+        }
+        body[data-theme="light"] .search-box input {
+            color: #333333;
+        }
+        body[data-theme="light"] .search-box i,
+        body[data-theme="light"] .search-box input::placeholder {
+            color: #888;
+        }
+
+        body[data-theme="dark"] .search-box,
+        body[data-theme="blue"] .search-box,
+        body[data-theme="green"] .search-box,
+        body[data-theme="purple"] .search-box,
+        body[data-theme="red"] .search-box,
+        body[data-theme="orange"] .search-box,
+        body[data-theme="pink"] .search-box,
+        body[data-theme="cyan"] .search-box,
+        body[data-theme="indigo"] .search-box {
+            background: #2a2a2a;
+            border-color: #404040;
+        }
+        body[data-theme="dark"] .search-box input,
+        body[data-theme="blue"] .search-box input,
+        body[data-theme="green"] .search-box input,
+        body[data-theme="purple"] .search-box input,
+        body[data-theme="red"] .search-box input,
+        body[data-theme="orange"] .search-box input,
+        body[data-theme="pink"] .search-box input,
+        body[data-theme="cyan"] .search-box input,
+        body[data-theme="indigo"] .search-box input {
+            color: #e0e0e0;
+        }
+        body[data-theme="dark"] .search-box i,
+        body[data-theme="dark"] .search-box input::placeholder,
+        body[data-theme="blue"] .search-box i,
+        body[data-theme="blue"] .search-box input::placeholder,
+        body[data-theme="green"] .search-box i,
+        body[data-theme="green"] .search-box input::placeholder,
+        body[data-theme="purple"] .search-box i,
+        body[data-theme="purple"] .search-box input::placeholder,
+        body[data-theme="red"] .search-box i,
+        body[data-theme="red"] .search-box input::placeholder,
+        body[data-theme="orange"] .search-box i,
+        body[data-theme="orange"] .search-box input::placeholder,
+        body[data-theme="pink"] .search-box i,
+        body[data-theme="pink"] .search-box input::placeholder,
+        body[data-theme="cyan"] .search-box i,
+        body[data-theme="cyan"] .search-box input::placeholder,
+        body[data-theme="indigo"] .search-box i,
+        body[data-theme="indigo"] .search-box input::placeholder {
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -82,26 +329,22 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <h1>工作流管理</h1>
-                <div class="header-actions">
+                <div class="header-actions workflows-header">
+                    <div class="search-wrapper">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchInput" placeholder="搜索工作流名称、描述、创建者...">
+                            <button class="search-clear" id="searchClear" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
                     <button class="btn btn-primary" id="createWorkflowBtn">
                         <i class="fas fa-plus"></i>
-                        新建工作流
+                        <span>新建工作流</span>
                     </button>
                 </div>
             </header>
-
-            <!-- 搜索区域 -->
-            <div class="search-container">
-                <div class="search-box">
-                    <div class="search-input-wrapper">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="searchInput" class="search-input" placeholder="搜索工作流名称、描述、创建者...">
-                        <button class="search-clear" id="searchClear" style="display: none;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             <div class="workflows-container">
                 <!-- 搜索结果信息 -->
