@@ -42,7 +42,6 @@
             --bg-tertiary: #4d2d6d;
         }
 
-        /* 头部布局样式 - 与Agent管理页面保持一致 */
         .workflows-header {
             display: flex;
             justify-content: space-between;
@@ -199,7 +198,41 @@
             }
         }
 
-        /* 搜索框样式 - 与Agent管理页面保持一致 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--primary-color, #10a37f);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover, #0d8c6d);
+        }
+        .btn-secondary {
+            background: var(--bg-tertiary, #333);
+            color: var(--text-primary, #e0e0e0);
+        }
+        .btn-secondary:hover {
+            background: var(--hover-bg, #404040);
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
         .search-box {
             display: flex;
             align-items: center;
@@ -248,24 +281,14 @@
         body[data-theme="dark"] .search-box,
         body[data-theme="blue"] .search-box,
         body[data-theme="green"] .search-box,
-        body[data-theme="purple"] .search-box,
-        body[data-theme="red"] .search-box,
-        body[data-theme="orange"] .search-box,
-        body[data-theme="pink"] .search-box,
-        body[data-theme="cyan"] .search-box,
-        body[data-theme="indigo"] .search-box {
+        body[data-theme="purple"] .search-box {
             background: #2a2a2a;
             border-color: #404040;
         }
         body[data-theme="dark"] .search-box input,
         body[data-theme="blue"] .search-box input,
         body[data-theme="green"] .search-box input,
-        body[data-theme="purple"] .search-box input,
-        body[data-theme="red"] .search-box input,
-        body[data-theme="orange"] .search-box input,
-        body[data-theme="pink"] .search-box input,
-        body[data-theme="cyan"] .search-box input,
-        body[data-theme="indigo"] .search-box input {
+        body[data-theme="purple"] .search-box input {
             color: #e0e0e0;
         }
         body[data-theme="dark"] .search-box i,
@@ -275,17 +298,7 @@
         body[data-theme="green"] .search-box i,
         body[data-theme="green"] .search-box input::placeholder,
         body[data-theme="purple"] .search-box i,
-        body[data-theme="purple"] .search-box input::placeholder,
-        body[data-theme="red"] .search-box i,
-        body[data-theme="red"] .search-box input::placeholder,
-        body[data-theme="orange"] .search-box i,
-        body[data-theme="orange"] .search-box input::placeholder,
-        body[data-theme="pink"] .search-box i,
-        body[data-theme="pink"] .search-box input::placeholder,
-        body[data-theme="cyan"] .search-box i,
-        body[data-theme="cyan"] .search-box input::placeholder,
-        body[data-theme="indigo"] .search-box i,
-        body[data-theme="indigo"] .search-box input::placeholder {
+        body[data-theme="purple"] .search-box input::placeholder {
             color: #888;
         }
     </style>
@@ -333,10 +346,7 @@
                     <div class="search-wrapper">
                         <div class="search-box">
                             <i class="fas fa-search"></i>
-                            <input type="text" id="searchInput" placeholder="搜索工作流名称、描述、创建者...">
-                            <button class="search-clear" id="searchClear" style="display: none;">
-                                <i class="fas fa-times"></i>
-                            </button>
+                            <input type="text" id="searchInput" placeholder="搜索工作流...">
                         </div>
                     </div>
                     <button class="btn btn-primary" id="createWorkflowBtn">

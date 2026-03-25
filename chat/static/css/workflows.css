@@ -417,10 +417,6 @@
         justify-content: center;
     }
     
-    .search-box {
-        flex-direction: column;
-    }
-    
     .advanced-search-panel {
         padding: 12px;
     }
