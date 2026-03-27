@@ -14,6 +14,7 @@
 .page-header h1 {
     font-size: 20px;
     font-weight: 600;
+    flex: 1;
 }
 
 .search-box {
@@ -23,11 +24,21 @@
     align-items: center;
 }
 
+/* page-header-search 容器内的搜索框使用统一样式 */
+.page-header-search .search-box {
+    margin-left: 0;
+}
+
 .search-box i {
     position: absolute;
     left: 12px;
     color: var(--text-secondary);
     font-size: 14px;
+}
+
+/* page-header-search 容器内的图标使用统一样式 */
+.page-header-search .search-box i {
+    position: static;
 }
 
 .search-box input {
@@ -42,9 +53,22 @@
     transition: all 0.2s;
 }
 
+/* page-header-search 容器内的输入框使用统一样式 */
+.page-header-search .search-box input {
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
 .search-box input:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* page-header-search 容器内的输入框 focus 样式 */
+.page-header-search .search-box input:focus {
+    box-shadow: none;
 }
 
 .search-box input::placeholder {

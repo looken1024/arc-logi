@@ -961,38 +961,37 @@
             margin-bottom: 20px;
         }
 
-        /* 头部布局样式 - 与Agent管理页面保持一致 */
+        /* 头部布局样式 - 每个组件单独一行 */
         .async-tasks-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
             gap: 12px;
             flex: 1;
-            max-width: 100%;
-            min-width: 0;
-        }
-        .async-tasks-header .search-wrapper {
-            flex: 1;
-            max-width: 350px;
-            min-width: 150px;
             width: 100%;
         }
+        .async-tasks-header .search-wrapper {
+            width: 100%;
+            max-width: 100%;
+        }
         .async-tasks-header .btn-primary {
-            padding: 8px 14px;
-            height: 36px;
+            padding: 10px 16px;
+            height: 42px;
             white-space: nowrap;
             flex-shrink: 0;
             box-sizing: border-box;
             min-width: auto;
+            width: 100%;
+            justify-content: center;
         }
         .async-tasks-header .btn-primary span {
             display: inline;
         }
         .async-tasks-header .btn-icon {
-            padding: 8px;
-            height: 36px;
-            width: 36px;
-            flex-shrink: 0;
+            padding: 10px 16px;
+            height: 42px;
+            width: 100%;
+            justify-content: center;
+            box-sizing: border-box;
         }
 
         @media (max-width: 1024px) {
@@ -1009,24 +1008,7 @@
             }
             .async-tasks-header {
                 gap: 10px;
-                flex-wrap: wrap;
                 width: 100%;
-                min-width: 0;
-            }
-            .async-tasks-header .search-wrapper {
-                max-width: none;
-                flex: 1;
-                min-width: 200px;
-            }
-            .async-tasks-header .btn-primary {
-                padding: 8px 12px;
-                font-size: 13px;
-                flex-shrink: 0;
-            }
-            .async-tasks-header .btn-icon {
-                padding: 8px;
-                width: 36px;
-                height: 36px;
             }
         }
 
@@ -1038,40 +1020,8 @@
                 font-size: 18px;
             }
             .async-tasks-header {
-                flex-wrap: wrap;
                 gap: 10px;
                 width: 100%;
-                min-width: 0;
-            }
-            .async-tasks-header .search-wrapper {
-                order: 2;
-                max-width: 100%;
-                flex: 1;
-                min-width: 0;
-            }
-            .async-tasks-header .btn-primary {
-                order: 1;
-                padding: 8px 12px;
-                font-size: 13px;
-                flex-shrink: 0;
-                min-width: auto;
-            }
-            .async-tasks-header .btn-icon {
-                order: 3;
-                padding: 8px;
-                width: 36px;
-                height: 36px;
-            }
-            .async-tasks-header .btn-primary i {
-                margin-right: 4px;
-                flex-shrink: 0;
-            }
-            .async-tasks-header .btn-primary span {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                display: inline-block;
-                max-width: 100%;
             }
         }
 
@@ -1087,52 +1037,18 @@
                 padding: 6px 8px;
             }
             .async-tasks-header {
-                flex-direction: column;
-                align-items: stretch;
                 gap: 8px;
-            }
-            .async-tasks-header .search-wrapper {
-                order: 1;
-                width: 100%;
-                max-width: 100%;
-                min-width: 120px;
-            }
-            .async-tasks-header .btn-primary {
-                order: 2;
-                width: 100%;
-                justify-content: center;
-                padding: 8px 10px;
-                font-size: 12px;
-            }
-            .async-tasks-header .btn-icon {
-                order: 3;
-                width: 100%;
-                justify-content: center;
-                padding: 8px 10px;
-                font-size: 12px;
             }
         }
 
         @media (max-width: 360px) {
             .async-tasks-header .btn-primary {
-                padding: 7px 8px;
-                font-size: 11px;
-            }
-            .async-tasks-header .search-wrapper {
-                min-width: 100px;
+                padding: 8px 10px;
+                font-size: 13px;
             }
         }
 
         @media (max-width: 375px) {
-            .async-tasks-header .btn-primary {
-                padding: 8px 10px;
-            }
-            .async-tasks-header .btn-primary span {
-                display: none;
-            }
-            .async-tasks-header .btn-primary::after {
-                content: "新建";
-            }
             .page-header h1 {
                 font-size: 15px;
             }

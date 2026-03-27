@@ -17,6 +17,70 @@
     flex: 1;
 }
 
+.page-header-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    width: 100%;
+    max-width: 100%;
+}
+
+.page-header-search {
+    width: 100%;
+    max-width: 100%;
+}
+
+.page-header-search .search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-secondary, #2a2a2a);
+    border: 1px solid var(--border-color, #404040);
+    border-radius: 8px;
+    padding: 5px 12px;
+    width: 100%;
+    height: 36px;
+    box-sizing: border-box;
+}
+
+.page-header-search .search-box i {
+    color: var(--text-muted, #888);
+    flex-shrink: 0;
+}
+
+.page-header-search .search-box input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary, #e0e0e0);
+    flex: 1;
+    min-width: 0;
+    outline: none;
+    font-size: 14px;
+}
+
+.page-header-search .search-box input::placeholder {
+    color: var(--text-muted, #888);
+}
+
+.page-header-search .search-box:focus-within {
+    border-color: var(--primary-color, #10a37f);
+    box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.15);
+}
+
+.page-header-actions .btn-primary {
+    width: 100%;
+    height: 40px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    justify-content: center;
+}
+
+.page-header-actions .btn-primary span {
+    display: inline;
+}
+
 .header-actions {
     display: flex;
     align-items: center;
@@ -375,9 +439,54 @@
 }
 
 /* 响应式设计 */
+@media (max-width: 1024px) {
+    .page-header {
+        height: auto;
+        min-height: 60px;
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .page-header h1 {
+        width: 100%;
+        flex-shrink: 0;
+    }
+    .page-header-actions {
+        gap: 10px;
+        width: 100%;
+        min-width: 0;
+    }
+    
+    .page-header-search {
+        width: 100%;
+    }
+    
+    .page-header-actions .btn-primary {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+}
+
 @media (max-width: 768px) {
     .page-header {
-        padding: 0 16px;
+        padding: 12px 16px;
+    }
+    
+    .page-header-actions {
+        gap: 10px;
+        width: 100%;
+        min-width: 0;
+    }
+    
+    .page-header-search {
+        width: 100%;
+    }
+    
+    .page-header-actions .btn-primary {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 13px;
     }
     
     .workflows-container {
@@ -432,6 +541,59 @@
     .date-range {
         flex-direction: column;
         gap: 8px;
+    }
+}
+
+/* 响应式设计 - 小屏幕 (480px) */
+@media (max-width: 480px) {
+    .page-header {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+    .page-header h1 {
+        font-size: 16px;
+    }
+    .sidebar-toggle {
+        padding: 6px 8px;
+    }
+    .page-header-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .page-header-search {
+        width: 100%;
+    }
+    
+    .page-header-actions .btn-primary {
+        width: 100%;
+        justify-content: center;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+}
+
+/* 响应式设计 - 超小屏幕 (360px) */
+@media (max-width: 360px) {
+    .page-header-actions .btn-primary {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+    
+    .page-header-search {
+        width: 100%;
+    }
+}
+
+/* 响应式设计 - iPhone标准 (375px) */
+@media (max-width: 375px) {
+    .page-header-actions .btn-primary {
+        padding: 8px 10px;
+    }
+    
+    .page-header-actions .btn-primary span {
+        display: inline;
     }
 }
 

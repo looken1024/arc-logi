@@ -43,26 +43,24 @@
         }
         .agents-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
+            gap: 10px;
             flex: 1;
             max-width: 100%;
             min-width: 0;
-        }
-        .agents-header .search-wrapper {
-            flex: 1;
-            max-width: 350px;
-            min-width: 150px;
             width: 100%;
         }
+        .agents-header .search-wrapper {
+            width: 100%;
+            max-width: 100%;
+        }
         .agents-header .btn-primary {
-            padding: 8px 14px;
-            height: 36px;
+            width: 100%;
+            height: 40px;
             white-space: nowrap;
             flex-shrink: 0;
             box-sizing: border-box;
-            min-width: auto;
+            justify-content: center;
         }
         .agents-header .btn-primary span {
             display: inline;
@@ -150,19 +148,16 @@
             }
             .agents-header {
                 gap: 10px;
-                flex-wrap: wrap;
                 width: 100%;
                 min-width: 0;
             }
             .agents-header .search-wrapper {
-                max-width: none;
-                flex: 1;
-                min-width: 200px;
+                width: 100%;
             }
             .agents-header .btn-primary {
+                width: 100%;
                 padding: 8px 12px;
                 font-size: 13px;
-                flex-shrink: 0;
             }
         }
 
@@ -174,34 +169,17 @@
                 font-size: 18px;
             }
             .agents-header {
-                flex-wrap: wrap;
                 gap: 10px;
                 width: 100%;
                 min-width: 0;
             }
             .agents-header .search-wrapper {
-                order: 2;
-                max-width: 100%;
-                flex: 1;
-                min-width: 0;
+                width: 100%;
             }
             .agents-header .btn-primary {
-                order: 1;
+                width: 100%;
                 padding: 8px 12px;
                 font-size: 13px;
-                flex-shrink: 0;
-                min-width: auto;
-            }
-            .agents-header .btn-primary i {
-                margin-right: 4px;
-                flex-shrink: 0;
-            }
-            .agents-header .btn-primary span {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                display: inline-block;
-                max-width: 100%;
             }
         }
 
@@ -222,13 +200,9 @@
                 gap: 8px;
             }
             .agents-header .search-wrapper {
-                order: 1;
                 width: 100%;
-                max-width: 100%;
-                min-width: 120px;
             }
             .agents-header .btn-primary {
-                order: 2;
                 width: 100%;
                 justify-content: center;
                 padding: 8px 10px;
@@ -238,11 +212,11 @@
 
         @media (max-width: 360px) {
             .agents-header .btn-primary {
-                padding: 7px 8px;
-                font-size: 11px;
+                padding: 8px 10px;
+                font-size: 12px;
             }
             .agents-header .search-wrapper {
-                min-width: 100px;
+                width: 100%;
             }
         }
 
@@ -251,9 +225,9 @@
                 padding: 8px 10px;
             }
             .agents-header .btn-primary span {
-                display: none;
+                display: inline;
             }
-            .agents-header .btn-primary::after {
+        }
                 content: "新建";
             }
             .page-header h1 {
