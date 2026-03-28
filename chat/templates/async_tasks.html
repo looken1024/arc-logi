@@ -961,26 +961,40 @@
             margin-bottom: 20px;
         }
 
-        /* 头部布局样式 - 每个组件单独一行 */
+        /* 头部布局样式 - 一行显示，2:1:2比例 */
         .async-tasks-header {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 12px;
             flex: 1;
             width: 100%;
+            align-items: center;
         }
         .async-tasks-header .search-wrapper {
-            width: 100%;
-            max-width: 100%;
+            flex: 3;
+            width: 42.85%;
+            max-width: 42.85%;
+        }
+        .async-tasks-header .btn-icon {
+            flex: 1;
+            width: 14.3%;
+            min-width: unset;
+            padding: 10px 16px;
+            height: 42px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            justify-content: center;
         }
         .async-tasks-header .btn-primary {
+            flex: 3;
+            width: 42.85%;
             padding: 10px 16px;
             height: 42px;
             white-space: nowrap;
             flex-shrink: 0;
             box-sizing: border-box;
             min-width: auto;
-            width: 100%;
             justify-content: center;
         }
         .async-tasks-header .btn-primary span {
@@ -1007,8 +1021,23 @@
                 flex-shrink: 0;
             }
             .async-tasks-header {
+                flex-direction: row;
                 gap: 10px;
                 width: 100%;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
             }
         }
 
@@ -1020,8 +1049,21 @@
                 font-size: 18px;
             }
             .async-tasks-header {
+                flex-direction: row;
                 gap: 10px;
                 width: 100%;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
             }
         }
 
@@ -1037,12 +1079,239 @@
                 padding: 6px 8px;
             }
             .async-tasks-header {
+                flex-direction: row;
                 gap: 8px;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
+            }
+        }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 20%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 2;
+                width: 40%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header {
+                padding: 12px 16px;
+            }
+            .page-header h1 {
+                font-size: 18px;
+            }
+            .async-tasks-header {
+                flex-direction: row;
+                gap: 10px;
+                width: 100%;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header {
+                padding: 12px 16px;
+            }
+            .page-header h1 {
+                font-size: 18px;
+            }
+            .async-tasks-header {
+                flex-direction: row;
+                gap: 10px;
+                width: 100%;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .page-header h1 {
+                font-size: 16px;
+            }
+            .sidebar-toggle {
+                padding: 6px 8px;
+            }
+            .async-tasks-header {
+                flex-direction: row;
+                gap: 8px;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
+            }
+        }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 20%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 2;
+                width: 40%;
+            }
+            .async-tasks-header .btn-primary,
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 50%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .page-header h1 {
+                font-size: 16px;
+            }
+            .sidebar-toggle {
+                padding: 6px 8px;
+            }
+            .async-tasks-header {
+                flex-direction: row;
+                gap: 8px;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-header {
+                padding: 12px 16px;
+            }
+            .page-header h1 {
+                font-size: 18px;
+            }
+            .async-tasks-header {
+                flex-direction: row;
+                gap: 10px;
+                width: 100%;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .page-header h1 {
+                font-size: 16px;
+            }
+            .sidebar-toggle {
+                padding: 6px 8px;
+            }
+            .async-tasks-header {
+                flex-direction: row;
+                gap: 8px;
+            }
+            .async-tasks-header .search-wrapper {
+                flex: 3;
+                width: 42.85%;
+            }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 14.3%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 3;
+                width: 42.85%;
+            }
+        }
+            .async-tasks-header .btn-icon {
+                flex: 1;
+                width: 20%;
+                min-width: unset;
+                padding: 10px;
+            }
+            .async-tasks-header .btn-primary {
+                flex: 2;
+                width: 40%;
             }
         }
 
         @media (max-width: 360px) {
-            .async-tasks-header .btn-primary {
+            .async-tasks-header .btn-primary,
+            .async-tasks-header .btn-icon {
                 padding: 8px 10px;
                 font-size: 13px;
             }
@@ -1068,7 +1337,7 @@
             border-radius: 8px;
             padding: 5px 12px;
             width: 100%;
-            height: 36px;
+            height: 42px;
             box-sizing: border-box;
         }
         .search-box i {
@@ -1188,7 +1457,7 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <h1>异步任务</h1>
-                <div class="header-actions async-tasks-header">
+                <div class="async-tasks-header">
                     <div class="search-wrapper">
                         <div class="search-box">
                             <i class="fas fa-search"></i>
@@ -1200,7 +1469,7 @@
                     </button>
                     <button class="btn btn-primary" id="createScheduleBtn">
                         <i class="fas fa-plus"></i>
-                        <span>新建异步任务</span>
+                        <span>新建</span>
                     </button>
                 </div>
             </header>

@@ -939,26 +939,29 @@
             margin-bottom: 20px;
         }
 
-        /* 头部布局样式 - 每个组件单独一行 */
+        /* 头部布局样式 - 一行显示，3:3比例 */
         .schedules-header {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 12px;
             flex: 1;
             width: 100%;
+            align-items: center;
         }
         .schedules-header .search-wrapper {
-            width: 100%;
-            max-width: 100%;
+            flex: 6;
+            width: 60%;
+            max-width: 60%;
         }
         .schedules-header .btn-primary {
+            flex: 4;
+            width: 40%;
             padding: 10px 16px;
             height: 42px;
             white-space: nowrap;
             flex-shrink: 0;
             box-sizing: border-box;
             min-width: auto;
-            width: 100%;
             justify-content: center;
         }
         .schedules-header .btn-primary span {
@@ -978,8 +981,17 @@
                 flex-shrink: 0;
             }
             .schedules-header {
+                flex-direction: row;
                 gap: 10px;
                 width: 100%;
+            }
+            .schedules-header .search-wrapper {
+                flex: 1;
+                width: 50%;
+            }
+            .schedules-header .btn-primary {
+                flex: 1;
+                width: 50%;
             }
         }
 
@@ -991,8 +1003,17 @@
                 font-size: 18px;
             }
             .schedules-header {
+                flex-direction: row;
                 gap: 10px;
                 width: 100%;
+            }
+            .schedules-header .search-wrapper {
+                flex: 1;
+                width: 50%;
+            }
+            .schedules-header .btn-primary {
+                flex: 1;
+                width: 50%;
             }
         }
 
@@ -1008,7 +1029,16 @@
                 padding: 6px 8px;
             }
             .schedules-header {
+                flex-direction: row;
                 gap: 8px;
+            }
+            .schedules-header .search-wrapper {
+                flex: 1;
+                width: 50%;
+            }
+            .schedules-header .btn-primary {
+                flex: 1;
+                width: 50%;
             }
         }
 
@@ -1039,7 +1069,7 @@
             border-radius: 8px;
             padding: 5px 12px;
             width: 100%;
-            height: 36px;
+            height: 42px;
             box-sizing: border-box;
         }
         .search-box i {
@@ -1159,7 +1189,7 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <h1>定时任务</h1>
-                <div class="header-actions schedules-header">
+                <div class="schedules-header">
                     <div class="search-wrapper">
                         <div class="search-box">
                             <i class="fas fa-search"></i>

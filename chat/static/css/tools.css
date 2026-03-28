@@ -14,25 +14,31 @@
 .page-header h1 {
     font-size: 20px;
     font-weight: 600;
-    flex: 1;
+    flex-shrink: 0;
 }
 
 .search-box {
-    margin-left: auto;
+    margin-left: 0;
     position: relative;
     display: flex;
     align-items: center;
+    background: #ffffff;
+    border: 1px solid var(--border-color, #d0d0d0);
+    border-radius: 8px;
+    height: 42px;
+    box-sizing: border-box;
 }
 
 /* page-header-search 容器内的搜索框使用统一样式 */
 .page-header-search .search-box {
     margin-left: 0;
+    background: #ffffff;
 }
 
 .search-box i {
     position: absolute;
     left: 12px;
-    color: var(--text-secondary);
+    color: #888888;
     font-size: 14px;
 }
 
@@ -44,10 +50,10 @@
 .search-box input {
     width: 240px;
     padding: 8px 12px 8px 36px;
-    border: 1px solid var(--border-color);
+    border: none;
     border-radius: 8px;
-    background-color: var(--message-bg);
-    color: var(--text-color);
+    background-color: #ffffff;
+    color: #333333;
     font-size: 14px;
     outline: none;
     transition: all 0.2s;
@@ -57,8 +63,9 @@
 .page-header-search .search-box input {
     width: 100%;
     padding: 0;
-    background: transparent;
+    background: #ffffff;
     border: none;
+    color: #333333;
 }
 
 .search-box input:focus {
@@ -207,9 +214,32 @@
         font-size: 18px;
     }
     
+    .header-actions,
+    .page-header-actions {
+        width: 100%;
+        flex-direction: row;
+        gap: 10px;
+    }
+    
+    .header-actions .search-wrapper,
+    .page-header-actions .page-header-search {
+        flex: 6;
+        width: 60%;
+    }
+    
+    .header-actions .btn-primary,
+    .page-header-actions .btn-primary {
+        flex: 4;
+        width: 40%;
+        padding: 8px 12px;
+        font-size: 13px;
+        height: 42px;
+    }
+    
     .search-box {
         margin-left: 0;
         width: 100%;
+        height: 42px;
     }
     
     .search-box input {

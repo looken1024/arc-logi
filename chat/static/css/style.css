@@ -345,7 +345,7 @@ body {
 }
 
 .model-selector {
-    flex: 1;
+    flex: 0 1 auto;
     display: flex;
     justify-content: flex-start;
     min-width: 0;
@@ -382,6 +382,7 @@ body {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+    margin-left: auto;
 }
 
 .icon-btn {
@@ -1106,7 +1107,7 @@ body {
     }
     
     .model-selector {
-        flex: 1;
+        flex: 0 0 auto;
         min-width: 0;
         display: flex;
         justify-content: flex-start;
@@ -1114,13 +1115,13 @@ body {
     
     .model-selector select {
         max-width: 180px;
-        width: 100%;
+        width: auto;
     }
     
     .header-actions {
         flex-shrink: 0;
         gap: 4px;
-        margin-left: 8px;
+        margin-left: auto !important;
     }
     
     .icon-btn {
@@ -1143,8 +1144,9 @@ body {
     }
     
     .header-actions {
+        flex-shrink: 0;
         gap: 2px;
-        margin-left: 4px;
+        margin-left: auto !important;
     }
     
     .icon-btn {
@@ -1193,6 +1195,15 @@ body {
         padding: 4px;
         font-size: 16px;
         margin-right: 2px;
+    }
+    
+    .model-selector {
+        flex: 0 0 auto;
+    }
+    
+    .header-actions {
+        flex-shrink: 0;
+        margin-left: auto !important;
     }
     
     .icon-btn {
@@ -2338,11 +2349,24 @@ body.is-mobile-device .model-selector select option {
 /* 页面头部操作区域 - 统一布局容器 */
 .page-header-actions {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    gap: 12px;
     flex: 1;
     width: 100%;
     max-width: 100%;
+    align-items: center;
+}
+
+.page-header-actions .search-wrapper,
+.page-header-actions .page-header-search {
+    flex: 6;
+    width: 60%;
+}
+
+.page-header-actions .btn-primary {
+    flex: 4;
+    width: 40%;
+    height: 42px;
 }
 
 /* 搜索框包装器 - 限制最大宽度 */
@@ -2361,7 +2385,7 @@ body.is-mobile-device .model-selector select option {
     border-radius: 8px;
     padding: 5px 12px;
     width: 100%;
-    height: 36px;
+    height: 42px;
     box-sizing: border-box;
 }
 
@@ -2417,17 +2441,21 @@ body.is-mobile-device .model-selector select option {
         flex-shrink: 0;
     }
     .page-header-actions {
+        flex-direction: row;
         gap: 10px;
         width: 100%;
         min-width: 0;
     }
     
-    .page-header-search {
-        width: 100%;
+    .page-header-actions .search-wrapper,
+    .page-header-actions .page-header-search {
+        flex: 1;
+        width: 50%;
     }
     
     .page-header-actions .btn-primary {
-        width: 100%;
+        flex: 1;
+        width: 50%;
         padding: 8px 12px;
         font-size: 13px;
     }
@@ -2442,17 +2470,21 @@ body.is-mobile-device .model-selector select option {
         font-size: 18px;
     }
     .page-header-actions {
+        flex-direction: row;
         gap: 10px;
         width: 100%;
         min-width: 0;
     }
     
-    .page-header-search {
-        width: 100%;
+    .page-header-actions .search-wrapper,
+    .page-header-actions .page-header-search {
+        flex: 1;
+        width: 50%;
     }
     
     .page-header-actions .btn-primary {
-        width: 100%;
+        flex: 1;
+        width: 50%;
         padding: 8px 12px;
         font-size: 13px;
     }
@@ -2471,17 +2503,19 @@ body.is-mobile-device .model-selector select option {
         padding: 6px 8px;
     }
     .page-header-actions {
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
         gap: 8px;
     }
     
-    .page-header-search {
-        width: 100%;
+    .page-header-actions .search-wrapper,
+    .page-header-actions .page-header-search {
+        flex: 1;
+        width: 50%;
     }
     
     .page-header-actions .btn-primary {
-        width: 100%;
+        flex: 1;
+        width: 50%;
         justify-content: center;
         padding: 8px 10px;
         font-size: 12px;
@@ -2490,13 +2524,18 @@ body.is-mobile-device .model-selector select option {
 
 /* 响应式设计 - 超小屏幕 (360px) */
 @media (max-width: 360px) {
+    .page-header-actions {
+        gap: 6px;
+    }
     .page-header-actions .btn-primary {
         padding: 8px 10px;
         font-size: 12px;
     }
     
-    .page-header-search {
-        width: 100%;
+    .page-header-actions .search-wrapper,
+    .page-header-actions .page-header-search {
+        flex: 1;
+        width: 50%;
     }
 }
 
@@ -2509,6 +2548,9 @@ body.is-mobile-device .model-selector select option {
         padding: 5px 6px;
         font-size: 14px;
     }
+    .page-header-actions {
+        gap: 6px;
+    }
     .page-header-actions .btn-primary {
         padding: 8px 10px;
     }
@@ -2517,4 +2559,5 @@ body.is-mobile-device .model-selector select option {
         display: inline;
     }
 }
-}
+
+
