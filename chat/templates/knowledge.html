@@ -249,14 +249,152 @@
         }
 
         .kb-list-section {
-            width: 320px;
+            width: 280px;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .kb-detail-section {
             flex: 1;
             min-width: 0;
         }
+
+        .catalog-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .catalog-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border-radius: 6px;
+            margin: 2px 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .catalog-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .catalog-item.active {
+            background: var(--primary-color);
+            color: #fff;
+        }
+
+        .catalog-item.active .catalog-icon {
+            color: #fff;
+        }
+
+        .catalog-item.active .catalog-count {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .catalog-folder {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .catalog-icon {
+            width: 20px;
+            margin-right: 8px;
+            color: var(--primary-color);
+            text-align: center;
+        }
+
+        .catalog-arrow {
+            width: 16px;
+            margin-right: 4px;
+            transition: transform 0.2s;
+            color: var(--text-secondary);
+        }
+
+        .catalog-arrow.expanded {
+            transform: rotate(90deg);
+        }
+
+        .catalog-arrow.hidden {
+            visibility: hidden;
+        }
+
+        .catalog-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .catalog-count {
+            font-size: 11px;
+            padding: 1px 6px;
+            background: var(--bg-light);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+        }
+
+        .catalog-children {
+            display: none;
+            padding-left: 12px;
+        }
+
+        .catalog-children.expanded {
+            display: block;
+        }
+
+        .catalog-child-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px 6px 28px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border-radius: 6px;
+            margin: 2px 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .catalog-child-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .catalog-child-item.active {
+            background: rgba(16, 163, 127, 0.15);
+            color: var(--primary-color);
+            border-left: 2px solid var(--primary-color);
+        }
+
+        .catalog-child-icon {
+            width: 16px;
+            margin-right: 6px;
+            color: var(--text-secondary);
+        }
+
+        .catalog-child-item.active .catalog-child-icon {
+            color: var(--primary-color);
+        }
+
+        .catalog-type-badge {
+            font-size: 9px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+
+        .catalog-type-text { background: #10a37f; color: #fff; }
+        .catalog-type-qa { background: #3b82f6; color: #fff; }
+        .catalog-type-concept { background: #f59e0b; color: #fff; }
+        .catalog-type-procedure { background: #ef4444; color: #fff; }
 
         .section-card {
             background: var(--bg-card);
@@ -1085,6 +1223,10 @@
                             <input type="text" id="searchInput" placeholder="搜索知识库、知识条目...">
                         </div>
                     </div>
+                    <button class="btn btn-secondary" id="addItemBtn" style="display: none;">
+                        <i class="fas fa-plus"></i>
+                        <span>添加条目</span>
+                    </button>
                     <button class="btn btn-primary" id="createKbBtn">
                         <i class="fas fa-plus"></i>
                         <span>新建知识库</span>
@@ -1095,12 +1237,14 @@
             <div class="tools-container">
                 <div class="knowledge-container">
                     <div class="kb-list-section">
-                        <div class="section-card">
+                        <div class="section-card" style="height: 100%;">
                             <div class="section-header">
-                                <h3 class="section-title">知识库列表</h3>
-                                <span id="kbCount" style="font-size: 13px; color: var(--text-secondary);">0</span>
+                                <h3 class="section-title"><i class="fas fa-folder-tree" style="margin-right: 8px;"></i>知识目录</h3>
+                                <button class="btn-icon" id="createKbBtn" title="新建知识库" style="padding: 4px 8px;">
+                                    <i class="fas fa-plus"></i>
+                                </button>
                             </div>
-                            <div class="kb-list" id="kbList">
+                            <div class="catalog-tree" id="catalogTree">
                                 <div class="loading">
                                     <i class="fas fa-spinner fa-spin"></i>
                                     <span>加载中...</span>
@@ -1110,114 +1254,35 @@
                     </div>
 
                     <div class="kb-detail-section">
-                        <div class="section-card" id="detailCard">
+                        <div class="section-card" id="detailCard" style="height: 100%;">
                             <div class="empty-state" id="emptyDetail">
                                 <i class="fas fa-folder-open"></i>
-                                <p>选择一个知识库查看详情</p>
+                                <p>选择一个知识条目查看详情</p>
                             </div>
-                            <div id="detailContent" style="display: none; padding: 20px;">
-                                <div class="detail-header">
-                                    <h2 class="detail-title" id="detailTitle"></h2>
-                                    <div class="detail-actions">
-                                        <button class="btn btn-secondary btn-sm" id="editKbBtn">
-                                            <i class="fas fa-edit"></i>
-                                            编辑
-                                        </button>
-                                        <button class="btn btn-danger btn-sm" id="deleteKbBtn">
-                                            <i class="fas fa-trash"></i>
-                                            删除
-                                        </button>
-                                    </div>
-                                </div>
-                                <p id="detailDesc" style="color: var(--text-secondary); margin-bottom: 20px;"></p>
-
-                                <div class="tabs">
-                                    <button class="tab active" data-tab="items">知识条目</button>
-                                    <button class="tab" data-tab="relations">知识关系</button>
-                                    <button class="tab" data-tab="graph">关系图谱</button>
-                                </div>
-
-                                <div class="tab-content" id="tabItems">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                        <span id="itemCount" style="color: var(--text-secondary); font-size: 14px;"></span>
-                                        <button class="btn btn-primary btn-sm" id="addItemBtn">
-                                            <i class="fas fa-plus"></i>
-                                            添加条目
-                                        </button>
-                                    </div>
-                                    <div class="item-list" id="itemList">
-                                        <div class="empty-state">
-                                            <i class="fas fa-file-alt"></i>
-                                            <p>暂无知识条目</p>
+                            <div id="detailContent" style="display: none; height: 100%; flex-direction: column;">
+                                <div style="padding: 20px 20px 0 20px;">
+                                    <div class="detail-header">
+                                        <div>
+                                            <h2 class="detail-title" id="detailTitle"></h2>
+                                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                                <span id="detailKbName" style="font-size: 12px; color: var(--text-secondary);"></span>
+                                                <span id="detailType" class="item-type" style="font-size: 11px;"></span>
+                                            </div>
+                                        </div>
+                                        <div class="detail-actions">
+                                            <button class="btn btn-secondary btn-sm" id="editItemBtn">
+                                                <i class="fas fa-edit"></i>
+                                                编辑
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" id="deleteItemBtn">
+                                                <i class="fas fa-trash"></i>
+                                                删除
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="tab-content" id="tabRelations" style="display: none;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                        <span id="relationCount" style="color: var(--text-secondary); font-size: 14px;"></span>
-                                        <button class="btn btn-primary btn-sm" id="addRelationBtn">
-                                            <i class="fas fa-plus"></i>
-                                            添加关系
-                                        </button>
-                                    </div>
-                                    <div class="relation-list" id="relationList">
-                                        <div class="empty-state">
-                                            <i class="fas fa-link"></i>
-                                            <p>暂无知识关系</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="tab-content" id="tabGraph" style="display: none;">
-                                    <div class="graph-toolbar">
-                                        <div class="graph-search">
-                                            <i class="fas fa-search"></i>
-                                            <input type="text" id="graphSearchInput" placeholder="搜索节点...">
-                                        </div>
-                                        <div class="graph-filters">
-                                            <select id="graphRelationFilter" multiple title="筛选关系类型">
-                                                <option value="related">相关</option>
-                                                <option value="parent">包含</option>
-                                                <option value="child">从属</option>
-                                                <option value="similar">相似</option>
-                                                <option value="tag">标签</option>
-                                            </select>
-                                        </div>
-                                        <div class="graph-actions">
-                                            <button class="btn btn-sm" id="graphZoomIn" title="放大">
-                                                <i class="fas fa-search-plus"></i>
-                                            </button>
-                                            <button class="btn btn-sm" id="graphZoomOut" title="缩小">
-                                                <i class="fas fa-search-minus"></i>
-                                            </button>
-                                            <button class="btn btn-sm" id="graphFit" title="适应屏幕">
-                                                <i class="fas fa-expand"></i>
-                                            </button>
-                                            <button class="btn btn-sm" id="graphExportPng" title="导出PNG">
-                                                <i class="fas fa-image"></i> PNG
-                                            </button>
-                                            <button class="btn btn-sm" id="graphExportSvg" title="导出SVG">
-                                                <i class="fas fa-file-code"></i> SVG
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="graph-container" id="graphContainer">
-                                        <div class="graph-loading" id="graphLoading">
-                                            <i class="fas fa-spinner fa-spin"></i>
-                                            <span>加载图谱数据...</span>
-                                        </div>
-                                        <div class="graph-empty" id="graphEmpty" style="display: none;">
-                                            <i class="fas fa-project-diagram"></i>
-                                            <p>暂无图谱数据</p>
-                                            <small>请先添加知识条目和关系</small>
-                                        </div>
-                                    </div>
-                                    <div class="graph-stats" id="graphStats" style="display: none;">
-                                        <span id="graphNodeCount">节点: 0</span>
-                                        <span id="graphEdgeCount">边: 0</span>
-                                        <span id="graphRelationTypes">关系类型: -</span>
-                                    </div>
+                                <div style="flex: 1; overflow-y: auto; padding: 20px;">
+                                    <div id="detailContentText" style="line-height: 1.8; color: var(--text-primary); font-size: 14px; white-space: pre-wrap;"></div>
                                 </div>
                             </div>
                         </div>
@@ -1339,9 +1404,11 @@
 
     <script>
         let currentKb = null;
+        let currentItem = null;
         let kbList = [];
         let itemList = [];
         let relationList = [];
+        let expandedKbIds = new Set();
 
         document.addEventListener('DOMContentLoaded', () => {
             applyThemeFromCache();
@@ -1404,13 +1471,19 @@
             });
 
             document.getElementById('createKbBtn').addEventListener('click', () => openKbModal());
-            document.getElementById('editKbBtn').addEventListener('click', () => openKbModal(currentKb));
-            document.getElementById('deleteKbBtn').addEventListener('click', () => deleteKnowledgeBase());
+            document.getElementById('editItemBtn').addEventListener('click', () => openItemModal(currentItem));
+            document.getElementById('deleteItemBtn').addEventListener('click', () => deleteItem(currentItem.id));
             document.getElementById('saveKbBtn').addEventListener('click', () => saveKnowledgeBase());
             document.getElementById('cancelKbBtn').addEventListener('click', () => closeKbModal());
             document.getElementById('closeKbModal').addEventListener('click', () => closeKbModal());
 
-            document.getElementById('addItemBtn').addEventListener('click', () => openItemModal());
+            document.getElementById('addItemBtn').addEventListener('click', () => {
+                if (currentKb) {
+                    openItemModal();
+                } else {
+                    alert('请先选择一个知识库');
+                }
+            });
             document.getElementById('saveItemBtn').addEventListener('click', () => saveItem());
             document.getElementById('cancelItemBtn').addEventListener('click', () => closeItemModal());
             document.getElementById('closeItemModal').addEventListener('click', () => closeItemModal());
@@ -1434,129 +1507,174 @@
                 const response = await fetch('/api/knowledge-bases', { credentials: 'same-origin' });
                 if (response.ok) {
                     kbList = await response.json();
-                    renderKbList();
+                    renderCatalogTree();
+                    if (kbList.length > 0) {
+                        await loadAllItems();
+                        renderCatalogTree();
+                    }
                 }
             } catch (error) {
                 console.error('加载知识库失败:', error);
-                renderKbList();
+                renderCatalogTree();
             }
         }
 
-        function renderKbList() {
-            const kbListEl = document.getElementById('kbList');
-            document.getElementById('kbCount').textContent = kbList.length;
+        function renderCatalogTree() {
+            const treeEl = document.getElementById('catalogTree');
 
             if (kbList.length === 0) {
-                kbListEl.innerHTML = `
-                    <div class="empty-state">
+                treeEl.innerHTML = `
+                    <div class="empty-state" style="padding: 40px 20px;">
                         <i class="fas fa-folder-open"></i>
                         <p>暂无知识库</p>
+                        <button class="btn btn-primary btn-sm" style="margin-top: 12px;" onclick="openKbModal()">
+                            <i class="fas fa-plus"></i> 新建知识库
+                        </button>
                     </div>
                 `;
                 return;
             }
 
-            kbListEl.innerHTML = kbList.map(kb => `
-                <div class="kb-item ${currentKb && currentKb.id === kb.id ? 'active' : ''}" data-id="${kb.id}">
-                    <div class="kb-item-header">
-                        <span class="kb-item-name">
-                            ${escapeHtml(kb.name)}
-                            ${kb.is_default ? '<span class="default-badge"><i class="fas fa-star"></i> 主知识库</span>' : ''}
-                        </span>
-                        <div class="kb-item-actions">
-                            <button class="btn-icon" onclick="event.stopPropagation(); editKb(${kb.id})" title="编辑">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon" onclick="event.stopPropagation(); deleteKb(${kb.id})" title="删除">
-                                <i class="fas fa-trash"></i>
+            let html = '';
+            kbList.forEach(kb => {
+                const isExpanded = expandedKbIds.has(kb.id);
+                const kbItems = itemList.filter(item => item.kb_id === kb.id);
+                const hasItems = kbItems.length > 0;
+                
+                html += `
+                    <div class="catalog-folder-item">
+                        <div class="catalog-item ${currentKb && currentKb.id === kb.id && !currentItem ? 'active' : ''} catalog-folder" data-kb-id="${kb.id}">
+                            <i class="fas fa-chevron-right catalog-arrow ${isExpanded ? 'expanded' : ''} ${!hasItems ? 'hidden' : ''}"></i>
+                            <i class="fas fa-folder catalog-icon"></i>
+                            <span class="catalog-name">${escapeHtml(kb.name)}</span>
+                            <span class="catalog-count">${kbItems.length}</span>
+                            <button class="btn-icon" onclick="event.stopPropagation(); openKbModal(kb)" title="编辑" style="opacity: 0; margin-left: 4px;">
+                                <i class="fas fa-pencil-alt" style="font-size: 11px;"></i>
                             </button>
                         </div>
+                        <div class="catalog-children ${isExpanded ? 'expanded' : ''}" id="children-${kb.id}">
+                `;
+                
+                kbItems.forEach(item => {
+                    const typeClass = `catalog-type-${item.type}`;
+                    html += `
+                        <div class="catalog-child-item ${currentItem && currentItem.id === item.id ? 'active' : ''}" data-item-id="${item.id}" data-kb-id="${kb.id}">
+                            <i class="fas fa-file-alt catalog-child-icon"></i>
+                            <span class="catalog-name">${escapeHtml(item.title)}</span>
+                            <span class="catalog-type-badge ${typeClass}">${getTypeName(item.type)}</span>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
                     </div>
-                    <div class="kb-item-desc">${escapeHtml(kb.description || '暂无描述')}</div>
-                    <div class="kb-item-meta">
-                        <span><i class="fas fa-calendar"></i> ${formatDate(kb.created_at)}</span>
-                        ${kb.is_default ? '<span class="default-hint"><i class="fas fa-info-circle"></i> AI助手默认写入</span>' : ''}
-                    </div>
-                </div>
-            `).join('');
+                `;
+            });
 
-            kbListEl.querySelectorAll('.kb-item').forEach(item => {
-                item.addEventListener('click', () => selectKb(parseInt(item.dataset.id)));
+            treeEl.innerHTML = html;
+
+            treeEl.querySelectorAll('.catalog-folder').forEach(el => {
+                el.addEventListener('click', async (e) => {
+                    if (e.target.closest('.btn-icon')) return;
+                    const kbId = parseInt(el.dataset.kbId);
+                    const kbItems = itemList.filter(item => item.kb_id === kbId);
+                    if (kbItems.length > 0) {
+                        if (expandedKbIds.has(kbId)) {
+                            expandedKbIds.delete(kbId);
+                        } else {
+                            expandedKbIds.add(kbId);
+                        }
+                        renderCatalogTree();
+                    }
+                    currentKb = kbList.find(kb => kb.id === kbId);
+                    currentItem = null;
+                    renderCatalogTree();
+                    renderItemDetail();
+                });
+            });
+
+            treeEl.querySelectorAll('.catalog-child-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const itemId = parseInt(el.dataset.itemId);
+                    const kbId = parseInt(el.dataset.kbId);
+                    currentKb = kbList.find(kb => kb.id === kbId);
+                    currentItem = itemList.find(item => item.id === itemId);
+                    renderCatalogTree();
+                    renderItemDetail();
+                });
+            });
+
+            treeEl.querySelectorAll('.catalog-item').forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    const btn = el.querySelector('.btn-icon');
+                    if (btn) btn.style.opacity = '1';
+                });
+                el.addEventListener('mouseleave', () => {
+                    const btn = el.querySelector('.btn-icon');
+                    if (btn) btn.style.opacity = '0';
+                });
             });
         }
 
         async function selectKb(kbId) {
             currentKb = kbList.find(kb => kb.id === kbId);
-            renderKbList();
-            renderKbDetail();
-            await Promise.all([loadItems(kbId), loadRelations(kbId)]);
+            expandedKbIds.add(kbId);
+            renderCatalogTree();
+            await loadItems(kbId);
+            renderCatalogTree();
         }
 
-        function renderKbDetail() {
+        function renderItemDetail() {
             const emptyDetail = document.getElementById('emptyDetail');
             const detailContent = document.getElementById('detailContent');
+            const addItemBtn = document.getElementById('addItemBtn');
 
-            if (!currentKb) {
-                emptyDetail.style.display = 'block';
+            if (currentKb) {
+                addItemBtn.style.display = 'flex';
+            } else {
+                addItemBtn.style.display = 'none';
+            }
+
+            if (!currentItem) {
+                emptyDetail.style.display = 'flex';
                 detailContent.style.display = 'none';
                 return;
             }
 
             emptyDetail.style.display = 'none';
-            detailContent.style.display = 'block';
+            detailContent.style.display = 'flex';
 
-            document.getElementById('detailTitle').textContent = currentKb.name;
-            document.getElementById('detailDesc').textContent = currentKb.description || '暂无描述';
+            document.getElementById('detailTitle').textContent = currentItem.title;
+            document.getElementById('detailKbName').textContent = currentKb ? currentKb.name : '';
+            document.getElementById('detailType').textContent = getTypeName(currentItem.type);
+            document.getElementById('detailContentText').textContent = currentItem.content;
         }
 
         async function loadItems(kbId) {
             try {
                 const response = await fetch(`/api/knowledge-bases/${kbId}/items`, { credentials: 'same-origin' });
                 if (response.ok) {
-                    itemList = await response.json();
-                    renderItemList();
+                    const items = await response.json();
+                    items.forEach(item => item.kb_id = kbId);
+                    const existingIds = new Set(itemList.map(i => i.id));
+                    items.forEach(item => {
+                        if (!existingIds.has(item.id)) {
+                            itemList.push(item);
+                        }
+                    });
+                    renderCatalogTree();
                 }
             } catch (error) {
                 console.error('加载知识条目失败:', error);
-                itemList = [];
-                renderItemList();
             }
         }
 
-        function renderItemList() {
-            const itemListEl = document.getElementById('itemList');
-            document.getElementById('itemCount').textContent = `${itemList.length} 个条目`;
-
-            if (itemList.length === 0) {
-                itemListEl.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-file-alt"></i>
-                        <p>暂无知识条目</p>
-                    </div>
-                `;
-                return;
+        async function loadAllItems() {
+            itemList = [];
+            for (const kb of kbList) {
+                await loadItems(kb.id);
             }
-
-            itemListEl.innerHTML = itemList.map(item => `
-                <div class="item-card" data-id="${item.id}">
-                    <div class="item-card-header">
-                        <span class="item-title">${escapeHtml(item.title)}</span>
-                        <span class="item-type">${getTypeName(item.type)}</span>
-                    </div>
-                    <div class="item-content">${escapeHtml(item.content)}</div>
-                    <div class="item-meta">
-                        <span><i class="fas fa-clock"></i> ${formatDate(item.created_at)}</span>
-                        <div class="item-actions">
-                            <button class="btn-icon" onclick="event.stopPropagation(); editItem(${item.id})" title="编辑">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon" onclick="event.stopPropagation(); deleteItem(${item.id})" title="删除">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
         }
 
         async function loadRelations(kbId) {
@@ -1635,9 +1753,6 @@
                 if (response.ok) {
                     closeKbModal();
                     await loadKnowledgeBases();
-                    if (id) {
-                        currentKb = kbList.find(kb => kb.id === parseInt(id));
-                    }
                 } else {
                     const data = await response.json();
                     alert(data.error || '保存失败');
@@ -1660,8 +1775,9 @@
 
                 if (response.ok) {
                     currentKb = null;
-                    document.getElementById('detailContent').style.display = 'none';
-                    document.getElementById('emptyDetail').style.display = 'block';
+                    currentItem = null;
+                    itemList = itemList.filter(item => item.kb_id !== currentKb.id);
+                    renderItemDetail();
                     await loadKnowledgeBases();
                 } else {
                     const data = await response.json();
@@ -1733,6 +1849,19 @@
                 if (response.ok) {
                     closeItemModal();
                     await loadItems(currentKb.id);
+                    if (id) {
+                        currentItem = itemList.find(item => item.id === parseInt(id));
+                    } else {
+                        const newItems = await fetch(`/api/knowledge-bases/${currentKb.id}/items`, { credentials: 'same-origin' });
+                        if (newItems.ok) {
+                            const items = await newItems.json();
+                            if (items.length > 0) {
+                                currentItem = items[items.length - 1];
+                            }
+                        }
+                    }
+                    renderCatalogTree();
+                    renderItemDetail();
                 } else {
                     const data = await response.json();
                     alert(data.error || '保存失败');
@@ -1756,10 +1885,12 @@
                     method: 'DELETE',
                     credentials: 'same-origin'
                 });
-                if (currentKb) {
-                    await loadItems(currentKb.id);
-                    await loadRelations(currentKb.id);
+                if (currentItem && currentItem.id === itemId) {
+                    currentItem = null;
                 }
+                itemList = itemList.filter(item => item.id !== itemId);
+                renderCatalogTree();
+                renderItemDetail();
             } catch (error) {
                 console.error('删除失败:', error);
                 alert('删除失败');
@@ -1868,7 +1999,7 @@
                     });
                     if (response.ok) {
                         kbList = await response.json();
-                        renderKbList();
+                        renderCatalogTree();
                     }
                 } catch (error) {
                     console.error('搜索失败:', error);
