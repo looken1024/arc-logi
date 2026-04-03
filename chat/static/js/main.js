@@ -87,10 +87,27 @@ function detectDevice() {
     });
 }
 
-// 初始化侧边栏状态（默认收起，与其他管理页面保持一致）
+// 初始化侧边栏状态
 function initSidebar() {
-    // 所有页面的侧边栏默认状态统一为收起
-    // 用户可以通过点击切换按钮来展开/收起侧边栏
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    if (!sidebar || !sidebarToggle) return;
+    
+    // 获取存储的侧边栏状态，统一逻辑：'true' 表示收起，其他表示展开
+    const storedState = localStorage.getItem('sidebar_collapsed');
+    
+    if (storedState === 'true') {
+        sidebar.classList.remove('active');
+    } else {
+        sidebar.classList.add('active');
+    }
+    
+    // 监听侧边栏状态变化，保存到 localStorage
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = !sidebar.classList.contains('active');
+        localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    });
 }
 
 // 加载用户信息
@@ -223,6 +240,9 @@ function initializeEventListeners() {
     if (sidebarToggle && sidebar) {
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('active');
+            // 保存状态到 localStorage
+            const isCollapsed = !sidebar.classList.contains('active');
+            localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
         });
     }
 
@@ -232,6 +252,7 @@ function initializeEventListeners() {
             e.target.closest('.sidebar-toggle') === null &&
             elements.sidebar?.classList.contains('active')) {
             elements.sidebar.classList.remove('active');
+            localStorage.setItem('sidebar_collapsed', 'true');
         }
     });
 
@@ -246,6 +267,7 @@ function initializeEventListeners() {
             touchEndX = e.changedTouches[0].screenX;
             if (touchStartX - touchEndX > 50 && elements.sidebar?.classList.contains('active')) {
                 elements.sidebar.classList.remove('active');
+                localStorage.setItem('sidebar_collapsed', 'true');
             }
         }
     });
@@ -351,6 +373,11 @@ function initializeEventListeners() {
     // 打开知识库管理
     document.getElementById('openKnowledge')?.addEventListener('click', () => {
         window.location.href = '/knowledge';
+    });
+
+    // 打开最新研究
+    document.getElementById('openResearch')?.addEventListener('click', () => {
+        window.location.href = '/research';
     });
 
     // 打开提示词管理
@@ -912,6 +939,7 @@ async function loadConversation(conversationId) {
         // 移动端点击对话后关闭侧边栏
         if (window.innerWidth <= 768) {
             elements.sidebar?.classList.remove('active');
+            localStorage.setItem('sidebar_collapsed', 'true');
         }
         
     } catch (error) {

@@ -63,7 +63,32 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
     loadWorkflows();
+    initSidebar();
 });
+
+// 初始化侧边栏状态
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    if (!sidebar || !sidebarToggle) return;
+    
+    // 获取存储的侧边栏状态
+    const storedState = localStorage.getItem('sidebar_collapsed');
+    
+    // 所有页面保持用户设置的状态
+    if (storedState === 'true') {
+        sidebar.classList.remove('active');
+    } else {
+        sidebar.classList.add('active');
+    }
+    
+    // 监听侧边栏状态变化，保存到 localStorage
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = !sidebar.classList.contains('active');
+        localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    });
+}
 
 // 从 localStorage 应用主题色(早期加载，避免闪烁)
 function applyThemeFromCache() {
@@ -124,6 +149,7 @@ function initializeEventListeners() {
             e.target.closest('.sidebar-toggle') === null &&
             elements.sidebar?.classList.contains('active')) {
             elements.sidebar.classList.remove('active');
+            localStorage.setItem('sidebar_collapsed', 'true');
         }
     });
 
@@ -138,6 +164,7 @@ function initializeEventListeners() {
             touchEndX = e.changedTouches[0].screenX;
             if (touchStartX - touchEndX > 50 && elements.sidebar?.classList.contains('active')) {
                 elements.sidebar.classList.remove('active');
+                localStorage.setItem('sidebar_collapsed', 'true');
             }
         }
     });

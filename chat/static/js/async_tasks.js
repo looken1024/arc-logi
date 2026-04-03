@@ -79,7 +79,29 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
     loadSchedules(true);
+    initSidebar();
 });
+
+// 初始化侧边栏状态
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    if (!sidebar || !sidebarToggle) return;
+    
+    const storedState = localStorage.getItem('sidebar_collapsed');
+    
+    if (storedState === 'true') {
+        sidebar.classList.remove('active');
+    } else {
+        sidebar.classList.add('active');
+    }
+    
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = !sidebar.classList.contains('active');
+        localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    });
+}
 
 // 同步主题到 localStorage
 function syncThemeToLocalStorage() {
@@ -136,6 +158,7 @@ function initializeEventListeners() {
             e.target.closest('.sidebar-toggle') === null &&
             elements.sidebar?.classList.contains('active')) {
             elements.sidebar.classList.remove('active');
+            localStorage.setItem('sidebar_collapsed', 'true');
         }
     });
 
@@ -149,6 +172,7 @@ function initializeEventListeners() {
             touchEndX = e.changedTouches[0].screenX;
             if (touchStartX - touchEndX > 50 && elements.sidebar?.classList.contains('active')) {
                 elements.sidebar.classList.remove('active');
+                localStorage.setItem('sidebar_collapsed', 'true');
             }
         }
     });

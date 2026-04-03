@@ -107,3 +107,74 @@ CREATE TABLE IF NOT EXISTS preset_items (
     INDEX idx_display_order (group_id, display_order),
     FOREIGN KEY (group_id) REFERENCES preset_groups(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 研究记录表
+CREATE TABLE IF NOT EXISTS research (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    research_field VARCHAR(100),
+    prompt TEXT,
+    report_content TEXT,
+    status ENUM('draft', 'generating', 'completed', 'failed') DEFAULT 'draft',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_username (username),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 研究评价表
+CREATE TABLE IF NOT EXISTS research_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    research_id INT NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    rating INT DEFAULT 5,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_research_id (research_id),
+    INDEX idx_username (username),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (research_id) REFERENCES research(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 学术论文缓存表
+CREATE TABLE IF NOT EXISTS papers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    paper_id VARCHAR(100) NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    authors TEXT,
+    abstract TEXT,
+    publish_date DATE,
+    categories VARCHAR(255),
+    arxiv_id VARCHAR(50),
+    pdf_url VARCHAR(500),
+    citation_count INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_paper_id (paper_id),
+    INDEX idx_categories (categories),
+    INDEX idx_publish_date (publish_date),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 开源项目缓存表
+CREATE TABLE IF NOT EXISTS open_source_projects (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    repo_full_name VARCHAR(200) NOT NULL UNIQUE,
+    repo_name VARCHAR(200),
+    description TEXT,
+    language VARCHAR(50),
+    stars INT DEFAULT 0,
+    forks INT DEFAULT 0,
+    topics VARCHAR(500),
+    created_at DATETIME,
+    updated_at DATETIME,
+    fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_repo_full_name (repo_full_name),
+    INDEX idx_language (language),
+    INDEX idx_stars (stars),
+    INDEX idx_topics (topics),
+    INDEX idx_fetched_at (fetched_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

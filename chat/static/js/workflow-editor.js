@@ -233,6 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyThemeFromCache();
     loadUserInfo();
     initializeEventListeners();
+    initSidebar();
     
     // 确保jsPlumb加载完成
     if (typeof jsPlumb === 'undefined') {
@@ -247,6 +248,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
+    // 获取URL中的工作流ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const workflowId = urlParams.get('id');
+    
     // 检查工作流ID
     if (!workflowId || workflowId === "undefined" || workflowId === "null" || workflowId === "None" || workflowId === "") {
         console.error('无效的工作流ID:', workflowId);
@@ -258,6 +263,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeJsPlumb();
     loadWorkflow();
 });
+
+// 初始化侧边栏状态
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    if (!sidebar || !sidebarToggle) return;
+    
+    const storedState = localStorage.getItem('sidebar_collapsed');
+    
+    // workflow-editor 使用 collapsed 类
+    if (storedState === 'true') {
+        sidebar.classList.add('collapsed');
+    } else {
+        sidebar.classList.remove('collapsed');
+    }
+    
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('sidebar_collapsed', isCollapsed ? 'false' : 'true');
+    });
+}
 
 // 从 localStorage 应用主题色(早期加载，避免闪烁)
 function applyThemeFromCache() {
@@ -400,6 +427,8 @@ function initializeEventListeners() {
     // 侧边栏切换
     elements.sidebarToggle?.addEventListener('click', () => {
         elements.sidebar.classList.toggle('collapsed');
+        const isCollapsed = elements.sidebar.classList.contains('collapsed');
+        localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
     });
 
     // 移动端点击主内容区关闭侧边栏

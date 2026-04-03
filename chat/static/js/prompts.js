@@ -46,7 +46,29 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserInfo();
     initializeEventListeners();
     loadPrompts();
+    initSidebar();
 });
+
+// 初始化侧边栏状态
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    if (!sidebar || !sidebarToggle) return;
+    
+    const storedState = localStorage.getItem('sidebar_collapsed');
+    
+    if (storedState === 'true') {
+        sidebar.classList.remove('active');
+    } else {
+        sidebar.classList.add('active');
+    }
+    
+    sidebarToggle.addEventListener('click', () => {
+        const isCollapsed = !sidebar.classList.contains('active');
+        localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    });
+}
 
 // 从 localStorage 应用主题色(早期加载，避免闪烁)
 function applyThemeFromCache() {
@@ -128,6 +150,7 @@ function initializeEventListeners() {
             e.target.closest('.sidebar-toggle') === null &&
             elements.sidebar?.classList.contains('active')) {
             elements.sidebar.classList.remove('active');
+            localStorage.setItem('sidebar_collapsed', 'true');
         }
     });
 

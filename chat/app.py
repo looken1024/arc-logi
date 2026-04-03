@@ -42,8 +42,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_COOKIE_NAME'] = 'chat_session'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
-OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', os.getenv('DEEPSEEK_API_KEY', ''))
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.deepseek.com/v1')
 
 # Skills 目录配置
 SKILLS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'skills')
@@ -344,14 +344,94 @@ def init_database():
                 CREATE TABLE IF NOT EXISTS workflow_search_history (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     username VARCHAR(50) NOT NULL,
-                    search_keyword VARCHAR(200) NOT NULL,
+                    keyword VARCHAR(100) NOT NULL,
                     search_type VARCHAR(20) DEFAULT 'workflow',
-                    search_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_username (username),
-                    INDEX idx_search_time (search_time),
-                    INDEX idx_keyword (search_keyword)
+                    INDEX idx_keyword (keyword),
+                    INDEX idx_created_at (created_at)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """)
+
+            # 创建研究记录表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS research (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL,
+                    title VARCHAR(255) NOT NULL,
+                    research_field VARCHAR(100),
+                    prompt TEXT,
+                    report_content TEXT,
+                    status ENUM('draft', 'generating', 'completed', 'failed') DEFAULT 'draft',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_username (username),
+                    INDEX idx_status (status),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
+            # 创建研究评价表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS research_reviews (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    research_id INT NOT NULL,
+                    username VARCHAR(50) NOT NULL,
+                    content TEXT NOT NULL,
+                    rating INT DEFAULT 5,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_research_id (research_id),
+                    INDEX idx_username (username),
+                    INDEX idx_created_at (created_at),
+                    FOREIGN KEY (research_id) REFERENCES research(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
+            # 创建学术论文缓存表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS papers (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    paper_id VARCHAR(100) NOT NULL UNIQUE,
+                    title TEXT NOT NULL,
+                    authors TEXT,
+                    abstract TEXT,
+                    publish_date DATE,
+                    categories VARCHAR(255),
+                    arxiv_id VARCHAR(50),
+                    pdf_url VARCHAR(500),
+                    citation_count INT DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_paper_id (paper_id),
+                    INDEX idx_categories (categories),
+                    INDEX idx_publish_date (publish_date),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
+            # 创建开源项目缓存表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS open_source_projects (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    repo_full_name VARCHAR(200) NOT NULL UNIQUE,
+                    repo_name VARCHAR(200),
+                    description TEXT,
+                    language VARCHAR(50),
+                    stars INT DEFAULT 0,
+                    forks INT DEFAULT 0,
+                    topics VARCHAR(500),
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_repo_full_name (repo_full_name),
+                    INDEX idx_language (language),
+                    INDEX idx_stars (stars),
+                    INDEX idx_topics (topics),
+                    INDEX idx_fetched_at (fetched_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+
 
             # 创建热门搜索表
             cursor.execute("""
@@ -6697,5 +6777,422 @@ if __name__ == '__main__':
     
     print(f"📝 访问地址: http://localhost:8000")
     print("="*50 + "\n")
+    
+    # 研究相关路由
+    @app.route('/research')
+    def research_page():
+        """最新研究页面"""
+        if 'username' not in session:
+            return redirect(url_for('login'))
+        return render_template('research.html')
+
+    @app.route('/api/research', methods=['GET'])
+    def get_research_list():
+        """获取研究列表"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        username = session['username']
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 10, type=int)
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, title, research_field, status, created_at, updated_at FROM research WHERE username = %s ORDER BY created_at DESC LIMIT %s OFFSET %s",
+                    (username, page_size, (page - 1) * page_size)
+                )
+                research_list = cursor.fetchall()
+                
+                cursor.execute("SELECT COUNT(*) as total FROM research WHERE username = %s", (username,))
+                total = cursor.fetchone()['total']
+        
+        return jsonify({
+            'success': True,
+            'data': research_list,
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        })
+
+    @app.route('/api/research', methods=['POST'])
+    def create_research():
+        """创建新研究"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        username = session['username']
+        data = request.get_json()
+        title = data.get('title', '').strip()
+        research_field = data.get('research_field', '').strip()
+        prompt = data.get('prompt', '').strip()
+        
+        if not title:
+            return jsonify({'success': False, 'error': '请输入研究题目'})
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO research (username, title, research_field, prompt, status) VALUES (%s, %s, %s, %s, %s)",
+                    (username, title, research_field, prompt, 'draft')
+                )
+                conn.commit()
+                research_id = cursor.lastrowid
+        
+        return jsonify({'success': True, 'research_id': research_id})
+
+    @app.route('/api/research/<int:research_id>', methods=['GET'])
+    def get_research_detail(research_id):
+        """获取研究详情"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        username = session['username']
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT * FROM research WHERE id = %s AND username = %s",
+                    (research_id, username)
+                )
+                research = cursor.fetchone()
+                
+                if not research:
+                    return jsonify({'success': False, 'error': '研究不存在'})
+                
+                cursor.execute(
+                    "SELECT * FROM research_reviews WHERE research_id = %s ORDER BY created_at DESC",
+                    (research_id,)
+                )
+                reviews = cursor.fetchall()
+        
+        research['reviews'] = reviews
+        return jsonify({'success': True, 'data': research})
+
+    @app.route('/api/research/<int:research_id>', methods=['PUT'])
+    def update_research(research_id):
+        """更新研究内容"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        username = session['username']
+        data = request.get_json()
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT * FROM research WHERE id = %s AND username = %s",
+                    (research_id, username)
+                )
+                research = cursor.fetchone()
+                
+                if not research:
+                    return jsonify({'success': False, 'error': '研究不存在'})
+                
+                title = data.get('title', research['title'])
+                research_field = data.get('research_field', research['research_field'])
+                report_content = data.get('report_content', research['report_content'])
+                
+                cursor.execute(
+                    "UPDATE research SET title = %s, research_field = %s, report_content = %s WHERE id = %s AND username = %s",
+                    (title, research_field, report_content, research_id, username)
+                )
+                conn.commit()
+        
+        return jsonify({'success': True})
+
+    @app.route('/api/research/<int:research_id>', methods=['DELETE'])
+    def delete_research(research_id):
+        """删除研究"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        username = session['username']
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM research WHERE id = %s AND username = %s",
+                    (research_id, username)
+                )
+                conn.commit()
+        
+        return jsonify({'success': True})
+
+    @app.route('/api/research/<int:research_id>/generate', methods=['POST'])
+    def generate_research_report(research_id):
+        """使用opencode异步生成研究报告"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        username = session['username']
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT * FROM research WHERE id = %s AND username = %s",
+                    (research_id, username)
+                )
+                research = cursor.fetchone()
+                
+                if not research:
+                    return jsonify({'success': False, 'error': '研究不存在'})
+                
+                cursor.execute(
+                    "UPDATE research SET status = 'generating' WHERE id = %s",
+                    (research_id,)
+                )
+                conn.commit()
+        
+        task_name = f"生成研究报告_{research_id}"
+        task_description = f"""请帮我生成一份研究报告。需要完成以下任务：
+
+1. 研究题目：{research['title']}
+2. 研究方向：{research['research_field']}
+3. 用户提示：{research['prompt'] or '请全面调研相关领域'}
+
+要求：
+- 使用专业的学术语言
+- 字数不少于2000字
+- 包含以下章节：研究背景和意义、研究现状和发展趋势、关键技术分析、应用场景和案例、未来展望、参考文献
+
+请将生成的研究报告内容直接写入数据库，使用以下SQL更新：
+UPDATE research SET report_content = '报告内容', status = 'completed' WHERE id = {research_id}
+
+注意：请用实际生成的报告内容替换'报告内容'，确保SQL语法正确。完成后输出"任务完成"。"""
+
+        from skills.async_task.scripts.skill import AsyncTaskSkill
+        skill = AsyncTaskSkill()
+        result = skill.execute(
+            action='create',
+            _username=username,
+            task_name=task_name,
+            task_description=task_description
+        )
+        
+        if result.get('success'):
+            return jsonify({'success': True, 'message': '报告正在生成中，请稍候刷新页面查看进度'})
+        else:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE research SET status = 'failed' WHERE id = %s",
+                        (research_id,)
+                    )
+                    conn.commit()
+            return jsonify({'success': False, 'error': result.get('error', '创建异步任务失败')})
+
+    @app.route('/api/research/<int:research_id>/review', methods=['POST'])
+    def add_research_review(research_id):
+        """添加研究评价"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        username = session['username']
+        data = request.get_json()
+        content = data.get('content', '').strip()
+        rating = data.get('rating', 5)
+        
+        if not content:
+            return jsonify({'success': False, 'error': '请输入评价内容'})
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT * FROM research WHERE id = %s AND username = %s",
+                    (research_id, username)
+                )
+                if not cursor.fetchone():
+                    return jsonify({'success': False, 'error': '研究不存在'})
+                
+                cursor.execute(
+                    "INSERT INTO research_reviews (research_id, username, content, rating) VALUES (%s, %s, %s, %s)",
+                    (research_id, username, content, rating)
+                )
+                conn.commit()
+        
+        return jsonify({'success': True})
+
+    @app.route('/api/papers', methods=['GET'])
+    def get_papers():
+        """获取学术论文列表"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        category = request.args.get('category', '')
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                if category:
+                    cursor.execute(
+                        "SELECT * FROM papers WHERE categories LIKE %s ORDER BY publish_date DESC LIMIT %s OFFSET %s",
+                        (f'%{category}%', page_size, (page - 1) * page_size)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM papers ORDER BY publish_date DESC LIMIT %s OFFSET %s",
+                        (page_size, (page - 1) * page_size)
+                    )
+                papers = cursor.fetchall()
+        
+        return jsonify({'success': True, 'data': papers})
+
+    @app.route('/api/papers/fetch', methods=['POST'])
+    def fetch_papers():
+        """从arXiv获取最新论文"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        data = request.get_json()
+        categories = data.get('categories', ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV'])
+        max_results = data.get('max_results', 20)
+        
+        try:
+            papers_data = []
+            for cat in categories:
+                url = f'http://export.arxiv.org/api/query?search_query=cat:{cat}&sortBy=submittedDate&sortOrder=descending&max_results={max_results}'
+                resp = requests.get(url, timeout=30)
+                
+                if resp.status_code == 200:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(resp.content)
+                    ns = {'atom': 'http://www.w3.org/2005/Atom'}
+                    
+                    for entry in root.findall('atom:entry', ns):
+                        paper_id = entry.find('atom:id', ns).text.split('/')[-1]
+                        title = entry.find('atom:title', ns).text.replace('\n', ' ').strip()
+                        summary = entry.find('atom:summary', ns).text.replace('\n', ' ').strip()
+                        authors = ', '.join([a.find('atom:name', ns).text for a in entry.findall('atom:author', ns)])
+                        published = entry.find('atom:published', ns).text
+                        categories_str = ', '.join([c.text for c in entry.findall('atom:category', ns)])
+                        pdf_link = entry.find('atom:link[@title="pdf"]', ns)
+                        pdf_url = pdf_link.get('href') if pdf_link is not None else ''
+                        
+                        papers_data.append({
+                            'paper_id': paper_id,
+                            'title': title,
+                            'authors': authors,
+                            'abstract': summary,
+                            'publish_date': published[:10],
+                            'categories': categories_str,
+                            'arxiv_id': paper_id,
+                            'pdf_url': pdf_url
+                        })
+            
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    for paper in papers_data:
+                        cursor.execute("""
+                            INSERT INTO papers (paper_id, title, authors, abstract, publish_date, categories, arxiv_id, pdf_url)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE title = VALUES(title), authors = VALUES(authors),
+                            abstract = VALUES(abstract), publish_date = VALUES(publish_date),
+                            categories = VALUES(categories), updated_at = CURRENT_TIMESTAMP
+                        """, (paper['paper_id'], paper['title'], paper['authors'], paper['abstract'],
+                              paper['publish_date'], paper['categories'], paper['arxiv_id'], paper['pdf_url']))
+                    conn.commit()
+            
+            return jsonify({'success': True, 'count': len(papers_data)})
+        
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+
+    @app.route('/api/projects', methods=['GET'])
+    def get_projects():
+        """获取开源项目列表"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        language = request.args.get('language', '')
+        topic = request.args.get('topic', '')
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                conditions = []
+                params = []
+                
+                if language:
+                    conditions.append("language = %s")
+                    params.append(language)
+                if topic:
+                    conditions.append("topics LIKE %s")
+                    params.append(f'%{topic}%')
+                
+                where_clause = " AND ".join(conditions) if conditions else "1=1"
+                
+                cursor.execute(
+                    f"SELECT * FROM open_source_projects WHERE {where_clause} ORDER BY stars DESC LIMIT %s OFFSET %s",
+                    params + [page_size, (page - 1) * page_size]
+                )
+                projects = cursor.fetchall()
+        
+        return jsonify({'success': True, 'data': projects})
+
+    @app.route('/api/projects/fetch', methods=['POST'])
+    def fetch_projects():
+        """从GitHub获取Trending项目"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        data = request.get_json()
+        languages = data.get('languages', ['Python', 'JavaScript', 'TypeScript', 'Go', 'Rust'])
+        
+        try:
+            projects_data = []
+            headers = {'Accept': 'application/vnd.github.v3+json'}
+            
+            for lang in languages:
+                url = f'https://api.github.com/search/repositories?q=created:>2024-01-01+language:{lang}&sort=stars&order=desc&per_page=20'
+                resp = requests.get(url, headers=headers, timeout=30)
+                
+                if resp.status_code == 200:
+                    items = resp.json().get('items', [])
+                    for item in items:
+                        projects_data.append({
+                            'repo_full_name': item['full_name'],
+                            'repo_name': item['name'],
+                            'description': item['description'],
+                            'language': item['language'],
+                            'stars': item['stargazers_count'],
+                            'forks': item['forks_count'],
+                            'topics': ','.join(item.get('topics', [])),
+                            'created_at': item['created_at'],
+                            'updated_at': item['updated_at']
+                        })
+            
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    for project in projects_data:
+                        cursor.execute("""
+                            INSERT INTO open_source_projects (repo_full_name, repo_name, description, language, stars, forks, topics, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE description = VALUES(description), stars = VALUES(stars),
+                            forks = VALUES(forks), topics = VALUES(topics), updated_at = VALUES(updated_at), fetched_at = CURRENT_TIMESTAMP
+                        """, (project['repo_full_name'], project['repo_name'], project['description'],
+                              project['language'], project['stars'], project['forks'], project['topics'],
+                              project['created_at'], project['updated_at']))
+                    conn.commit()
+            
+            return jsonify({'success': True, 'count': len(projects_data)})
+        
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+
+    @app.route('/api/projects/languages', methods=['GET'])
+    def get_project_languages():
+        """获取支持的语言筛选选项"""
+        if 'username' not in session:
+            return jsonify({'success': False, 'error': '请先登录'})
+        
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT DISTINCT language FROM open_source_projects WHERE language IS NOT NULL")
+                languages = [row['language'] for row in cursor.fetchall()]
+        
+        return jsonify({'success': True, 'data': languages})
     
     app.run(host='0.0.0.0', port=8000, debug=True)

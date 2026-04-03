@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>最新研究 - AI Chat Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .research-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .research-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .research-header h2 {
+            font-size: 20px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .research-header h2 i {
+            color: var(--primary-color);
+        }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover {
+            background: var(--hover-bg);
+            color: var(--text-color);
+        }
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .research-card {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        .research-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        .research-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .research-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .research-card-field {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .research-card-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .status-draft { background: #666; color: white; }
+        .status-generating { background: #f39c12; color: white; }
+        .status-completed { background: #27ae60; color: white; }
+        .status-failed { background: #e74c3c; color: white; }
+        .research-card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        .btn-secondary {
+            background: var(--hover-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .btn-secondary:hover {
+            border-color: var(--primary-color);
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: auto;
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--text-color);
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .research-list {
+            display: grid;
+            gap: 16px;
+        }
+        .paper-card, .project-card {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+        .paper-card:hover, .project-card:hover {
+            border-color: var(--primary-color);
+        }
+        .paper-title, .project-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 8px;
+        }
+        .paper-meta, .project-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .paper-abstract, .project-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .paper-stats, .project-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .paper-stats span, .project-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .filter-bar select, .filter-bar input {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--border-color);
+        }
+        .report-content {
+            background: var(--message-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 16px;
+        }
+        .report-content h1, .report-content h2, .report-content h3 {
+            color: var(--text-color);
+            margin-top: 20px;
+        }
+        .report-content p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .report-content ul, .report-content ol {
+            color: var(--text-secondary);
+            padding-left: 20px;
+        }
+        .report-content li {
+            margin-bottom: 8px;
+        }
+        .review-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .review-item {
+            background: var(--hover-bg);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .review-rating {
+            color: #f39c12;
+        }
+        .review-content {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <span>AI Chat</span>
+                </div>
+                <a href="/" class="back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+            </div>
+            <nav class="sidebar-nav">
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">加载中...</span>
+                    <a href="/logout" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content" id="mainContent">
+            <div class="tool-container">
+                <div class="research-wrapper">
+                    <div class="research-header">
+                        <h2><i class="fas fa-microscope"></i> 最新研究</h2>
+                        <button class="btn btn-primary" id="newResearchBtn">
+                            <i class="fas fa-plus"></i> 新建研究
+                        </button>
+                    </div>
+
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="my-research">我的研究</button>
+                        <button class="tab-btn" data-tab="papers">学术论文</button>
+                        <button class="tab-btn" data-tab="projects">开源项目</button>
+                    </div>
+
+                    <div id="tab-content">
+                        <div id="my-research-tab" class="tab-panel active">
+                            <div class="research-list" id="researchList">
+                                <div class="loading">
+                                    <i class="fas fa-spinner"></i> 加载中...
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="papers-tab" class="tab-panel" style="display:none;">
+                            <div class="filter-bar">
+                                <select id="paperCategoryFilter">
+                                    <option value="">全部分类</option>
+                                    <option value="cs.AI">人工智能</option>
+                                    <option value="cs.LG">机器学习</option>
+                                    <option value="cs.CL">计算语言学</option>
+                                    <option value="cs.CV">计算机视觉</option>
+                                </select>
+                                <button class="btn btn-secondary" id="fetchPapersBtn">
+                                    <i class="fas fa-sync"></i> 刷新论文
+                                </button>
+                            </div>
+                            <div class="research-list" id="papersList">
+                                <div class="loading">
+                                    <i class="fas fa-spinner"></i> 加载中...
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="projects-tab" class="tab-panel" style="display:none;">
+                            <div class="filter-bar">
+                                <select id="languageFilter">
+                                    <option value="">全部语言</option>
+                                </select>
+                                <input type="text" id="topicFilter" placeholder="搜索主题...">
+                                <button class="btn btn-secondary" id="fetchProjectsBtn">
+                                    <i class="fas fa-sync"></i> 刷新项目
+                                </button>
+                            </div>
+                            <div class="research-list" id="projectsList">
+                                <div class="loading">
+                                    <i class="fas fa-spinner"></i> 加载中...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal" id="researchModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">新建研究</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="researchForm">
+                    <input type="hidden" id="researchId">
+                    <div class="form-group">
+                        <label>研究题目</label>
+                        <input type="text" id="titleInput" required placeholder="输入研究题目">
+                    </div>
+                    <div class="form-group">
+                        <label>研究方向</label>
+                        <input type="text" id="fieldInput" placeholder="例如：人工智能、机器学习">
+                    </div>
+                    <div class="form-group">
+                        <label>生成提示（可选）</label>
+                        <textarea id="promptInput" placeholder="输入希望报告包含的内容或特殊要求"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%;">
+                        <i class="fas fa-check"></i> 确认创建
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="reportModal">
+        <div class="modal-content" style="max-width:800px;">
+            <div class="modal-header">
+                <h3 id="reportTitle">研究报告</h3>
+                <button class="modal-close" id="closeReportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="reportContent"></div>
+                <div class="review-section">
+                    <h4 style="margin-bottom:12px;color:var(--text-color);">评价</h4>
+                    <div class="form-group">
+                        <textarea id="reviewContent" placeholder="输入您的评价..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>评分</label>
+                        <select id="reviewRating">
+                            <option value="5">5星 - 非常好</option>
+                            <option value="4">4星 - 很好</option>
+                            <option value="3">3星 - 一般</option>
+                            <option value="2">2星 - 较差</option>
+                            <option value="1">1星 - 很差</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="submitReviewBtn">
+                        <i class="fas fa-paper-plane"></i> 提交评价
+                    </button>
+                    <div id="reviewsList" style="margin-top:20px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'my-research';
+        let currentResearchId = null;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadResearchList();
+            await loadProjectLanguages();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+
+            document.getElementById('newResearchBtn').addEventListener('click', () => {
+                document.getElementById('researchId').value = '';
+                document.getElementById('modalTitle').textContent = '新建研究';
+                document.getElementById('researchForm').reset();
+                document.getElementById('researchModal').classList.add('active');
+            });
+
+            document.getElementById('closeModal').addEventListener('click', () => {
+                document.getElementById('researchModal').classList.remove('active');
+            });
+
+            document.getElementById('closeReportModal').addEventListener('click', () => {
+                document.getElementById('reportModal').classList.remove('active');
+            });
+
+            document.getElementById('researchForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await createResearch();
+            });
+
+            document.getElementById('fetchPapersBtn').addEventListener('click', fetchPapers);
+            document.getElementById('fetchProjectsBtn').addEventListener('click', fetchProjects);
+
+            document.getElementById('paperCategoryFilter').addEventListener('change', loadPapers);
+            document.getElementById('languageFilter').addEventListener('change', loadProjects);
+            document.getElementById('topicFilter').addEventListener('input', debounce(loadProjects, 300));
+
+            document.getElementById('submitReviewBtn').addEventListener('click', submitReview);
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tab);
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.style.display = panel.id === tab + '-tab' ? 'block' : 'none';
+            });
+
+            if (tab === 'my-research') loadResearchList();
+            else if (tab === 'papers') loadPapers();
+            else if (tab === 'projects') loadProjects();
+        }
+
+        async function loadResearchList() {
+            try {
+                const res = await fetch('/api/research');
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+
+                const list = document.getElementById('researchList');
+                if (json.data.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-flask"></i><p>暂无研究记录，点击上方"新建研究"开始</p></div>';
+                    return;
+                }
+
+                list.innerHTML = json.data.map(r => `
+                    <div class="research-card">
+                        <div class="research-card-header">
+                            <div>
+                                <div class="research-card-title">${r.title}</div>
+                                <div class="research-card-field">${r.research_field || '未指定方向'}</div>
+                            </div>
+                            <span class="research-card-status status-${r.status}">${getStatusText(r.status)}</span>
+                        </div>
+                        <div class="research-card-actions">
+                            <button class="btn btn-primary" onclick="generateReport(${r.id})" ${r.status === 'generating' ? 'disabled' : ''}>
+                                <i class="fas fa-magic"></i> 生成报告
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewReport(${r.id})">
+                                <i class="fas fa-eye"></i> 查看
+                            </button>
+                            <button class="btn btn-secondary" onclick="editResearch(${r.id})">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteResearch(${r.id})">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function getStatusText(status) {
+            const map = {draft: '草稿', generating: '生成中', completed: '已完成', failed: '失败'};
+            return map[status] || status;
+        }
+
+        async function createResearch() {
+            const id = document.getElementById('researchId').value;
+            const title = document.getElementById('titleInput').value.trim();
+            const field = document.getElementById('fieldInput').value.trim();
+            const prompt = document.getElementById('promptInput').value.trim();
+
+            if (!title) return alert('请输入研究题目');
+
+            try {
+                let res;
+                if (id) {
+                    res = await fetch(`/api/research/${id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({title, research_field: field, report_content: prompt})
+                    });
+                } else {
+                    res = await fetch('/api/research', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({title, research_field: field, prompt})
+                    });
+                }
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+
+                document.getElementById('researchModal').classList.remove('active');
+                await loadResearchList();
+            } catch(e) {
+                alert('操作失败: ' + e.message);
+            }
+        }
+
+        async function editResearch(id) {
+            try {
+                const res = await fetch(`/api/research/${id}`);
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+
+                document.getElementById('researchId').value = id;
+                document.getElementById('modalTitle').textContent = '编辑研究';
+                document.getElementById('titleInput').value = json.data.title;
+                document.getElementById('fieldInput').value = json.data.research_field || '';
+                document.getElementById('promptInput').value = json.data.prompt || '';
+                document.getElementById('researchModal').classList.add('active');
+            } catch(e) {
+                alert('加载失败: ' + e.message);
+            }
+        }
+
+        async function deleteResearch(id) {
+            if (!confirm('确定要删除这个研究吗？')) return;
+            try {
+                const res = await fetch(`/api/research/${id}`, {method: 'DELETE'});
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+                await loadResearchList();
+            } catch(e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+
+        async function generateReport(id) {
+            try {
+                const res = await fetch(`/api/research/${id}/generate`, {method: 'POST'});
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+                
+                alert('报告生成成功！');
+                await loadResearchList();
+                viewReport(id);
+            } catch(e) {
+                alert('生成失败: ' + e.message);
+            }
+        }
+
+        async function viewReport(id) {
+            currentResearchId = id;
+            try {
+                const res = await fetch(`/api/research/${id}`);
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+
+                document.getElementById('reportTitle').textContent = json.data.title;
+                document.getElementById('reportContent').innerHTML = json.data.report_content ? 
+                    marked.parse(json.data.report_content) : '<p>暂无报告内容，请先生成报告</p>';
+                
+                renderReviews(json.data.reviews || []);
+                document.getElementById('reportModal').classList.add('active');
+            } catch(e) {
+                alert('加载失败: ' + e.message);
+            }
+        }
+
+        function renderReviews(reviews) {
+            const container = document.getElementById('reviewsList');
+            if (reviews.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);">暂无评价</p>';
+                return;
+            }
+            container.innerHTML = reviews.map(r => `
+                <div class="review-item">
+                    <div class="review-header">
+                        <span>${r.username}</span>
+                        <span class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+                    </div>
+                    <div class="review-content">${r.content}</div>
+                </div>
+            `).join('');
+        }
+
+        async function submitReview() {
+            const content = document.getElementById('reviewContent').value.trim();
+            const rating = parseInt(document.getElementById('reviewRating').value);
+            if (!content) return alert('请输入评价内容');
+
+            try {
+                const res = await fetch(`/api/research/${currentResearchId}/review`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content, rating})
+                });
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+
+                document.getElementById('reviewContent').value = '';
+                const detailRes = await fetch(`/api/research/${currentResearchId}`);
+                const detailJson = await detailRes.json();
+                renderReviews(detailJson.data.reviews || []);
+            } catch(e) {
+                alert('提交失败: ' + e.message);
+            }
+        }
+
+        async function loadPapers() {
+            const category = document.getElementById('paperCategoryFilter').value;
+            try {
+                const res = await fetch(`/api/papers?category=${category}`);
+                const json = await res.json();
+                if (!json.success) return;
+
+                const list = document.getElementById('papersList');
+                if (json.data.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-file-alt"></i><p>暂无论文，点击"刷新论文"获取最新学术论文</p></div>';
+                    return;
+                }
+
+                list.innerHTML = json.data.map(p => `
+                    <div class="paper-card">
+                        <div class="paper-title">${p.title}</div>
+                        <div class="paper-meta">${p.authors}</div>
+                        <div class="paper-abstract">${p.abstract ? p.abstract.substring(0, 200) + '...' : ''}</div>
+                        <div class="paper-stats">
+                            <span><i class="fas fa-calendar"></i> ${p.publish_date}</span>
+                            <span><i class="fas fa-tag"></i> ${p.categories}</span>
+                            ${p.pdf_url ? `<a href="${p.pdf_url}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;"><i class="fas fa-file-pdf"></i> PDF</a>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function fetchPapers() {
+            const btn = document.getElementById('fetchPapersBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 刷新中...';
+            
+            try {
+                const res = await fetch('/api/papers/fetch', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({categories: ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV'], max_results: 20})
+                });
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+                alert(`成功获取 ${json.count} 篇论文`);
+                await loadPapers();
+            } catch(e) {
+                alert('获取失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync"></i> 刷新论文';
+            }
+        }
+
+        async function loadProjectLanguages() {
+            try {
+                const res = await fetch('/api/projects/languages');
+                const json = await res.json();
+                if (!json.success) return;
+
+                const select = document.getElementById('languageFilter');
+                select.innerHTML = '<option value="">全部语言</option>' + 
+                    json.data.map(l => `<option value="${l}">${l}</option>`).join('');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function loadProjects() {
+            const language = document.getElementById('languageFilter').value;
+            const topic = document.getElementById('topicFilter').value.trim();
+            try {
+                const res = await fetch(`/api/projects?language=${language}&topic=${topic}`);
+                const json = await res.json();
+                if (!json.success) return;
+
+                const list = document.getElementById('projectsList');
+                if (json.data.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-code"></i><p>暂无项目，点击"刷新项目"获取最新开源项目</p></div>';
+                    return;
+                }
+
+                list.innerHTML = json.data.map(p => `
+                    <div class="project-card">
+                        <div class="project-title">
+                            <a href="https://github.com/${p.repo_full_name}" target="_blank">${p.repo_name}</a>
+                        </div>
+                        <div class="project-desc">${p.description || '暂无描述'}</div>
+                        <div class="project-stats">
+                            <span><i class="fas fa-star"></i> ${p.stars}</span>
+                            <span><i class="fas fa-code-branch"></i> ${p.forks}</span>
+                            <span><i class="fas fa-code"></i> ${p.language}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function fetchProjects() {
+            const btn = document.getElementById('fetchProjectsBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 刷新中...';
+            
+            try {
+                const res = await fetch('/api/projects/fetch', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({languages: ['Python', 'JavaScript', 'TypeScript', 'Go', 'Rust']})
+                });
+                const json = await res.json();
+                if (!json.success) return alert(json.error);
+                alert(`成功获取 ${json.count} 个项目`);
+                await loadProjects();
+                await loadProjectLanguages();
+            } catch(e) {
+                alert('获取失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync"></i> 刷新项目';
+            }
+        }
+
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+    </script>
+</body>
+</html>
