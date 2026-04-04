@@ -4,11 +4,185 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>最新研究 - AI Chat Platform</title>
+    <script>
+        (function() {
+            var cachedTheme = localStorage.getItem('user_theme');
+            if (cachedTheme) {
+                document.body.setAttribute('data-theme', cachedTheme);
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tool.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        :root {
+            --bg-card: #1e1e1e;
+            --text-primary: #ececec;
+            --text-secondary: #8e8e8e;
+            --border-color: #2d2d2d;
+            --bg-light: #2a2a2a;
+            --bg-hover: #333;
+            --sidebar-bg: #171717;
+            --primary-color: #10a37f;
+            --secondary-color: #19c37d;
+            --text-color: #ececec;
+            --message-bg: #1a1a1a;
+            --hover-bg: #2a2a2a;
+            --input-bg: #1f1f1f;
+        }
+        body[data-theme="light"] {
+            --bg-card: #fff;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #e0e0e0;
+            --bg-light: #f5f5f5;
+            --bg-hover: #f0f0f0;
+            --sidebar-bg: #ffffff;
+            --primary-color: #10a37f;
+            --secondary-color: #19c37d;
+            --text-color: #333;
+            --message-bg: #f5f5f5;
+            --hover-bg: #e8e8e8;
+            --input-bg: #ffffff;
+        }
+        body[data-theme="dark"] {
+            --bg-card: #1e1e1e;
+            --text-primary: #ececec;
+            --text-secondary: #8e8e8e;
+            --border-color: #2d2d2d;
+            --bg-light: #2a2a2a;
+            --bg-hover: #333;
+            --sidebar-bg: #171717;
+            --primary-color: #10a37f;
+            --secondary-color: #19c37d;
+            --text-color: #ececec;
+            --message-bg: #1a1a1a;
+            --hover-bg: #2a2a2a;
+            --input-bg: #1f1f1f;
+        }
+        body[data-theme="blue"] {
+            --bg-card: #1e293b;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --bg-light: #0f172a;
+            --bg-hover: #1e293b;
+            --sidebar-bg: #1e293b;
+            --primary-color: #3b82f6;
+            --secondary-color: #60a5fa;
+            --text-color: #ececec;
+            --message-bg: #1e293b;
+            --hover-bg: #334155;
+            --input-bg: #0f172a;
+        }
+        body[data-theme="green"] {
+            --bg-card: #1a2e1a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #2d4d2d;
+            --bg-light: #0a0f0a;
+            --bg-hover: #1a2e1a;
+            --sidebar-bg: #0f1f0f;
+            --primary-color: #22c55e;
+            --secondary-color: #4ade80;
+            --text-color: #ececec;
+            --message-bg: #1a2e1a;
+            --hover-bg: #2d4d2d;
+            --input-bg: #0a0f0a;
+        }
+        body[data-theme="purple"] {
+            --bg-card: #2a1a3a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #4d2d6d;
+            --bg-light: #0f0a1a;
+            --bg-hover: #2a1a3a;
+            --sidebar-bg: #1f0f2f;
+            --primary-color: #a855f7;
+            --secondary-color: #c084fc;
+            --text-color: #ececec;
+            --message-bg: #2a1a3a;
+            --hover-bg: #4d2d6d;
+            --input-bg: #0f0a1a;
+        }
+        body[data-theme="red"] {
+            --bg-card: #3a1a1a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #6d2d2d;
+            --bg-light: #1a0a0a;
+            --bg-hover: #3a1a1a;
+            --sidebar-bg: #2a0f0f;
+            --primary-color: #ef4444;
+            --secondary-color: #f87171;
+            --text-color: #ececec;
+            --message-bg: #3a1a1a;
+            --hover-bg: #6d2d2d;
+            --input-bg: #1a0a0a;
+        }
+        body[data-theme="orange"] {
+            --bg-card: #3a2a1a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #6d4d2d;
+            --bg-light: #1a0f0a;
+            --bg-hover: #3a2a1a;
+            --sidebar-bg: #2a1a0f;
+            --primary-color: #f97316;
+            --secondary-color: #fb923c;
+            --text-color: #ececec;
+            --message-bg: #3a2a1a;
+            --hover-bg: #6d4d2d;
+            --input-bg: #1a0f0a;
+        }
+        body[data-theme="pink"] {
+            --bg-card: #3a1a2e;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #6d2d4d;
+            --bg-light: #1a0a14;
+            --bg-hover: #3a1a2e;
+            --sidebar-bg: #2a0f1f;
+            --primary-color: #ec4899;
+            --secondary-color: #f472b6;
+            --text-color: #ececec;
+            --message-bg: #3a1a2e;
+            --hover-bg: #6d2d4d;
+            --input-bg: #1a0a14;
+        }
+        body[data-theme="cyan"] {
+            --bg-card: #1a3a3a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #2d6d6d;
+            --bg-light: #0a1a1a;
+            --bg-hover: #1a3a3a;
+            --sidebar-bg: #0f2a2a;
+            --primary-color: #06b6d4;
+            --secondary-color: #22d3ee;
+            --text-color: #ececec;
+            --message-bg: #1a3a3a;
+            --hover-bg: #2d6d6d;
+            --input-bg: #0a1a1a;
+        }
+        body[data-theme="indigo"] {
+            --bg-card: #1a1a3a;
+            --text-primary: #ececec;
+            --text-secondary: #94a3b8;
+            --border-color: #2d2d6d;
+            --bg-light: #0a0a1a;
+            --bg-hover: #1a1a3a;
+            --sidebar-bg: #0f0f2a;
+            --primary-color: #6366f1;
+            --secondary-color: #818cf8;
+            --text-color: #ececec;
+            --message-bg: #1a1a3a;
+            --hover-bg: #2d2d6d;
+            --input-bg: #0a0a1a;
+        }
+
         .research-wrapper {
             display: flex;
             flex-direction: column;
@@ -330,7 +504,7 @@
         }
     </style>
 </head>
-<body>
+<body data-theme="{{ user_theme }}">
     <div class="app-container">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">

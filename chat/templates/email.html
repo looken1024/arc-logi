@@ -45,7 +45,7 @@
             color: var(--text-primary, #e0e0e0);
         }
         .form-group label i {
-            color: var(--primary-color, #4a9eff);
+            color: var(--primary-color);
             width: 16px;
         }
         .form-group input[type="text"],
@@ -65,7 +65,7 @@
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: var(--primary-color, #4a9eff);
+            border-color: var(--primary-color);
         }
         .form-group textarea {
             min-height: 300px;
@@ -82,12 +82,12 @@
             margin-bottom: 20px;
         }
         .attachment-area:hover {
-            border-color: var(--primary-color, #4a9eff);
+            border-color: var(--primary-color);
             background: rgba(74, 158, 255, 0.05);
         }
         .attachment-area i {
             font-size: 32px;
-            color: var(--primary-color, #4a9eff);
+            color: var(--primary-color);
             margin-bottom: 12px;
         }
         .attachment-area p {
@@ -116,7 +116,7 @@
             color: var(--text-primary, #e0e0e0);
         }
         .attachment-item i {
-            color: var(--primary-color, #4a9eff);
+            color: var(--primary-color);
         }
         .attachment-item .remove-btn {
             background: none;
@@ -136,7 +136,7 @@
             gap: 8px;
             width: 100%;
             padding: 16px 24px;
-            background: var(--primary-color, #4a9eff);
+            background: var(--primary-color);
             color: white;
             border: none;
             border-radius: 8px;
@@ -283,7 +283,7 @@
 
         attachmentArea?.addEventListener('dragover', (e) => {
             e.preventDefault();
-            attachmentArea.style.borderColor = 'var(--primary-color, #4a9eff)';
+            attachmentArea.style.borderColor = 'var(--primary-color)';
         });
 
         attachmentArea?.addEventListener('dragleave', () => {

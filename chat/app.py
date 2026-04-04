@@ -6784,7 +6784,13 @@ if __name__ == '__main__':
         """最新研究页面"""
         if 'username' not in session:
             return redirect(url_for('login'))
-        return render_template('research.html')
+        username = session['username']
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT theme FROM users WHERE username = %s", (username,))
+                result = cursor.fetchone()
+                user_theme = result.get('theme', 'dark') if result else 'dark'
+        return render_template('research.html', user_theme=user_theme)
 
     @app.route('/api/research', methods=['GET'])
     def get_research_list():
