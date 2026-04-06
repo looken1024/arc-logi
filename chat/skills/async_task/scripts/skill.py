@@ -142,8 +142,9 @@ class AsyncTaskSkill(BaseSkill):
 
     def _create_opencode_command(self, task_description: str) -> str:
         """构建 opencode run --thinking 命令"""
-        escaped_description = task_description.replace('"', '\\"')
-        return f'opencode run --thinking "{escaped_description}"'
+        import shlex
+        escaped_description = shlex.quote(task_description)
+        return f'opencode run --thinking {escaped_description}'
 
     def _parse_scheduled_at(self, scheduled_at_str: str) -> Optional[datetime]:
         """解析计划执行时间字符串"""
