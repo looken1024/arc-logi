@@ -53,8 +53,9 @@ USER_SKILLS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user
 os.makedirs(USER_SKILLS_DIR, exist_ok=True)
 
 # 数据库配置
+DB_SOCKET = os.getenv('DB_UNIX_SOCKET', '')
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
+    'host': os.getenv('DB_HOST', '127.0.0.1'),
     'port': int(os.getenv('DB_PORT', 3306)),
     'user': os.getenv('DB_USER', 'root'),
     'password': os.getenv('DB_PASSWORD', ''),
@@ -62,6 +63,8 @@ DB_CONFIG = {
     'charset': os.getenv('DB_CHARSET', 'utf8mb4'),
     'cursorclass': pymysql.cursors.DictCursor
 }
+if DB_SOCKET:
+    DB_CONFIG['unix_socket'] = DB_SOCKET
 
 @contextmanager
 def get_db_connection():
